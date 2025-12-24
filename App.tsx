@@ -41,7 +41,7 @@ const App: React.FC = () => {
   const [announcement, setAnnouncement] = useState<string>('');
   const hasUnread = notifications.some(n => !n.read);
 
-  // 鍔犺浇鐢ㄦ埛閫氱煡
+  // Load user notifications
   const loadNotifications = async () => {
     if (!stats.address || !stats.address.startsWith('0x')) return;
     try {
@@ -93,7 +93,7 @@ const App: React.FC = () => {
     }
   };
 
-  // 鍔犺浇绯荤粺閰嶇疆閾炬帴
+  // Load system configuration links
   useEffect(() => {
     const loadSystemLinks = async () => {
       try {
@@ -112,11 +112,13 @@ const App: React.FC = () => {
     loadSystemLinks();
   }, []);
 
-  // 鍔犺浇鐢ㄦ埛閫氱煡鍜岀郴缁熷叕鍛?  useEffect(() => {
+  // Load user notifications and system announcement
+  useEffect(() => {
     loadNotifications();
     loadAnnouncement();
     
-    // 姣?0绉掑埛鏂颁竴娆￠€氱煡鍜屽叕鍛?    const interval = setInterval(() => {
+    // Refresh notifications and announcement every 30 seconds
+    const interval = setInterval(() => {
       loadNotifications();
       loadAnnouncement();
     }, 30000);
@@ -124,7 +126,7 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [stats.address]);
 
-  // 鐩戝惉閫氱煡鍒锋柊浜嬩欢
+  // Listen to notification refresh event
   useEffect(() => {
     const handleRefresh = () => {
       loadNotifications();
@@ -146,7 +148,7 @@ const App: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen, showLanguageMenu]);
 
-  // 澶勭悊閾炬帴璺宠浆
+  // Handle link navigation
   const handleLinkClick = (url: string | undefined, type: 'whitepaper' | 'audits' | 'support') => {
     if (!url || url.trim() === '') {
       console.warn(`${type} link is not configured`);
