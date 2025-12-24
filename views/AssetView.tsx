@@ -30,30 +30,63 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   // 加载持币余额和收益信息
   useEffect(() => {
     const loadEarningsData = async () => {
-      if (!stats.address) return;
+      if (!stats.address || !stats.address.startsWith('0x')) return;
       try {
         setLoading(true);
-        const [balanceData, earningsData] = await Promise.all([
-          fetchRatBalance(stats.address),
-          fetchEarnings(stats.address),
-        ]);
-        setRatBalance(parseFloat(balanceData.balance || '0'));
-        setEarnings({
-          pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
-          dailyRate: earningsData.dailyRate || 0,
-          currentTier: earningsData.currentTier || 0,
-          holdingDays: earningsData.holdingDays || 0,
-        });
-        // 更新 stats 中的 pendingUsdt
-        setStats(prev => ({ ...prev, pendingUsdt: parseFloat(earningsData.pendingUsdt || '0') }));
-      } catch (error: any) {
-        // 404 错误是正常的（没有数据），不显示错误
-        const status = error?.response?.status || error?.status;
-        if (status !== 404 && !error?.message?.includes('404')) {
-          console.error('Failed to load earnings data:', error);
+        
+        // 直接从链上读取RAT代币余额
+        let ratBalanceFromChain = 0;
+        try {
+          const provider = getProvider();
+          if (provider) {
+            const ratContract = await getContract(CONTRACTS.RAT_TOKEN, ABIS.ERC20);
+            const balanceWei = await ratContract.balanceOf(stats.address);
+            const decimals = await ratContract.decimals().catch(() => 18); // 默认18位小数
+            ratBalanceFromChain = parseFloat(ethers.utils.formatUnits(balanceWei, decimals));
+            setRatBalance(ratBalanceFromChain);
+            // 更新 stats 中的 ratBalance
+            setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain }));
+          }
+        } catch (chainError: any) {
+          console.warn('Failed to fetch RAT balance from chain:', chainError);
+          // 如果链上读取失败，尝试从API获取
+          try {
+            const balanceData = await fetchRatBalance(stats.address);
+            ratBalanceFromChain = parseFloat(balanceData.balance || '0');
+            setRatBalance(ratBalanceFromChain);
+            setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain }));
+          } catch (apiError) {
+            console.error('Failed to fetch RAT balance from API:', apiError);
+          }
         }
-        // 设置默认值
-        setRatBalance(0);
+        
+        // 获取收益信息（从后端API）
+        try {
+          const earningsData = await fetchEarnings(stats.address);
+          setEarnings({
+            pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
+            dailyRate: earningsData.dailyRate || 0,
+            currentTier: earningsData.currentTier || 0,
+            holdingDays: earningsData.holdingDays || 0,
+          });
+          // 更新 stats 中的 pendingUsdt
+          setStats(prev => ({ ...prev, pendingUsdt: parseFloat(earningsData.pendingUsdt || '0') }));
+        } catch (earningsError: any) {
+          // 404 错误是正常的（没有数据），不显示错误
+          const status = earningsError?.response?.status || earningsError?.status;
+          if (status !== 404 && !earningsError?.message?.includes('404')) {
+            console.error('Failed to load earnings data:', earningsError);
+          }
+          setEarnings({
+            pendingUsdt: 0,
+            dailyRate: 0,
+            currentTier: 0,
+            holdingDays: 0,
+          });
+        }
+      } catch (error: any) {
+        console.error('Failed to load data:', error);
+        // 设置默认值（如果还没有设置）
         setEarnings({
           pendingUsdt: 0,
           dailyRate: 0,

@@ -188,8 +188,16 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
           alert(t('common.connectWallet') || '请先连接钱包');
           return;
         }
-        // 更新 stats 中的地址
-        setStats(prev => ({ ...prev, address }));
+        // 获取BNB余额
+        let bnbBalance = 0;
+        try {
+          const balance = await provider.getBalance(address);
+          bnbBalance = parseFloat(ethers.utils.formatEther(balance));
+        } catch (error) {
+          console.error('Failed to get BNB balance:', error);
+        }
+        // 更新 stats 中的地址和BNB余额
+        setStats(prev => ({ ...prev, address, bnbBalance }));
       } catch (error: any) {
         console.error('Failed to connect wallet:', error);
         alert('连接钱包失败，请重试');
@@ -213,7 +221,17 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
           try {
             await switchNetwork();
             // 等待网络切换
-            await sleep(1000);
+            await sleep(1500);
+            // 重新获取 provider 以确保网络已切换
+            provider = getProvider() || provider;
+            // 再次检查网络
+            const newNetwork = await provider.getNetwork();
+            const newChainId = Number(newNetwork.chainId);
+            if (newChainId !== CHAIN_ID) {
+              alert(`请切换到 BNB Smart Chain (Chain ID: ${CHAIN_ID})`);
+              setClaiming(false);
+              return;
+            }
           } catch (switchErr) {
             alert(`请先切换到 BNB Smart Chain Mainnet (Chain ID: ${CHAIN_ID})`);
             setClaiming(false);
@@ -232,12 +250,28 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       const signer = provider.getSigner();
       if (!signer) throw new Error("No signer");
       
-      // 检查用户 BNB 余额
-      const balance = await provider.getBalance(stats.address);
+      // 获取当前地址（确保使用最新地址）
+      const currentAddress = await signer.getAddress();
+      if (!currentAddress || !currentAddress.startsWith('0x')) {
+        alert(t('common.connectWallet') || '请先连接钱包');
+        setClaiming(false);
+        return;
+      }
+      
+      // 检查用户 BNB 余额（使用当前地址）
+      const balance = await provider.getBalance(currentAddress);
       const feeAmount = ethers.utils.parseEther(AIRDROP_FEE);
       const estimatedGas = ethers.utils.parseEther('0.001');
-      if (balance.lt(feeAmount.add(estimatedGas))) {
-        alert(t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励');
+      const requiredBalance = feeAmount.add(estimatedGas);
+      
+      // 更新stats中的BNB余额
+      const bnbBalance = parseFloat(ethers.utils.formatEther(balance));
+      setStats(prev => ({ ...prev, bnbBalance }));
+      
+      if (balance.lt(requiredBalance)) {
+        const balanceFormatted = ethers.utils.formatEther(balance);
+        const requiredFormatted = ethers.utils.formatEther(requiredBalance);
+        alert(`${t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励'}\n当前余额: ${parseFloat(balanceFormatted).toFixed(6)} BNB\n需要: ${parseFloat(requiredFormatted).toFixed(6)} BNB`);
         setClaiming(false);
         return;
       }

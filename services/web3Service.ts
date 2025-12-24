@@ -146,6 +146,8 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
       }
     }
     
+    let provider: ethers.providers.Web3Provider;
+    
     if (walletType === 'walletconnect') {
       // 使用 WalletConnect
       const wc = await initWalletConnectProvider();
@@ -163,11 +165,9 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
       }
       
       // 将 WalletConnect provider 转换为 ethers provider
-      const provider = new ethers.providers.Web3Provider(wc as any);
+      provider = new ethers.providers.Web3Provider(wc as any);
       currentProvider = provider;
       currentWalletType = walletType;
-      
-      return provider;
     } else {
       // 使用浏览器扩展钱包
       const walletProvider = getWalletProvider(walletType);
@@ -184,12 +184,43 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
         await walletProvider.enable();
       }
 
-      const provider = new ethers.providers.Web3Provider(walletProvider);
+      provider = new ethers.providers.Web3Provider(walletProvider);
       currentProvider = provider;
       currentWalletType = walletType;
-      
-      return provider;
     }
+    
+    // 连接成功后，检查并切换网络
+    try {
+      const network = await provider.getNetwork();
+      const currentChainId = Number(network.chainId);
+      if (currentChainId !== CHAIN_ID) {
+        console.log(`当前网络 Chain ID: ${currentChainId}, 需要切换到 Chain ID: ${CHAIN_ID}`);
+        await switchNetwork();
+        // 等待网络切换完成
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        // 重新创建 provider 实例以确保使用正确的网络
+        if (walletType === 'walletconnect' && walletConnectProvider) {
+          provider = new ethers.providers.Web3Provider(walletConnectProvider as any);
+        } else {
+          const walletProvider = getWalletProvider(walletType);
+          if (walletProvider) {
+            provider = new ethers.providers.Web3Provider(walletProvider);
+          }
+        }
+        currentProvider = provider;
+        // 再次验证网络
+        const newNetwork = await provider.getNetwork();
+        const newChainId = Number(newNetwork.chainId);
+        if (newChainId !== CHAIN_ID) {
+          console.warn(`网络切换后仍不匹配: ${newChainId} !== ${CHAIN_ID}`);
+        }
+      }
+    } catch (networkError: any) {
+      console.warn('网络检查或切换失败:', networkError);
+      // 网络切换失败不影响连接，继续执行
+    }
+    
+    return provider;
   } catch (error: any) {
     console.error('Wallet connection error:', error);
     throw error;

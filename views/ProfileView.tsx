@@ -187,7 +187,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
           </div>
           <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="font-black text-white text-base mono tracking-tighter truncate flex-1 min-w-0">{stats.address}</h2>
+              <h2 className="font-black text-white text-[10px] mono tracking-tighter break-all flex-1 min-w-0 leading-tight">{stats.address}</h2>
               <div className="p-1 bg-[#FCD535]/10 rounded-md flex-shrink-0">
                  <Shield className="w-3 h-3 text-[#FCD535]" />
               </div>

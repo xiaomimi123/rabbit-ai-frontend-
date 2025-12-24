@@ -1,5 +1,6 @@
 ﻿
 import React, { useState, useRef, useEffect } from 'react';
+import { ethers } from 'ethers';
 import { Pickaxe, Wallet, User, ShieldCheck, Volume2, Bell, Menu, X, Globe, FileText, ExternalLink, ChevronRight, Twitter, Send, Headset, MessageSquareQuote, Check } from 'lucide-react';
 import MiningView from './views/MiningView';
 import AssetView from './views/AssetView';
@@ -140,6 +141,33 @@ const App: React.FC = () => {
       loadAnnouncement();
     }, 30000);
     
+    return () => clearInterval(interval);
+  }, [stats.address]);
+
+  // 更新BNB余额
+  useEffect(() => {
+    const updateBnbBalance = async () => {
+      if (!stats.address || !stats.address.startsWith('0x')) {
+        setStats(prev => ({ ...prev, bnbBalance: 0 }));
+        return;
+      }
+      
+      try {
+        const { getProvider } = await import('./services/web3Service');
+        const provider = getProvider();
+        if (!provider) return;
+        
+        const balance = await provider.getBalance(stats.address);
+        const bnbBalance = parseFloat(ethers.utils.formatEther(balance));
+        setStats(prev => ({ ...prev, bnbBalance }));
+      } catch (error) {
+        console.error('Failed to update BNB balance:', error);
+      }
+    };
+    
+    updateBnbBalance();
+    // 每10秒更新一次BNB余额
+    const interval = setInterval(updateBnbBalance, 10000);
     return () => clearInterval(interval);
   }, [stats.address]);
 

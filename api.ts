@@ -90,11 +90,15 @@ export const fetchRatBalance = async (address: string) => {
     const { data } = await api.get(`/asset/rat-balance?address=${address}`);
     return data; // { balance: string } - 用户钱包中的 RAT 余额
   } catch (error: any) {
-    // 404 错误表示没有数据，返回默认值
-    if (error.response?.status === 404) {
+    // 任何错误都返回默认值，不抛出错误
+    const status = error.response?.status;
+    if (status === 404 || status === 400 || status === 503) {
+      console.warn('Failed to fetch RAT balance from API, returning 0:', error.message);
       return { balance: '0' };
     }
-    throw error;
+    // 其他错误也返回默认值
+    console.error('Unexpected error fetching RAT balance:', error);
+    return { balance: '0' };
   }
 };
 
