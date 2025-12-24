@@ -20,7 +20,8 @@ interface SystemLinks {
 
 const App: React.FC = () => {
   const { language, setLanguage, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<TabType>('asset');
+  // Default to mining page instead of asset page - updated
+  const [activeTab, setActiveTab] = useState<TabType>('mining');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [systemLinks, setSystemLinks] = useState<SystemLinks>({});
@@ -28,13 +29,13 @@ const App: React.FC = () => {
   const langMenuRef = useRef<HTMLDivElement>(null);
 
   const [stats, setStats] = useState<UserStats>({
-    ratBalance: 2450.75,
-    bnbBalance: 0.125,
-    energy: 45,
-    pendingUsdt: 12.85,
-    teamSize: 12,
-    teamRewards: 450.2,
-    address: '0x71C7...f7A5'
+    ratBalance: 0,
+    bnbBalance: 0,
+    energy: 0,
+    pendingUsdt: 0,
+    teamSize: 0,
+    teamRewards: 0,
+    address: ''
   });
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -47,7 +48,7 @@ const App: React.FC = () => {
     try {
       const data = await fetchUserNotifications(stats.address);
       if (Array.isArray(data)) {
-        // 转换后端数据格式为前端格式
+        // Convert backend data format to frontend format
         const formatted = data.map((item: any) => ({
           id: item.id || item._id || String(Math.random()),
           type: item.type || 'SYSTEM',
@@ -175,7 +176,7 @@ const App: React.FC = () => {
       case 'mining': return <MiningView stats={stats} setStats={setStats} />;
       case 'asset': return <AssetView stats={stats} setStats={setStats} />;
       case 'profile': return <ProfileView stats={stats} />;
-      case 'notifications': return <NotificationsView notifications={notifications} setNotifications={setNotifications} onBack={() => setActiveTab('asset')} address={stats.address} onMarkAllAsRead={handleMarkAllAsRead} />;
+      case 'notifications': return <NotificationsView notifications={notifications} setNotifications={setNotifications} onBack={() => setActiveTab('mining')} address={stats.address} onMarkAllAsRead={handleMarkAllAsRead} />;
       default: return <AssetView stats={stats} setStats={setStats} />;
     }
   };
@@ -191,7 +192,7 @@ const App: React.FC = () => {
       {/* Top Status Bar */}
       <header className="px-6 pt-6 pb-2 flex justify-between items-center z-[60]">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#FCD535] rounded-lg flex items-center justify-center glow-yellow cursor-pointer" onClick={() => setActiveTab('asset')}>
+          <div className="w-8 h-8 bg-[#FCD535] rounded-lg flex items-center justify-center glow-yellow cursor-pointer" onClick={() => setActiveTab('mining')}>
              <span className="text-[#0B0E11] font-black text-xl leading-none">R</span>
           </div>
           <div>
