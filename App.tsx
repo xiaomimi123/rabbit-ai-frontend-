@@ -47,7 +47,7 @@ const App: React.FC = () => {
     try {
       const data = await fetchUserNotifications(stats.address);
       if (Array.isArray(data)) {
-        // 转换后端数据格式为前端格式
+        // Convert backend data format to frontend format
         const formatted = data.map((item: any) => ({
           id: item.id || item._id || String(Math.random()),
           type: item.type || 'SYSTEM',
