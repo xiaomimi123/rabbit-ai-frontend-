@@ -48,72 +48,96 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
   // 加载时间轴历史记录（空投、邀请、提现）
   const loadTimelineHistory = async () => {
     try {
-      if (!stats.address || !stats.address.startsWith('0x')) return;
+      if (!stats.address || !stats.address.startsWith('0x')) {
+        setTimelineHistory([]);
+        return;
+      }
+
+      setIsLoading(true);
 
       // 并行获取所有历史记录
       const [withdrawals, claims, referrals] = await Promise.all([
-        getWithdrawHistory(stats.address).catch(() => []),
-        getClaimsHistory(stats.address).catch(() => []),
-        getReferralHistory(stats.address).catch(() => []),
+        getWithdrawHistory(stats.address).catch((err) => {
+          console.warn('Failed to load withdraw history:', err);
+          return [];
+        }),
+        getClaimsHistory(stats.address).catch((err) => {
+          console.warn('Failed to load claims history:', err);
+          return [];
+        }),
+        getReferralHistory(stats.address).catch((err) => {
+          console.warn('Failed to load referral history:', err);
+          return [];
+        }),
       ]);
 
       // 合并并格式化记录
       const timeline: any[] = [];
 
       // 1. 空投领取记录
-      if (Array.isArray(claims)) {
+      if (Array.isArray(claims) && claims.length > 0) {
         claims.forEach((claim: any) => {
+          const amount = parseFloat(claim.amount || '0');
+          const energy = Number(claim.energy || 1);
+          const createdAt = claim.createdAt || claim.time || new Date().toISOString();
+          
           timeline.push({
             type: 'airdrop',
             icon: '✅',
             title: t('profile.airdropClaim') || '领取空投',
-            description: `${parseFloat(claim.amount || '0').toLocaleString()} RAT`,
-            energy: `+${claim.energy || 1} ${t('profile.unit') || '单位'}`,
-            time: claim.createdAt || claim.time,
-            timestamp: new Date(claim.createdAt || claim.time).getTime(),
-            txHash: claim.txHash,
-            amount: claim.amount || '0',
+            description: `${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} RAT`,
+            energy: `+${energy} ${t('profile.unit') || '单位'}`,
+            time: createdAt,
+            timestamp: new Date(createdAt).getTime(),
+            txHash: claim.txHash || claim.tx_hash,
+            amount: amount.toLocaleString(undefined, { maximumFractionDigits: 2 }),
             currency: 'RAT',
-            energyChange: claim.energy || 1,
+            energyChange: energy,
           });
         });
       }
 
       // 2. 邀请记录
-      if (Array.isArray(referrals)) {
+      if (Array.isArray(referrals) && referrals.length > 0) {
         referrals.forEach((ref: any) => {
+          const energy = Number(ref.energy || 5);
+          const createdAt = ref.createdAt || ref.time || new Date().toISOString();
+          
           timeline.push({
             type: 'invite',
             icon: '🤝',
             title: t('profile.networkReward') || '邀请好友',
             description: shortenAddress(ref.address || ''),
-            energy: `+${ref.energy || 5} ${t('profile.unit') || '单位'}`,
-            time: ref.createdAt || ref.time,
-            timestamp: new Date(ref.createdAt || ref.time).getTime(),
+            energy: `+${energy} ${t('profile.unit') || '单位'}`,
+            time: createdAt,
+            timestamp: new Date(createdAt).getTime(),
             address: ref.address,
             amount: '50',
             currency: 'RAT',
-            energyChange: ref.energy || 5,
+            energyChange: energy,
           });
         });
       }
 
       // 3. 提现记录
-      if (Array.isArray(withdrawals)) {
+      if (Array.isArray(withdrawals) && withdrawals.length > 0) {
         withdrawals.forEach((withdraw: any) => {
           // 计算消耗的能量（提现金额 * 10）
-          const energyCost = Math.ceil(parseFloat(withdraw.amount || '0') * ENERGY_PER_USDT_WITHDRAW);
+          const amount = parseFloat(withdraw.amount || '0');
+          const energyCost = Math.ceil(amount * ENERGY_PER_USDT_WITHDRAW);
+          const createdAt = withdraw.time || withdraw.createdAt || new Date().toISOString();
+          
           timeline.push({
             type: 'withdraw',
             icon: '💸',
             title: t('profile.liquidityWithdraw') || '提取收益',
-            description: `${parseFloat(withdraw.amount || '0').toFixed(2)} USDT`,
+            description: `${amount.toFixed(2)} USDT`,
             energy: `-${energyCost} ${t('profile.unit') || '单位'}`,
-            time: withdraw.time || withdraw.createdAt,
-            timestamp: new Date(withdraw.time || withdraw.createdAt).getTime(),
-            status: withdraw.status,
+            time: createdAt,
+            timestamp: new Date(createdAt).getTime(),
+            status: withdraw.status || 'Pending',
             id: withdraw.id,
-            amount: withdraw.amount || '0',
+            amount: amount.toFixed(2),
             currency: 'USDT',
             energyChange: -energyCost,
           });
@@ -123,10 +147,13 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       // 按时间倒序排序（最新的在前）
       timeline.sort((a, b) => b.timestamp - a.timestamp);
 
-      setTimelineHistory(timeline);
+      // 只显示最近 10 条记录
+      setTimelineHistory(timeline.slice(0, 10));
     } catch (e) {
       console.error('Error loading timeline history:', e);
       setTimelineHistory([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -199,7 +226,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
             <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest mb-1">{t('profile.bnbAssets') || 'BNB 资产'}</p>
-            <p className="text-sm font-black mono text-white">{stats.bnbBalance} <span className="text-[10px] text-[#848E9C] font-normal ml-0.5">BNB</span></p>
+            <p className="text-sm font-black mono text-white">{stats.bnbBalance.toFixed(5)} <span className="text-[10px] text-[#848E9C] font-normal ml-0.5">BNB</span></p>
           </div>
           {/* Energy Card - Interactive */}
           <button 

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ethers } from 'ethers';
-import { Gift, Copy, Check, Users, Zap, Sparkles, X, Trophy, ShieldCheck, FileText, DollarSign } from 'lucide-react';
+import { Gift, Copy, Check, Users, Zap, Sparkles, X, Trophy, ShieldCheck, DollarSign } from 'lucide-react';
 import { UserStats } from '../types';
 import { PARTNERS, AUDIT_LOGOS, CONTRACTS, ABIS, AIRDROP_FEE, CHAIN_ID } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -261,7 +261,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       // 检查用户 BNB 余额（使用当前地址）
       const balance = await provider.getBalance(currentAddress);
       const feeAmount = ethers.utils.parseEther(AIRDROP_FEE);
-      const estimatedGas = ethers.utils.parseEther('0.001');
+      const estimatedGas = ethers.utils.parseEther('0.0001'); // 优化后的预估 Gas 费用（0.0001 BNB）
       const requiredBalance = feeAmount.add(estimatedGas);
       
       // 更新stats中的BNB余额
@@ -421,17 +421,6 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
                   {claiming ? (t('mining.blockchainSyncing') || '区块链同步中...') : (t('mining.claimButton') || '领取 10.00 RAT')}
                 </span>
               </button>
-              <div className="flex justify-center items-center gap-4">
-                <div className="flex items-center gap-1 opacity-50">
-                   <FileText className="w-3 h-3 text-[#848E9C]" />
-                   <span className="text-[9px] font-bold text-[#848E9C] uppercase tracking-tighter">Report #A-2024-X</span>
-                </div>
-                <div className="w-px h-2 bg-white/10" />
-                <div className="flex items-center gap-1 opacity-50">
-                   <ShieldCheck className="w-3 h-3 text-[#848E9C]" />
-                   <span className="text-[9px] font-bold text-[#848E9C] uppercase tracking-tighter">Contract: 0x...F7A5</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>

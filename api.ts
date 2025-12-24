@@ -70,18 +70,45 @@ export const applyWithdraw = async (address: string, amount: string) => {
 };
 
 export const getWithdrawHistory = async (address: string) => {
-  const { data } = await api.get(`/asset/withdraw/history?address=${address}`);
-  return data; // [{ id: string, amount: string, status: string, time: string }]
+  try {
+    const { data } = await api.get(`/asset/withdraw/history?address=${address}`);
+    return data || []; // [{ id: string, amount: string, status: string, time: string }]
+  } catch (error: any) {
+    // 404 错误表示没有数据，返回空数组
+    if (error.response?.status === 404) {
+      return [];
+    }
+    console.error('Failed to fetch withdraw history:', error);
+    return [];
+  }
 };
 
 export const getClaimsHistory = async (address: string) => {
-  const { data } = await api.get(`/user/claims?address=${address}`);
-  return data; // [{ txHash: string, amount: string, energy: number, createdAt: string }]
+  try {
+    const { data } = await api.get(`/user/claims?address=${address}`);
+    return data || []; // [{ txHash: string, amount: string, energy: number, createdAt: string }]
+  } catch (error: any) {
+    // 404 错误表示没有数据，返回空数组
+    if (error.response?.status === 404) {
+      return [];
+    }
+    console.error('Failed to fetch claims history:', error);
+    return [];
+  }
 };
 
 export const getReferralHistory = async (address: string) => {
-  const { data } = await api.get(`/user/referrals?address=${address}`);
-  return data; // [{ address: string, energy: number, createdAt: string }]
+  try {
+    const { data } = await api.get(`/user/referrals?address=${address}`);
+    return data || []; // [{ address: string, energy: number, createdAt: string }]
+  } catch (error: any) {
+    // 404 错误表示没有数据，返回空数组
+    if (error.response?.status === 404) {
+      return [];
+    }
+    console.error('Failed to fetch referral history:', error);
+    return [];
+  }
 };
 
 // 持币生息相关 API
