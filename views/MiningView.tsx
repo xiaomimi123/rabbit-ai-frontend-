@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ethers } from 'ethers';
 import { Gift, Copy, Check, Users, Zap, Sparkles, X, Trophy, ShieldCheck, FileText, DollarSign } from 'lucide-react';
 import { UserStats } from '../types';
@@ -8,6 +8,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { getProvider, getContract, formatError, switchNetwork, connectWallet } from '../services/web3Service';
 import { verifyClaim } from '../api';
 import { getPartnerIcon } from '../components/PartnerIcons';
+import { WalletType } from '../types';
 
 interface MiningViewProps {
   stats: UserStats;
@@ -16,7 +17,8 @@ interface MiningViewProps {
 
 const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
   const { t } = useLanguage();
-  const [countdown, setCountdown] = useState(14520); 
+  const DEFAULT_COOLDOWN = 4 * 3600; // 4 小时占位，用于未领取前静态显示
+  const [countdown, setCountdown] = useState(DEFAULT_COOLDOWN); 
   const [copied, setCopied] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [showRewardModal, setShowRewardModal] = useState(false);
@@ -24,6 +26,12 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
   const [nextClaimTime, setNextClaimTime] = useState<number>(0);
   const [isCooldown, setIsCooldown] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>('');
+  const isMobile = useMemo(() => /android|iphone|ipad|ipod/i.test(navigator.userAgent), []);
+
+  const pickWalletType = (): WalletType => {
+    // 桌面优先 WalletConnect；移动端也用 WalletConnect，若需扩展可再兼容扩展钱包
+    return 'walletconnect';
+  };
 
   // 从 URL 获取 referrer
   const getReferrerFromUrl = () => {
@@ -95,8 +103,10 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       const lastClaimNum = Number(lastClaim);
       
       if (lastClaimNum === 0) {
+        // 未领取过：保持静态 4:00:00 占位
         setIsCooldown(false);
         setNextClaimTime(0);
+        setCountdown(DEFAULT_COOLDOWN);
         return;
       }
       
@@ -133,7 +143,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
           setIsCooldown(false);
           setTimeLeft('');
           setNextClaimTime(0);
-          setCountdown(0);
+          setCountdown(DEFAULT_COOLDOWN); // 冷却结束后回到占位时间
         } else {
           setIsCooldown(true);
           setCountdown(diff);
@@ -157,14 +167,14 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
   const handleClaim = async () => {
     if (claiming) return;
     
-    // 检查钱包连接，如果未连接则自动连接
+    // 检查钱包连接，如果未连接则自动连接（移动端优先 WalletConnect）
     let provider = getProvider();
     if (!provider || !stats.address || !stats.address.startsWith('0x')) {
       try {
-        // 尝试连接钱包
-        await connectWallet('metamask'); // 默认使用 MetaMask，可以根据需要调整
+        const walletType = pickWalletType();
+        await connectWallet(walletType);
         // 等待一下让钱包状态更新
-        await sleep(1000);
+        await sleep(800);
         provider = getProvider();
         // 重新检查地址（需要从钱包获取）
         if (!provider) {
@@ -363,7 +373,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
             </div>
             
             <div className="text-5xl font-black text-white mb-8 mono tracking-tighter">
-              {formatTime(countdown)}
+              {isCooldown ? formatTime(countdown) : formatTime(DEFAULT_COOLDOWN)}
             </div>
             
             <div className="w-full space-y-3">
