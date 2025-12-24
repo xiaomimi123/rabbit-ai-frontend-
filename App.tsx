@@ -64,32 +64,35 @@ const App: React.FC = () => {
     }
   };
 
-  // 鍔犺浇绯荤粺鍏憡
+  // 加载系统公告
   const loadAnnouncement = async () => {
     try {
       const data = await fetchSystemAnnouncement();
       if (data && data.content) {
         setAnnouncement(data.content);
       } else {
-        // 濡傛灉娌℃湁鍏憡锛屼娇鐢ㄩ粯璁ゅ€硷紙绾枃鏈紝涓嶅寘鍚?HTML锛?        const defaultAnnouncement = `馃殌 ${t('common.announcement') || '閫忔槑鎬у叕鍛?'} ${t('common.announcementContent') || '杩囧幓24灏忔椂鍏ㄧ綉宸茬疮璁＄粨绠?} <span class="text-[#FCD535] font-bold">14,290 USDT</span> ${t('common.profit') || '鏀剁泭'}...`;
+        // 如果没有公告，使用默认值（纯文本，不包含HTML）
+        const defaultAnnouncement = `🎉 ${t('common.announcement') || '透明性公告'} ${t('common.announcementContent') || '过去24小时全网已累计结算'} <span class="text-[#FCD535] font-bold">14,290 USDT</span> ${t('common.profit') || '收益'}...`;
         setAnnouncement(defaultAnnouncement);
       }
     } catch (error) {
       console.error('Failed to load announcement:', error);
-      // 浣跨敤榛樿鍏憡
-      const defaultAnnouncement = `馃殌 ${t('common.announcement') || '閫忔槑鎬у叕鍛?'} ${t('common.announcementContent') || '杩囧幓24灏忔椂鍏ㄧ綉宸茬疮璁＄粨绠?} <span class="text-[#FCD535] font-bold">14,290 USDT</span> ${t('common.profit') || '鏀剁泭'}...`;
+      // 使用默认公告
+      const defaultAnnouncement = `🎉 ${t('common.announcement') || '透明性公告'} ${t('common.announcementContent') || '过去24小时全网已累计结算'} <span class="text-[#FCD535] font-bold">14,290 USDT</span> ${t('common.profit') || '收益'}...`;
       setAnnouncement(defaultAnnouncement);
     }
   };
 
-  // 鏍囪鎵€鏈夐€氱煡涓哄凡璇?  const handleMarkAllAsRead = async () => {
+  // 标记所有通知为已读
+  const handleMarkAllAsRead = async () => {
     if (!stats.address || !stats.address.startsWith('0x')) return;
     try {
       await markAllNotificationsAsRead(stats.address);
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
       console.error('Failed to mark all as read:', error);
-      // 鍗充娇 API 澶辫触锛屼篃鏇存柊鏈湴鐘舵€?      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      // 即使 API 失败，也更新本地状态
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     }
   };
 
@@ -101,7 +104,7 @@ const App: React.FC = () => {
         setSystemLinks(links || {});
       } catch (error) {
         console.error('Failed to load system links:', error);
-        // 璁剧疆榛樿鍊硷紙鍙€夛級
+        // 设置默认值（可选）
         setSystemLinks({
           whitepaper: '',
           audits: '',
@@ -154,17 +157,17 @@ const App: React.FC = () => {
       console.warn(`${type} link is not configured`);
       return;
     }
-    // 鍦ㄦ柊鏍囩椤垫墦寮€閾炬帴
+    // 在新标签页打开链接
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const languages: { code: Language; name: string; native: string }[] = [
-    { code: 'zh', name: 'Chinese', native: '涓枃' },
+    { code: 'zh', name: 'Chinese', native: '中文' },
     { code: 'en', name: 'English', native: 'English' },
-    { code: 'jp', name: 'Japanese', native: '鏃ユ湰瑾? },
-    { code: 'kr', name: 'Korean', native: '頃滉淡鞏? },
-    { code: 'fr', name: 'French', native: 'Fran莽ais' },
-    { code: 'ru', name: 'Russian', native: '袪褍褋褋泻懈泄' },
+    { code: 'jp', name: 'Japanese', native: '日本語' },
+    { code: 'kr', name: 'Korean', native: '한국어' },
+    { code: 'fr', name: 'French', native: 'Français' },
+    { code: 'ru', name: 'Russian', native: 'Русский' },
   ];
 
   const renderView = () => {
@@ -204,7 +207,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-1 mt-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#848E9C] opacity-50" />
                 <span className="text-[8px] font-black text-[#848E9C] uppercase tracking-tighter">
-                  {t('common.notConnected') || '鏈繛鎺?}
+                  {t('common.notConnected') || '未连接'}
                 </span>
               </div>
             )}
@@ -244,9 +247,9 @@ const App: React.FC = () => {
                       <Globe className="w-4 h-4" />
                     </div>
                     <div className="text-left">
-                      <p className="text-[11px] font-black text-white/90 leading-none mb-1 uppercase tracking-tight">璇█鍒囨崲</p>
+                      <p className="text-[11px] font-black text-white/90 leading-none mb-1 uppercase tracking-tight">语言切换</p>
                       <p className="text-[8px] text-[#848E9C] font-bold uppercase tracking-tighter">
-                        {languages.find(l => l.code === language)?.native || '涓枃'}
+                        {languages.find(l => l.code === language)?.native || '中文'}
                       </p>
                     </div>
                   </div>
@@ -282,14 +285,14 @@ const App: React.FC = () => {
               
               <MenuLink 
                 icon={<FileText className="w-4 h-4" />} 
-                label="椤圭洰鐧界毊涔? 
+                label="项目白皮书" 
                 subLabel="Whitepaper"
                 onClick={() => handleLinkClick(systemLinks.whitepaper, 'whitepaper')}
                 disabled={!systemLinks.whitepaper || systemLinks.whitepaper.trim() === ''}
               />
               <MenuLink 
                 icon={<ShieldCheck className="w-4 h-4" />} 
-                label="瀹夊叏瀹¤鎶ュ憡" 
+                label="安全审计报告" 
                 subLabel="Audits"
                 onClick={() => handleLinkClick(systemLinks.audits, 'audits')}
                 disabled={!systemLinks.audits || systemLinks.audits.trim() === ''}
@@ -306,14 +309,14 @@ const App: React.FC = () => {
                       <Headset className="w-5 h-5" />
                     </div>
                     <div className="text-left">
-                      <p className="text-[11px] font-black uppercase tracking-tight">鑱旂郴鍦ㄧ嚎瀹㈡湇</p>
+                      <p className="text-[11px] font-black uppercase tracking-tight">联系在线客服</p>
                       <p className="text-[8px] font-bold opacity-60 uppercase tracking-widest">Support Center</p>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 opacity-40 group-hover:translate-x-1 transition-transform" />
                 </button>
                 <p className="text-[8px] text-center text-[#848E9C] font-bold uppercase tracking-widest mt-3 opacity-50 px-4 leading-tight">
-                  7x24 鏅鸿兘鑺傜偣瀹㈡湇涓烘偍鏈嶅姟
+                  7x24 智能节点客服为您服务
                 </p>
               </div>
             </div>
@@ -327,7 +330,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2 bg-white/[0.03] border border-white/5 px-3 py-2 rounded-xl backdrop-blur-sm overflow-hidden">
             <Volume2 className="w-3.5 h-3.5 text-[#FCD535] flex-shrink-0" />
             <div className="flex-1 overflow-hidden h-4 flex items-center justify-center">
-              {/* 濡傛灉鍐呭杈冪煭锛屽眳涓樉绀猴紱濡傛灉杈冮暱锛屾粴鍔ㄦ樉绀?*/}
+              {/* 如果内容较短，居中显示；如果较长，滚动显示 */}
               {announcement.replace(/<[^>]*>/g, '').length > 50 ? (
                 <div className="w-full overflow-hidden">
                   <div 
@@ -387,5 +390,4 @@ const NavButton = ({ active, onClick, icon, label }: any) => (
 );
 
 export default App;
-
 
