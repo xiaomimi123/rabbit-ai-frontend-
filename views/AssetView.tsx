@@ -46,8 +46,20 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
         });
         // 更新 stats 中的 pendingUsdt
         setStats(prev => ({ ...prev, pendingUsdt: parseFloat(earningsData.pendingUsdt || '0') }));
-      } catch (error) {
-        console.error('Failed to load earnings data:', error);
+      } catch (error: any) {
+        // 404 错误是正常的（没有数据），不显示错误
+        const status = error?.response?.status || error?.status;
+        if (status !== 404 && !error?.message?.includes('404')) {
+          console.error('Failed to load earnings data:', error);
+        }
+        // 设置默认值
+        setRatBalance(0);
+        setEarnings({
+          pendingUsdt: 0,
+          dailyRate: 0,
+          currentTier: 0,
+          holdingDays: 0,
+        });
       } finally {
         setLoading(false);
       }

@@ -15,7 +15,7 @@ declare global {
 
 // 存储当前使用的 provider
 let currentProvider: ethers.providers.Web3Provider | null = null;
-let walletConnectProvider: EthereumProvider | null = null;
+let walletConnectProvider: any = null;
 let walletConnectModal: WalletConnectModal | null = null;
 let currentWalletType: WalletType | null = null;
 
@@ -47,19 +47,18 @@ const getWalletProvider = (walletType: WalletType): any => {
 
 function getWalletConnectModal(): WalletConnectModal {
   if (walletConnectModal) return walletConnectModal;
-  if (!WALLETCONNECT_PROJECT_ID || WALLETCONNECT_PROJECT_ID === 'YOUR_PROJECT_ID') {
+  if (!WALLETCONNECT_PROJECT_ID) {
     throw new Error('请先配置 WalletConnect 项目 ID');
   }
   walletConnectModal = new WalletConnectModal({
     projectId: WALLETCONNECT_PROJECT_ID,
-    standaloneChains: [`eip155:${CHAIN_ID}`],
   });
   return walletConnectModal;
 }
 
-async function initWalletConnectProvider(): Promise<EthereumProvider> {
+async function initWalletConnectProvider(): Promise<any> {
   if (walletConnectProvider) return walletConnectProvider;
-  if (!WALLETCONNECT_PROJECT_ID || WALLETCONNECT_PROJECT_ID === 'YOUR_PROJECT_ID') {
+  if (!WALLETCONNECT_PROJECT_ID) {
     throw new Error('请先配置 WalletConnect 项目 ID');
   }
 
@@ -108,9 +107,45 @@ async function initWalletConnectProvider(): Promise<EthereumProvider> {
   return provider;
 }
 
-// 连接钱包
-export const connectWallet = async (walletType: WalletType): Promise<ethers.providers.Web3Provider> => {
+// 检测可用的浏览器扩展钱包（按优先级）
+const detectAvailableWallets = (): WalletType[] => {
+  const available: WalletType[] = [];
+  
+  // 优先检测：币安、OKX、信任钱包
+  if (window.BinanceChain) {
+    available.push('binance');
+  }
+  if (window.okxwallet) {
+    available.push('okx');
+  }
+  if (window.ethereum?.isTrust) {
+    available.push('trust');
+  }
+  // MetaMask 作为备选
+  if (window.ethereum?.isMetaMask && !window.ethereum?.isTrust) {
+    available.push('metamask');
+  }
+  
+  return available;
+};
+
+// 连接钱包（智能选择）
+export const connectWallet = async (walletType?: WalletType): Promise<ethers.providers.Web3Provider> => {
   try {
+    // 如果没有指定钱包类型，智能选择
+    if (!walletType || walletType === 'walletconnect') {
+      // 先检测浏览器扩展钱包（优先：币安、OKX、信任钱包）
+      const availableWallets = detectAvailableWallets();
+      
+      if (availableWallets.length > 0) {
+        // 优先使用第一个检测到的钱包
+        walletType = availableWallets[0];
+      } else {
+        // 没有检测到扩展钱包，使用 WalletConnect
+        walletType = 'walletconnect';
+      }
+    }
+    
     if (walletType === 'walletconnect') {
       // 使用 WalletConnect
       const wc = await initWalletConnectProvider();

@@ -34,10 +34,13 @@ api.interceptors.response.use(
       // 服务器返回了错误状态码
       const status = error.response.status;
       const message = error.response.data?.message || error.message;
-      // 404 错误不记录到控制台（这些是可选的 API）
-      if (status !== 404) {
-        console.error(`API 错误 ${status}: ${message}`);
+      // 404 错误不记录到控制台（这些是可选的 API），直接返回错误对象供调用方处理
+      if (status === 404) {
+        // 静默处理 404 错误，不记录日志
+        return Promise.reject(error);
       }
+      // 其他错误才记录日志
+      console.error(`API 错误 ${status}: ${message}`);
       throw new Error(message || `服务器错误 (${status})`);
     }
     // 其他错误
@@ -83,13 +86,34 @@ export const getReferralHistory = async (address: string) => {
 
 // 持币生息相关 API
 export const fetchRatBalance = async (address: string) => {
-  const { data } = await api.get(`/asset/rat-balance?address=${address}`);
-  return data; // { balance: string } - 用户钱包中的 RAT 余额
+  try {
+    const { data } = await api.get(`/asset/rat-balance?address=${address}`);
+    return data; // { balance: string } - 用户钱包中的 RAT 余额
+  } catch (error: any) {
+    // 404 错误表示没有数据，返回默认值
+    if (error.response?.status === 404) {
+      return { balance: '0' };
+    }
+    throw error;
+  }
 };
 
 export const fetchEarnings = async (address: string) => {
-  const { data } = await api.get(`/asset/earnings?address=${address}`);
-  return data; // { pendingUsdt: string, dailyRate: number, currentTier: number, holdingDays: number }
+  try {
+    const { data } = await api.get(`/asset/earnings?address=${address}`);
+    return data; // { pendingUsdt: string, dailyRate: number, currentTier: number, holdingDays: number }
+  } catch (error: any) {
+    // 404 错误表示没有数据，返回默认值
+    if (error.response?.status === 404) {
+      return {
+        pendingUsdt: '0',
+        dailyRate: 0,
+        currentTier: 0,
+        holdingDays: 0,
+      };
+    }
+    throw error;
+  }
 };
 
 // 获取系统配置链接（白皮书、审计报告、客服链接等）
@@ -138,10 +162,11 @@ export const fetchSystemAnnouncement = async () => {
     const { data } = await api.get('/system/announcement');
     return data; // { content: string, updatedAt: string } 或 null
   } catch (error: any) {
-    // 404 错误表示没有公告，返回 null
+    // 404 错误表示没有公告，返回 null（不抛出错误）
     if (error.response?.status === 404) {
       return null;
     }
+    // 其他错误才抛出
     throw error;
   }
 };

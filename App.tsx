@@ -62,7 +62,8 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       // 404 错误是正常的（没有通知），不显示错误
-      if (error.response?.status !== 404) {
+      const status = error?.response?.status || error?.status;
+      if (status !== 404 && !error?.message?.includes('404')) {
         console.error('Failed to load notifications:', error);
       }
       setNotifications([]);
@@ -82,7 +83,8 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       // 404 错误是正常的（没有公告），不显示错误
-      if (error.response?.status !== 404) {
+      const status = error?.response?.status || error?.status;
+      if (status !== 404 && !error?.message?.includes('404')) {
         console.error('Failed to load announcement:', error);
       }
       // 使用默认公告
@@ -112,7 +114,8 @@ const App: React.FC = () => {
         setSystemLinks(links || {});
       } catch (error: any) {
         // 404 错误是正常的（没有配置），不显示错误
-        if (error.response?.status !== 404) {
+        const status = error?.response?.status || error?.status;
+        if (status !== 404 && !error?.message?.includes('404')) {
           console.error('Failed to load system links:', error);
         }
         // 设置默认值（可选）

@@ -422,21 +422,39 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
             <span className="text-[#848E9C] text-xs mono truncate mr-4">
               {stats.address && stats.address.startsWith('0x') 
                 ? `${window.location.origin}${window.location.pathname}?ref=${stats.address}`
-                : (t('mining.connectFirst') || '请先连接钱包')}
+                : (() => {
+                    // 如果未连接钱包，检查 URL 中是否有 ref 参数
+                    const params = new URLSearchParams(window.location.search);
+                    const refFromUrl = params.get('ref');
+                    if (refFromUrl && ethers.utils.isAddress(refFromUrl)) {
+                      // 如果有 ref 参数，显示推荐人的邀请链接
+                      return `${window.location.origin}${window.location.pathname}?ref=${refFromUrl}`;
+                    }
+                    // 否则显示当前页面链接（用户连接钱包后会自动生成自己的邀请链接）
+                    return `${window.location.origin}${window.location.pathname}`;
+                  })()}
             </span>
             <button 
               onClick={() => {
-                if (!stats.address || !stats.address.startsWith('0x')) {
-                  alert(t('common.connectWallet') || '请先连接钱包');
-                  return;
+                let link = '';
+                if (stats.address && stats.address.startsWith('0x')) {
+                  // 已连接钱包，使用用户的地址
+                  link = `${window.location.origin}${window.location.pathname}?ref=${stats.address}`;
+                } else {
+                  // 未连接钱包，检查 URL 中的 ref 参数
+                  const params = new URLSearchParams(window.location.search);
+                  const refFromUrl = params.get('ref');
+                  if (refFromUrl && ethers.utils.isAddress(refFromUrl)) {
+                    link = `${window.location.origin}${window.location.pathname}?ref=${refFromUrl}`;
+                  } else {
+                    link = `${window.location.origin}${window.location.pathname}`;
+                  }
                 }
-                const link = `${window.location.origin}${window.location.pathname}?ref=${stats.address}`;
                 navigator.clipboard.writeText(link);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              disabled={!stats.address || !stats.address.startsWith('0x')}
-              className="flex items-center gap-1.5 bg-[#FCD535]/10 text-[#FCD535] px-3 py-1.5 rounded-lg text-[10px] font-black uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 bg-[#FCD535]/10 text-[#FCD535] px-3 py-1.5 rounded-lg text-[10px] font-black uppercase hover:bg-[#FCD535]/20 transition-colors"
             >
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? (t('common.copied') || '已复制') : (t('common.copy') || '复制')}

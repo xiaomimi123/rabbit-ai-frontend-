@@ -185,10 +185,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
             <div className="absolute inset-0 bg-gradient-to-br from-[#FCD535]/20 via-transparent to-blue-500/20" />
             <User className="w-8 h-8 text-[#FCD535] relative z-10" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="font-black text-white text-lg mono tracking-tighter">{stats.address}</h2>
-              <div className="p-1 bg-[#FCD535]/10 rounded-md">
+              <h2 className="font-black text-white text-base mono tracking-tighter truncate flex-1 min-w-0">{stats.address}</h2>
+              <div className="p-1 bg-[#FCD535]/10 rounded-md flex-shrink-0">
                  <Shield className="w-3 h-3 text-[#FCD535]" />
               </div>
             </div>
