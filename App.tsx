@@ -20,7 +20,7 @@ interface SystemLinks {
 
 const App: React.FC = () => {
   const { language, setLanguage, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<TabType>('asset');
+  const [activeTab, setActiveTab] = useState<TabType>('mining');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [systemLinks, setSystemLinks] = useState<SystemLinks>({});
@@ -57,9 +57,14 @@ const App: React.FC = () => {
           read: item.read || false,
         }));
         setNotifications(formatted);
+      } else {
+        setNotifications([]);
       }
-    } catch (error) {
-      console.error('Failed to load notifications:', error);
+    } catch (error: any) {
+      // 404 错误是正常的（没有通知），不显示错误
+      if (error.response?.status !== 404) {
+        console.error('Failed to load notifications:', error);
+      }
       setNotifications([]);
     }
   };
@@ -75,8 +80,11 @@ const App: React.FC = () => {
         const defaultAnnouncement = `🎉 ${t('common.announcement') || '透明性公告'} ${t('common.announcementContent') || '过去24小时全网已累计结算'} <span class="text-[#FCD535] font-bold">14,290 USDT</span> ${t('common.profit') || '收益'}...`;
         setAnnouncement(defaultAnnouncement);
       }
-    } catch (error) {
-      console.error('Failed to load announcement:', error);
+    } catch (error: any) {
+      // 404 错误是正常的（没有公告），不显示错误
+      if (error.response?.status !== 404) {
+        console.error('Failed to load announcement:', error);
+      }
       // 使用默认公告
       const defaultAnnouncement = `🎉 ${t('common.announcement') || '透明性公告'} ${t('common.announcementContent') || '过去24小时全网已累计结算'} <span class="text-[#FCD535] font-bold">14,290 USDT</span> ${t('common.profit') || '收益'}...`;
       setAnnouncement(defaultAnnouncement);
@@ -102,8 +110,11 @@ const App: React.FC = () => {
       try {
         const links = await fetchSystemLinks();
         setSystemLinks(links || {});
-      } catch (error) {
-        console.error('Failed to load system links:', error);
+      } catch (error: any) {
+        // 404 错误是正常的（没有配置），不显示错误
+        if (error.response?.status !== 404) {
+          console.error('Failed to load system links:', error);
+        }
         // 设置默认值（可选）
         setSystemLinks({
           whitepaper: '',
@@ -197,9 +208,9 @@ const App: React.FC = () => {
           <div>
             <span className="font-black text-lg tracking-tighter uppercase italic block leading-none">Rabbit AI</span>
             {stats.address && stats.address.startsWith('0x') ? (
-              <div className="flex items-center gap-1 mt-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#0ECB81] animate-pulse" />
-                <span className="text-[8px] font-black text-[#0ECB81] uppercase tracking-tighter mono">
+              <div className="flex items-center gap-1 mt-1 max-w-[140px]">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#0ECB81] animate-pulse flex-shrink-0" />
+                <span className="text-[7px] font-black text-[#0ECB81] uppercase tracking-tighter mono truncate">
                   {shortenAddress(stats.address)}
                 </span>
               </div>

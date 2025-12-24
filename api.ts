@@ -34,7 +34,10 @@ api.interceptors.response.use(
       // 服务器返回了错误状态码
       const status = error.response.status;
       const message = error.response.data?.message || error.message;
-      console.error(`API 错误 ${status}: ${message}`);
+      // 404 错误不记录到控制台（这些是可选的 API）
+      if (status !== 404) {
+        console.error(`API 错误 ${status}: ${message}`);
+      }
       throw new Error(message || `服务器错误 (${status})`);
     }
     // 其他错误
@@ -91,14 +94,30 @@ export const fetchEarnings = async (address: string) => {
 
 // 获取系统配置链接（白皮书、审计报告、客服链接等）
 export const fetchSystemLinks = async () => {
-  const { data } = await api.get('/system/links');
-  return data; // { whitepaper: string, audits: string, support: string }
+  try {
+    const { data } = await api.get('/system/links');
+    return data; // { whitepaper: string, audits: string, support: string }
+  } catch (error: any) {
+    // 404 错误表示没有配置，返回空对象
+    if (error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 };
 
 // 获取用户站内信通知
 export const fetchUserNotifications = async (address: string) => {
-  const { data } = await api.get(`/user/notifications?address=${address}`);
-  return data; // [{ id: string, type: string, title: string, content: string, timestamp: number, read: boolean }]
+  try {
+    const { data } = await api.get(`/user/notifications?address=${address}`);
+    return data; // [{ id: string, type: string, title: string, content: string, timestamp: number, read: boolean }]
+  } catch (error: any) {
+    // 404 错误表示没有通知，返回空数组
+    if (error.response?.status === 404) {
+      return [];
+    }
+    throw error;
+  }
 };
 
 // 标记通知为已读
@@ -115,8 +134,16 @@ export const markAllNotificationsAsRead = async (address: string) => {
 
 // 获取系统公告
 export const fetchSystemAnnouncement = async () => {
-  const { data } = await api.get('/system/announcement');
-  return data; // { content: string, updatedAt: string } 或 null
+  try {
+    const { data } = await api.get('/system/announcement');
+    return data; // { content: string, updatedAt: string } 或 null
+  } catch (error: any) {
+    // 404 错误表示没有公告，返回 null
+    if (error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 };
 
 export default api;
