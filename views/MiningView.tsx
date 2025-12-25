@@ -468,36 +468,70 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       setRewardAmount(wonAmount);
       setShowRewardModal(true);
       
-      // API 同步
+      // API 同步（使用当前连接的地址，而不是 stats.address）
       const syncRes = await syncClaimWithRetry({ 
-        address: stats.address, 
+        address: currentAddress, 
         txHash: receipt.hash, 
         referrer: refAddr 
       });
       if (!syncRes.ok) {
         enqueuePendingClaim({ 
-          address: stats.address, 
+          address: currentAddress, 
           txHash: receipt.hash, 
           referrer: refAddr 
         });
         console.warn('后端同步失败，已加入待同步队列:', syncRes.message);
+        alert(`领取成功，但后端同步失败：${syncRes.message}\n请稍后刷新页面查看数据`);
+      } else {
+        console.log('后端同步成功，用户数据已更新');
       }
       
-      // 触发能量值刷新事件
+      // 更新 stats 中的地址（确保使用当前连接的地址）
+      setStats(p => ({ 
+        ...p, 
+        address: currentAddress,
+        ratBalance: p.ratBalance + parseFloat(wonAmount),
+        energy: p.energy + 1 
+      }));
+      
+      // 触发能量值刷新事件（在所有页面）
       try {
         localStorage.setItem('rabbit_needs_userinfo_refresh_at', String(Date.now()));
       } catch {}
       window.dispatchEvent(new CustomEvent('refreshEnergy'));
       
+      // 延迟刷新用户信息，确保后端数据已写入（多次重试，确保数据同步）
+      const refreshUserInfo = async (retries = 3) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            await new Promise(resolve => setTimeout(resolve, i === 0 ? 2000 : 3000)); // 第一次 2 秒，后续每次 3 秒
+            const { fetchUserInfo } = await import('../api');
+            const userInfo = await fetchUserInfo(currentAddress);
+            if (userInfo && Number(userInfo.energy || 0) > 0) {
+              // 如果能量值大于 0，说明数据已同步成功
+              setStats(p => ({
+                ...p,
+                address: currentAddress,
+                energy: Number(userInfo.energy || 0),
+                teamSize: Number(userInfo.inviteCount || 0),
+              }));
+              console.log('用户信息刷新成功，能量值:', userInfo.energy);
+              return; // 成功则退出
+            }
+          } catch (error) {
+            console.warn(`Failed to refresh user info after claim (attempt ${i + 1}/${retries}):`, error);
+            if (i === retries - 1) {
+              // 最后一次重试失败，提示用户手动刷新
+              console.warn('所有重试均失败，建议用户手动刷新页面');
+            }
+          }
+        }
+      };
+      
+      refreshUserInfo();
+      
       // 刷新冷却时间
       fetchCooldown();
-      
-      // 更新本地状态（临时，实际应该从后端获取）
-      setStats(p => ({ 
-        ...p, 
-        ratBalance: p.ratBalance + parseFloat(wonAmount),
-        energy: p.energy + 1 
-      }));
       
     } catch (err: any) {
       console.error('Claim error details:', err);

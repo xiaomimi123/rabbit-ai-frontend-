@@ -199,6 +199,53 @@ const App: React.FC = () => {
     return () => window.removeEventListener('refreshNotifications', handleRefresh);
   }, [stats.address]);
 
+  // 监听能量值刷新事件，刷新用户信息
+  useEffect(() => {
+    const handleRefreshEnergy = async () => {
+      if (!stats.address || !stats.address.startsWith('0x')) return;
+      
+      try {
+        const { fetchUserInfo } = await import('./api');
+        const userInfo = await fetchUserInfo(stats.address);
+        if (userInfo) {
+          setStats(prev => ({
+            ...prev,
+            energy: Number(userInfo.energy || 0),
+            teamSize: Number(userInfo.inviteCount || 0),
+          }));
+        }
+      } catch (error) {
+        console.warn('Failed to refresh user info on refreshEnergy event:', error);
+      }
+    };
+    
+    window.addEventListener('refreshEnergy', handleRefreshEnergy);
+    return () => window.removeEventListener('refreshEnergy', handleRefreshEnergy);
+  }, [stats.address]);
+
+  // 页面加载时，如果有地址，加载用户信息
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      if (!stats.address || !stats.address.startsWith('0x')) return;
+      
+      try {
+        const { fetchUserInfo } = await import('./api');
+        const userInfo = await fetchUserInfo(stats.address);
+        if (userInfo) {
+          setStats(prev => ({
+            ...prev,
+            energy: Number(userInfo.energy || 0),
+            teamSize: Number(userInfo.inviteCount || 0),
+          }));
+        }
+      } catch (error) {
+        console.warn('Failed to load user info on mount:', error);
+      }
+    };
+    
+    loadUserInfo();
+  }, [stats.address]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
