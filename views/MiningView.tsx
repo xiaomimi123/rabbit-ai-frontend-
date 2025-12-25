@@ -258,10 +258,29 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         setStats(prev => ({ ...prev, address, bnbBalance }));
       } catch (error: any) {
         console.error('Failed to connect wallet:', error);
-        // 检查是否是连接状态异常的错误
+        // 检查是否是连接状态异常的错误（更精确的判断）
         const errorMessage = error?.message || error?.toString() || '';
-        if (errorMessage.includes('disconnect') || errorMessage.includes('reconnect') || error?.code === 'USER_REJECTED' || error?.code === 4001) {
+        const errorCode = error?.code || error?.error?.code;
+        
+        // 只在特定情况下显示断开重连提示
+        const shouldShowDisconnectModal = 
+          errorMessage.includes('Session already exists') ||
+          errorMessage.includes('already connected') ||
+          errorMessage.includes('请尝试在钱包中断开') ||
+          errorCode === -32002; // Session already exists
+        
+        // 用户拒绝连接的情况，不显示断开重连提示
+        const isUserRejected = 
+          error?.code === 'USER_REJECTED' || 
+          error?.code === 4001 ||
+          errorMessage.includes('User rejected') ||
+          errorMessage.includes('user rejected');
+        
+        if (shouldShowDisconnectModal) {
           setShowDisconnectModal(true);
+        } else if (isUserRejected) {
+          // 用户拒绝，不显示任何提示（钱包已处理）
+          return;
         } else {
           alert('连接钱包失败，请重试');
         }

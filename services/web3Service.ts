@@ -150,7 +150,26 @@ function getWalletConnectModal(): WalletConnectModal {
 }
 
 async function initWalletConnectProvider(): Promise<any> {
-  if (walletConnectProvider) return walletConnectProvider;
+  // 如果已有 provider，先检查连接状态
+  if (walletConnectProvider) {
+    try {
+      // 检查是否已连接
+      if (walletConnectProvider.accounts && walletConnectProvider.accounts.length > 0) {
+        return walletConnectProvider;
+      }
+      // 如果未连接但有旧状态，先断开清理
+      try {
+        await walletConnectProvider.disconnect();
+      } catch {
+        // 忽略断开错误
+      }
+      walletConnectProvider = null;
+    } catch {
+      // 如果检查失败，重置 provider
+      walletConnectProvider = null;
+    }
+  }
+  
   if (!WALLETCONNECT_PROJECT_ID) {
     throw new Error('请先配置 WalletConnect 项目 ID');
   }
@@ -244,7 +263,32 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
     if (walletType === 'walletconnect') {
       // 使用 WalletConnect
       const wc = await initWalletConnectProvider();
-      await wc.enable();
+      
+      try {
+        await wc.enable();
+      } catch (enableError: any) {
+        // 如果 enable 失败，可能是已有连接但状态不一致
+        // 先尝试断开，然后重新连接
+        if (enableError?.message?.includes('Session already exists') || 
+            enableError?.message?.includes('already connected') ||
+            enableError?.code === -32002) {
+          try {
+            await wc.disconnect();
+            // 等待断开完成
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // 重新初始化
+            walletConnectProvider = null;
+            const newWc = await initWalletConnectProvider();
+            await newWc.enable();
+            walletConnectProvider = newWc;
+          } catch (retryError) {
+            throw new Error('连接失败，请尝试在钱包中断开 DApp 后重新连接');
+          }
+        } else {
+          throw enableError;
+        }
+      }
+      
       // close modal if still open
       try {
         getWalletConnectModal().closeModal();
@@ -253,12 +297,13 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
       }
       
       // 验证 WalletConnect 已连接
-      if (!wc.accounts || wc.accounts.length === 0) {
+      const finalWc = walletConnectProvider || wc;
+      if (!finalWc.accounts || finalWc.accounts.length === 0) {
         throw new Error('WalletConnect connection failed: No accounts');
       }
       
       // 将 WalletConnect provider 转换为 ethers provider
-      provider = new ethers.providers.Web3Provider(wc as any);
+      provider = new ethers.providers.Web3Provider(finalWc as any);
       currentProvider = provider;
       currentWalletType = walletType;
     } else {
