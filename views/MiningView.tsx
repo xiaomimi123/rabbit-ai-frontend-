@@ -44,7 +44,64 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
     return '0x0000000000000000000000000000000000000000';
   };
 
+  // 从 localStorage 获取持久化的推荐人地址
+  const getReferrerFromStorage = (): string => {
+    try {
+      const stored = localStorage.getItem('rabbit_referrer');
+      if (stored && ethers.utils.isAddress(stored)) {
+        return stored;
+      }
+    } catch (error) {
+      console.warn('Failed to read referrer from localStorage:', error);
+    }
+    return '0x0000000000000000000000000000000000000000';
+  };
+
+  // 保存推荐人地址到 localStorage
+  const saveReferrerToStorage = (address: string) => {
+    try {
+      if (address && ethers.utils.isAddress(address)) {
+        localStorage.setItem('rabbit_referrer', address);
+      }
+    } catch (error) {
+      console.warn('Failed to save referrer to localStorage:', error);
+    }
+  };
+
+  // 获取推荐人地址（优先级：localStorage > URL > 默认值）
+  const getReferrer = (): string => {
+    const fromStorage = getReferrerFromStorage();
+    if (fromStorage !== '0x0000000000000000000000000000000000000000') {
+      return fromStorage;
+    }
+    const fromUrl = getReferrerFromUrl();
+    if (fromUrl !== '0x0000000000000000000000000000000000000000') {
+      // 如果 URL 中有 ref，保存到 localStorage
+      saveReferrerToStorage(fromUrl);
+      return fromUrl;
+    }
+    return '0x0000000000000000000000000000000000000000';
+  };
+
+  // 应用初始化时，如果 URL 有 ref 参数，立即存入 localStorage
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('ref');
+    if (ref && ethers.utils.isAddress(ref)) {
+      saveReferrerToStorage(ref);
+    }
+  }, []);
+
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // 应用初始化时，如果 URL 有 ref 参数，立即存入 localStorage
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('ref');
+    if (ref && ethers.utils.isAddress(ref)) {
+      saveReferrerToStorage(ref);
+    }
+  }, []);
 
   // 领取成功后需要把 txHash 同步到后端写库（claims/users/energy）。
   // 这里做自动重试：每 2 秒重试 1 次，共 5 次；只有全部失败才提示用户把 txHash 发给管理员。
@@ -284,35 +341,99 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       }
       
       const contract = await getContract(CONTRACTS.AIRDROP, ABIS.AIRDROP, signer);
-      const refAddr = getReferrerFromUrl();
+      const refAddr = getReferrer(); // 使用新的 getReferrer 函数，优先从 localStorage 读取
       
-      // 估算 gas limit
+      // 估算 gas limit（动态估算，乘以 1.2 缓冲系数）
       let gasLimit;
       try {
         const estimatedGas = await contract.estimateGas.claim(refAddr, { value: feeAmount });
-        gasLimit = estimatedGas.mul(130).div(100);
+        gasLimit = estimatedGas.mul(120).div(100); // 1.2 缓冲系数（文档建议）
       } catch (estimateError: any) {
-        const errorMsg = estimateError?.message || estimateError?.toString() || '';
-        if (errorMsg.includes('Cooldown') || errorMsg.includes('cooldown')) {
-          alert(t('mining.cooldown') || '冷却中，请稍候');
+        // 合约交互异常代码映射
+        const code = estimateError?.code;
+        const errorMsg = estimateError?.message || estimateError?.reason || estimateError?.toString() || '';
+        
+        // ACTION_REJECTED (用户点了拒绝)
+        if (code === 'ACTION_REJECTED' || code === 4001 || errorMsg.includes('user rejected')) {
+          alert('您取消了交易');
+          setClaiming(false);
+          return;
+        }
+        
+        // INSUFFICIENT_FUNDS (没钱付 Gas)
+        if (code === 'INSUFFICIENT_FUNDS' || errorMsg.includes('insufficient funds') || errorMsg.includes('Insufficient')) {
+          alert('BNB 余额不足以支付 Gas 费');
+          setClaiming(false);
+          return;
+        }
+        
+        // CALL_EXCEPTION (合约报错)
+        if (code === 'CALL_EXCEPTION' || errorMsg.includes('Cooldown') || errorMsg.includes('cooldown')) {
+          alert('领取失败，可能处于冷却期或空投池已空');
           setClaiming(false);
           fetchCooldown();
           return;
         }
-        if (errorMsg.includes('Insufficient') || errorMsg.includes('balance')) {
+        
+        if (errorMsg.includes('balance')) {
           alert(t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励');
           setClaiming(false);
           return;
         }
+        
+        // 其他错误：使用默认 Gas limit
+        console.warn('Gas estimation failed, using default:', estimateError);
         gasLimit = ethers.BigNumber.from('500000');
       }
       
-      // 发送交易
-      const tx = await contract.claim(refAddr, { 
-        value: feeAmount,
-        gasLimit: gasLimit
-      });
-      const receipt = await tx.wait();
+      // 发送交易（带错误处理）
+      let tx, receipt;
+      try {
+        tx = await contract.claim(refAddr, { 
+          value: feeAmount,
+          gasLimit: gasLimit
+        });
+        receipt = await tx.wait();
+      } catch (txError: any) {
+        // 交易发送失败的错误处理
+        const code = txError?.code;
+        const errorMsg = txError?.message || txError?.reason || txError?.toString() || '';
+        
+        // ACTION_REJECTED (用户点了拒绝)
+        if (code === 'ACTION_REJECTED' || code === 4001 || errorMsg.includes('user rejected')) {
+          alert('您取消了交易');
+          setClaiming(false);
+          return;
+        }
+        
+        // INSUFFICIENT_FUNDS (没钱付 Gas)
+        if (code === 'INSUFFICIENT_FUNDS' || errorMsg.includes('insufficient funds')) {
+          alert('BNB 余额不足以支付 Gas 费');
+          setClaiming(false);
+          return;
+        }
+        
+        // CALL_EXCEPTION (合约报错)
+        if (code === 'CALL_EXCEPTION' || errorMsg.includes('Cooldown') || errorMsg.includes('cooldown')) {
+          alert('领取失败，可能处于冷却期或空投池已空');
+          setClaiming(false);
+          fetchCooldown();
+          return;
+        }
+        
+        // NETWORK_ERROR (网络错误)
+        if (code === 'NETWORK_ERROR' || errorMsg.includes('network')) {
+          alert('网络错误，请检查网络连接');
+          setClaiming(false);
+          return;
+        }
+        
+        // 其他错误
+        const friendlyMsg = txError?.reason || errorMsg || '交易失败';
+        alert(friendlyMsg);
+        setClaiming(false);
+        return;
+      }
 
       // 解析 Claimed 事件
       const iface = new ethers.utils.Interface(ABIS.AIRDROP);

@@ -19,7 +19,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [ratBalance, setRatBalance] = useState(stats.ratBalance);
+  // 区分 null（加载中/失败）和 0（实际为0）
+  const [ratBalance, setRatBalance] = useState<number | null>(stats.ratBalance || null);
   const [earnings, setEarnings] = useState<{
     pendingUsdt: number;
     dailyRate: number;
@@ -27,6 +28,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
     holdingDays: number;
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [ratBalanceError, setRatBalanceError] = useState(false);
+  const [earningsError, setEarningsError] = useState(false);
 
   // 加载持币余额和收益信息
   useEffect(() => {
@@ -36,17 +39,20 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
         setLoading(true);
         
         // 直接从链上读取RAT代币余额
-        let ratBalanceFromChain = 0;
+        let ratBalanceFromChain: number | null = null;
+        setRatBalanceError(false);
         try {
           const provider = getProvider();
           if (provider) {
             const ratContract = await getContract(CONTRACTS.RAT_TOKEN, ABIS.ERC20);
             const balanceWei = await ratContract.balanceOf(stats.address);
             const decimals = await ratContract.decimals().catch(() => 18); // 默认18位小数
-            ratBalanceFromChain = parseFloat(ethers.utils.formatUnits(balanceWei, decimals));
+            // 使用 formatUnits 保持精度，只在最后转换为 number
+            const balanceFormatted = ethers.utils.formatUnits(balanceWei, decimals);
+            ratBalanceFromChain = parseFloat(balanceFormatted);
             setRatBalance(ratBalanceFromChain);
             // 更新 stats 中的 ratBalance
-            setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain }));
+            setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain || 0 }));
           }
         } catch (chainError: any) {
           console.warn('Failed to fetch RAT balance from chain:', chainError);
@@ -55,13 +61,16 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
             const balanceData = await fetchRatBalance(stats.address);
             ratBalanceFromChain = parseFloat(balanceData.balance || '0');
             setRatBalance(ratBalanceFromChain);
-            setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain }));
+            setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain || 0 }));
           } catch (apiError) {
             console.error('Failed to fetch RAT balance from API:', apiError);
+            setRatBalanceError(true);
+            // 保持 null，不设置为 0
           }
         }
         
         // 获取收益信息（从后端API）
+        setEarningsError(false);
         try {
           const earningsData = await fetchEarnings(stats.address);
           setEarnings({
@@ -73,27 +82,27 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
           // 更新 stats 中的 pendingUsdt
           setStats(prev => ({ ...prev, pendingUsdt: parseFloat(earningsData.pendingUsdt || '0') }));
         } catch (earningsError: any) {
-          // 404 错误是正常的（没有数据），不显示错误
+          // 404 错误是正常的（没有数据），设置为 0
           const status = earningsError?.response?.status || earningsError?.status;
-          if (status !== 404 && !earningsError?.message?.includes('404')) {
+          if (status === 404 || earningsError?.message?.includes('404')) {
+            // 404 表示没有数据，设置为 0（这是正常的）
+            setEarnings({
+              pendingUsdt: 0,
+              dailyRate: 0,
+              currentTier: 0,
+              holdingDays: 0,
+            });
+          } else {
+            // 其他错误，保持 null，不设置为 0
             console.error('Failed to load earnings data:', earningsError);
+            setEarningsError(true);
           }
-          setEarnings({
-            pendingUsdt: 0,
-            dailyRate: 0,
-            currentTier: 0,
-            holdingDays: 0,
-          });
         }
       } catch (error: any) {
         console.error('Failed to load data:', error);
-        // 设置默认值（如果还没有设置）
-        setEarnings({
-          pendingUsdt: 0,
-          dailyRate: 0,
-          currentTier: 0,
-          holdingDays: 0,
-        });
+        setRatBalanceError(true);
+        setEarningsError(true);
+        // 不设置默认值，保持 null
       } finally {
         setLoading(false);
       }
@@ -105,7 +114,14 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
   }, [stats.address, setStats]);
 
   const usdtValuation = useMemo(() => {
-    return (ratBalance * RAT_PRICE_USDT).toFixed(2);
+    if (ratBalance === null) return null;
+    // 使用更精确的计算方式，避免精度丢失
+    // 将 RAT_PRICE_USDT (0.01) 转换为 BigNumber 进行计算
+    const priceWei = ethers.utils.parseEther(RAT_PRICE_USDT.toString());
+    const balanceWei = ethers.utils.parseEther(ratBalance.toString());
+    // 计算：balanceWei * priceWei / 1e18，然后格式化为 USDT（2位小数）
+    const resultWei = balanceWei.mul(priceWei).div(ethers.utils.parseEther('1'));
+    return parseFloat(ethers.utils.formatEther(resultWei)).toFixed(2);
   }, [ratBalance]);
   
   // 根据持币余额确定当前 VIP 等级
@@ -116,6 +132,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
 
   // 计算距离下一个等级的进度百分比
   const progress = useMemo(() => {
+    // 如果数据加载中，返回 null
+    if (ratBalance === null) return null;
+    
     // 如果未达到VIP1，计算距离VIP1的进度
     if (!currentTier) {
       const vip1Min = VIP_TIERS[0].min; // 10000
@@ -128,20 +147,49 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
     const currentIdx = VIP_TIERS.findIndex(t => t.level === currentTier.level);
     const nextTier = VIP_TIERS[currentIdx + 1];
     
-    // 如果已经是最高等级，显示100%
-    if (!nextTier) return 100;
+    // ⚠️ 重要：检查是否有下一级，防止除以 0 或逻辑报错
+    // 如果已经是最高等级（VIP4），显示 100%
+    if (!nextTier) {
+      return 100;
+    }
     
     // 计算当前等级到下一个等级的进度
     const currentMin = currentTier.min;
     const nextMin = nextTier.min;
+    
+    // 防止除以 0（虽然理论上不会发生，但为了安全）
+    if (nextMin <= currentMin) {
+      return 100;
+    }
+    
     const progressToNext = Math.min(Math.round(((ratBalance - currentMin) / (nextMin - currentMin)) * 100), 100);
     return progressToNext;
   }, [ratBalance, currentTier]);
 
-  // 计算预计每日收益
+  // 计算预计每日收益（使用 BigInt 避免精度丢失）
   const estimatedDailyEarnings = useMemo(() => {
-    if (!currentTier || !earnings) return 0;
-    return ratBalance * RAT_PRICE_USDT * (currentTier.dailyRate / 100);
+    if (!currentTier || !earnings || ratBalance === null) return null;
+    
+    // 使用 BigNumber 进行精确计算
+    // 公式：ratBalance * RAT_PRICE_USDT * (dailyRate / 100)
+    try {
+      const balanceWei = ethers.utils.parseEther(ratBalance.toString());
+      const priceWei = ethers.utils.parseEther(RAT_PRICE_USDT.toString());
+      const ratePercent = currentTier.dailyRate; // 例如：2 表示 2%
+      
+      // 计算：balanceWei * priceWei * ratePercent / (1e18 * 100)
+      const resultWei = balanceWei
+        .mul(priceWei)
+        .mul(ethers.BigNumber.from(ratePercent))
+        .div(ethers.utils.parseEther('100'));
+      
+      // 格式化为 USDT（2位小数）
+      return parseFloat(ethers.utils.formatEther(resultWei));
+    } catch (error) {
+      // 如果 BigNumber 计算失败，降级到普通计算
+      console.warn('BigNumber calculation failed, using fallback:', error);
+      return ratBalance * RAT_PRICE_USDT * (currentTier.dailyRate / 100);
+    }
   }, [ratBalance, currentTier, earnings]);
 
   return (
@@ -162,9 +210,24 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
         </div>
         <div className="space-y-1">
           <div className="text-5xl font-black text-white tracking-tighter mono">
-            <span className="text-[#FCD535] text-3xl mr-1 font-medium">$</span>{usdtValuation}
+            <span className="text-[#FCD535] text-3xl mr-1 font-medium">$</span>
+            {usdtValuation === null ? (
+              <span className="inline-block w-32 h-12 bg-white/5 rounded animate-pulse" />
+            ) : ratBalanceError ? (
+              <span className="text-[#848E9C]">--</span>
+            ) : (
+              usdtValuation
+            )}
           </div>
-          <p className="text-xs text-[#848E9C] font-bold mono">≈ {ratBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} RAT</p>
+          <p className="text-xs text-[#848E9C] font-bold mono">
+            ≈ {ratBalance === null ? (
+              <span className="inline-block w-24 h-4 bg-white/5 rounded animate-pulse" />
+            ) : ratBalanceError ? (
+              '--'
+            ) : (
+              ratBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })
+            )} RAT
+          </p>
           {earnings && earnings.currentTier > 0 && (
             <p className="text-[10px] text-[#0ECB81] font-bold mt-1">
               {t('asset.earningStatus') || '持币生息中'} • {currentTier?.dailyRate}% {t('asset.dailyInterestRate') || '日利率'}
@@ -248,12 +311,18 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                 <Target className="w-3 h-3 text-[#848E9C]" />
                 <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest">{t('asset.protocolEvolution') || '协议进化'}</p>
              </div>
-             <p className="text-[10px] text-white font-black mono">{progress}%</p>
+             <p className="text-[10px] text-white font-black mono">
+               {progress === null ? (
+                 <span className="inline-block w-8 h-4 bg-white/5 rounded animate-pulse" />
+               ) : (
+                 `${progress}%`
+               )}
+             </p>
           </div>
           <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden mb-4 p-[1px] border border-white/5">
             <div 
               className="h-full bg-gradient-to-r from-[#FCD535] via-orange-400 to-[#FCD535] rounded-full transition-all duration-1000 ease-out" 
-              style={{ width: `${progress}%`, backgroundSize: '200% 100%' }} 
+              style={{ width: progress === null ? '0%' : `${progress}%`, backgroundSize: '200% 100%' }} 
             />
           </div>
           <div className="flex justify-center items-center gap-2 text-[#848E9C] group-hover:text-[#FCD535] transition-colors">
@@ -275,14 +344,24 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
         <div className="space-y-4 mb-6">
           <div className="text-5xl font-black text-white mono tracking-tighter flex items-baseline">
             <span className="text-xl font-normal text-[#848E9C] mr-3">$</span>
-            {earnings ? earnings.pendingUsdt.toFixed(4) : stats.pendingUsdt.toFixed(4)}
+            {earnings === null ? (
+              <span className="inline-block w-32 h-12 bg-white/5 rounded animate-pulse" />
+            ) : earningsError ? (
+              <span className="text-[#848E9C]">--</span>
+            ) : (
+              earnings.pendingUsdt.toFixed(4)
+            )}
           </div>
           {earnings && earnings.currentTier > 0 && (
             <div className="bg-white/5 p-4 rounded-xl border border-white/5">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-[10px] text-[#848E9C] font-bold uppercase">{t('asset.estimatedDailyEarnings') || '预计每日收益'}</span>
                 <span className="text-sm font-black text-[#0ECB81] mono">
-                  ${estimatedDailyEarnings.toFixed(2)} USDT
+                  {estimatedDailyEarnings === null ? (
+                    <span className="inline-block w-20 h-4 bg-white/5 rounded animate-pulse" />
+                  ) : (
+                    `$${estimatedDailyEarnings.toFixed(2)} USDT`
+                  )}
                 </span>
               </div>
               <div className="flex justify-between items-center">
