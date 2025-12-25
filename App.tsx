@@ -215,7 +215,7 @@ const App: React.FC = () => {
   const renderView = () => {
     switch (activeTab) {
       case 'mining': return <MiningView stats={stats} setStats={setStats} />;
-      case 'asset': return <AssetView stats={stats} setStats={setStats} />;
+      case 'asset': return <AssetView stats={stats} setStats={setStats} onNavigateToProfile={() => setActiveTab('profile')} />;
       case 'profile': return <ProfileView stats={stats} />;
       case 'notifications': return <NotificationsView notifications={notifications} setNotifications={setNotifications} onBack={() => setActiveTab('mining')} address={stats.address} onMarkAllAsRead={handleMarkAllAsRead} />;
       default: return <AssetView stats={stats} setStats={setStats} />;

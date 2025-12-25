@@ -11,9 +11,10 @@ import { getProvider, getContract } from '../services/web3Service';
 interface AssetViewProps {
   stats: UserStats;
   setStats: React.Dispatch<React.SetStateAction<UserStats>>;
+  onNavigateToProfile?: () => void;
 }
 
-const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
+const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProfile }) => {
   const { t } = useLanguage();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
@@ -113,12 +114,28 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     return VIP_TIERS.find(t => ratBalance >= t.min && ratBalance <= t.max) || VIP_TIERS[VIP_TIERS.length - 1];
   }, [ratBalance]);
 
+  // 计算距离下一个等级的进度百分比
   const progress = useMemo(() => {
-    if (!currentTier) return 0;
-    const nextIdx = VIP_TIERS.findIndex(t => t.level === currentTier.level) + 1;
-    const next = VIP_TIERS[nextIdx];
-    if (!next) return 100;
-    return Math.min(Math.round(((ratBalance - currentTier.min) / (next.min - currentTier.min)) * 100), 100);
+    // 如果未达到VIP1，计算距离VIP1的进度
+    if (!currentTier) {
+      const vip1Min = VIP_TIERS[0].min; // 10000
+      if (ratBalance <= 0) return 0;
+      const progressToVip1 = Math.min(Math.round((ratBalance / vip1Min) * 100), 99); // 最多显示99%，达到后显示100%
+      return progressToVip1;
+    }
+    
+    // 如果已达到某个等级，计算距离下一个等级的进度
+    const currentIdx = VIP_TIERS.findIndex(t => t.level === currentTier.level);
+    const nextTier = VIP_TIERS[currentIdx + 1];
+    
+    // 如果已经是最高等级，显示100%
+    if (!nextTier) return 100;
+    
+    // 计算当前等级到下一个等级的进度
+    const currentMin = currentTier.min;
+    const nextMin = nextTier.min;
+    const progressToNext = Math.min(Math.round(((ratBalance - currentMin) / (nextMin - currentMin)) * 100), 100);
+    return progressToNext;
   }, [ratBalance, currentTier]);
 
   // 计算预计每日收益
@@ -279,25 +296,23 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
         <div className="grid grid-cols-2 gap-4">
           <button 
             onClick={() => {
-              // 检查能量水位线
-              if (stats.energy < ENERGY_WITHDRAW_THRESHOLD) {
-                alert(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
-                return;
-              }
+              // 允许打开弹窗，即使能量不足也可以查看能量信息
               setShowWithdrawModal(true);
             }}
-            disabled={stats.energy < ENERGY_WITHDRAW_THRESHOLD}
-            className={`group relative font-black py-4 rounded-[1.25rem] flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl overflow-hidden ${
-              stats.energy < ENERGY_WITHDRAW_THRESHOLD
-                ? 'bg-white/5 text-[#848E9C] cursor-not-allowed opacity-50'
-                : 'bg-[#FCD535] text-[#0B0E11] shadow-[#FCD535]/10'
-            }`}
+            className="group relative font-black py-4 rounded-[1.25rem] flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl overflow-hidden bg-[#FCD535] text-[#0B0E11] shadow-[#FCD535]/10"
           >
-            <div className={`absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ${stats.energy < ENERGY_WITHDRAW_THRESHOLD ? 'hidden' : ''}`} />
+            <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             <span className="relative z-10 text-[11px] uppercase tracking-widest">{t('asset.withdrawal') || '提现'}</span>
-            <ArrowUpRight className={`w-4 h-4 relative z-10 ${stats.energy < ENERGY_WITHDRAW_THRESHOLD ? 'hidden' : ''}`} />
+            <ArrowUpRight className="w-4 h-4 relative z-10" />
           </button>
-          <button className="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black py-4 rounded-[1.25rem] text-[11px] uppercase tracking-widest transition-all">
+          <button 
+            onClick={() => {
+              if (onNavigateToProfile) {
+                onNavigateToProfile();
+              }
+            }}
+            className="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black py-4 rounded-[1.25rem] text-[11px] uppercase tracking-widest transition-all active:scale-95"
+          >
             {t('asset.history') || '历史'}
           </button>
         </div>
@@ -476,12 +491,41 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             </div>
             
             <div className="p-7 space-y-6">
-              {stats.energy < ENERGY_WITHDRAW_THRESHOLD && (
-                <div className="p-4 bg-red-500/5 rounded-xl border border-red-500/20 text-red-400 text-[10px] flex gap-3 leading-relaxed">
-                  <Info className="w-4 h-4 flex-shrink-0" />
-                  <p className="font-bold uppercase tracking-tight">{t('asset.energyInsufficient') || '能量值不足：最低需要'} {ENERGY_WITHDRAW_THRESHOLD} {t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}</p>
+              {/* Energy Info Card - Always Visible */}
+              <div className="bg-gradient-to-r from-[#FCD535]/10 to-transparent p-5 rounded-2xl border border-[#FCD535]/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-[#FCD535]" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#848E9C]">{t('asset.energySystem') || '能量系统'}</span>
+                  </div>
                 </div>
-              )}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                    <p className="text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-1">当前能量</p>
+                    <p className={`text-lg font-black mono ${stats.energy >= ENERGY_WITHDRAW_THRESHOLD ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                      {stats.energy}
+                    </p>
+                  </div>
+                  <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                    <p className="text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-1">能量阈值</p>
+                    <p className="text-lg font-black mono text-[#FCD535]">{ENERGY_WITHDRAW_THRESHOLD}</p>
+                  </div>
+                  <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                    <p className="text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-1">所需能量</p>
+                    <p className="text-lg font-black mono text-[#F6465D]">
+                      {Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) || '0'}
+                    </p>
+                  </div>
+                </div>
+                {stats.energy < ENERGY_WITHDRAW_THRESHOLD && (
+                  <div className="mt-2 p-3 bg-red-500/10 rounded-xl border border-red-500/20 flex items-start gap-2">
+                    <Info className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-[9px] text-red-400 font-bold uppercase tracking-tight leading-relaxed">
+                      {t('asset.energyInsufficient') || '能量值不足：最低需要'} {ENERGY_WITHDRAW_THRESHOLD} {t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}
+                    </p>
+                  </div>
+                )}
+              </div>
               
               <div className="space-y-3">
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-[#848E9C]">
@@ -504,15 +548,29 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                         setWithdrawAmount(val);
                       }
                     }}
-                    className="w-full bg-[#0b0e11] border border-white/5 rounded-2xl py-5 px-5 text-2xl font-black mono text-white outline-none focus:border-[#FCD535] transition-colors"
+                    disabled={stats.energy < ENERGY_WITHDRAW_THRESHOLD}
+                    className={`w-full bg-[#0b0e11] border rounded-2xl py-5 px-5 text-2xl font-black mono text-white outline-none transition-colors ${
+                      stats.energy < ENERGY_WITHDRAW_THRESHOLD 
+                        ? 'border-red-500/20 opacity-50 cursor-not-allowed' 
+                        : 'border-white/5 focus:border-[#FCD535]'
+                    }`}
                     placeholder="0.00"
                   />
                   <button 
                     onClick={() => {
+                      if (stats.energy < ENERGY_WITHDRAW_THRESHOLD) {
+                        alert(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
+                        return;
+                      }
                       const maxVal = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
                       setWithdrawAmount(maxVal.toFixed(2));
                     }} 
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#FCD535] bg-[#FCD535]/10 px-3 py-1.5 rounded-lg border border-[#FCD535]/20 hover:bg-[#FCD535]/20 transition-colors"
+                    disabled={stats.energy < ENERGY_WITHDRAW_THRESHOLD}
+                    className={`absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black px-3 py-1.5 rounded-lg border transition-colors ${
+                      stats.energy < ENERGY_WITHDRAW_THRESHOLD
+                        ? 'text-[#848E9C] bg-white/5 border-white/5 opacity-50 cursor-not-allowed'
+                        : 'text-[#FCD535] bg-[#FCD535]/10 border-[#FCD535]/20 hover:bg-[#FCD535]/20'
+                    }`}
                   >
                     {t('common.max') || 'MAX'}
                   </button>
@@ -538,6 +596,12 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
 
               <button 
                 onClick={async () => {
+                  // 首先检查能量启动门槛 - 如果能量不足，直接阻止提交
+                  if (stats.energy < ENERGY_WITHDRAW_THRESHOLD) {
+                    alert(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
+                    return;
+                  }
+
                   const amount = parseFloat(withdrawAmount || '0');
                   
                   // 验证输入
@@ -551,17 +615,13 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                     alert('提现金额不能超过可提现余额');
                     return;
                   }
-
-                  // 检查能量启动门槛
-                  if (stats.energy < ENERGY_WITHDRAW_THRESHOLD) {
-                    alert(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
-                    return;
-                  }
                   
                   // 计算所需能量：Amount * 10
                   const requiredEnergy = Math.ceil(amount * ENERGY_PER_USDT_WITHDRAW);
+                  
+                  // 检查能量是否足够支付本次提现
                   if (stats.energy < requiredEnergy) {
-                    alert(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量`);
+                    alert(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量，当前能量：${stats.energy}`);
                     return;
                   }
 

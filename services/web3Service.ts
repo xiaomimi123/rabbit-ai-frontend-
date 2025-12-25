@@ -50,9 +50,102 @@ function getWalletConnectModal(): WalletConnectModal {
   if (!WALLETCONNECT_PROJECT_ID) {
     throw new Error('请先配置 WalletConnect 项目 ID');
   }
+  
   walletConnectModal = new WalletConnectModal({
     projectId: WALLETCONNECT_PROJECT_ID,
   });
+  
+  // 自定义钱包列表：在 Modal 打开后重新排序和隐藏钱包
+  const originalOpenModal = walletConnectModal.openModal.bind(walletConnectModal);
+  walletConnectModal.openModal = async function(options?: any) {
+    await originalOpenModal(options);
+    
+    // 延迟执行，等待 DOM 渲染完成
+    const customizeWalletList = () => {
+      try {
+        // 优先显示的钱包名称（按顺序，支持部分匹配）
+        const preferredWallets = ['binance', 'okx', 'trust', 'safepal', 'uniswap'];
+        // 要排除的钱包名称（支持部分匹配）
+        const excludeWallets = ['ledger', 'fireblocks'];
+        
+        // 查找 Modal 元素（WalletConnect Modal 使用 Shadow DOM）
+        const modalElement = document.querySelector('wcm-modal');
+        if (!modalElement) return false;
+        
+        // 查找钱包列表容器
+        const walletList = modalElement.shadowRoot?.querySelector('wcm-wallet-list');
+        if (!walletList) return false;
+        
+        const walletListShadow = walletList.shadowRoot;
+        if (!walletListShadow) return false;
+        
+        // 获取所有钱包按钮
+        const walletButtons = Array.from(walletListShadow.querySelectorAll('wcm-wallet-button') || []);
+        if (walletButtons.length === 0) return false;
+        
+        // 分离优先钱包、其他钱包和需要隐藏的钱包
+        const preferredItems: Array<{ element: Element; index: number }> = [];
+        const otherItems: Element[] = [];
+        
+        walletButtons.forEach((button) => {
+          // 获取钱包名称（从按钮的文本内容或属性中）
+          const buttonText = (button as HTMLElement).textContent || '';
+          const buttonLabel = button.getAttribute('name') || buttonText || '';
+          const labelLower = buttonLabel.toLowerCase();
+          
+          // 检查是否需要隐藏
+          const shouldExclude = excludeWallets.some(w => labelLower.includes(w));
+          
+          if (shouldExclude) {
+            // 隐藏不需要的钱包
+            (button as HTMLElement).style.display = 'none';
+            return;
+          }
+          
+          // 检查是否是优先钱包
+          const preferredIndex = preferredWallets.findIndex(w => labelLower.includes(w));
+          
+          if (preferredIndex !== -1) {
+            preferredItems.push({ element: button, index: preferredIndex });
+          } else {
+            otherItems.push(button);
+          }
+        });
+        
+        // 按优先级排序
+        preferredItems.sort((a, b) => a.index - b.index);
+        
+        // 重新排列：优先钱包在前，其他钱包在后
+        const sortedItems = [...preferredItems.map(item => item.element), ...otherItems];
+        
+        // 重新插入到 DOM
+        sortedItems.forEach((item) => {
+          if (item.parentNode) {
+            walletListShadow.appendChild(item);
+          }
+        });
+        
+        return true;
+      } catch (error) {
+        console.warn('Failed to customize wallet list:', error);
+        return false;
+      }
+    };
+    
+    // 多次尝试，确保 DOM 已渲染
+    let attempts = 0;
+    const maxAttempts = 10;
+    const tryCustomize = () => {
+      attempts++;
+      if (customizeWalletList() || attempts >= maxAttempts) {
+        return;
+      }
+      setTimeout(tryCustomize, 200);
+    };
+    
+    setTimeout(tryCustomize, 300);
+  };
+  
   return walletConnectModal;
 }
 

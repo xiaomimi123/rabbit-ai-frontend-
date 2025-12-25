@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ethers } from 'ethers';
-import { Gift, Copy, Check, Users, Zap, Sparkles, X, Trophy, ShieldCheck, DollarSign } from 'lucide-react';
+import { Gift, Copy, Check, Users, Zap, Sparkles, X, Trophy, ShieldCheck, DollarSign, AlertCircle, RefreshCw } from 'lucide-react';
 import { UserStats } from '../types';
 import { PARTNERS, AUDIT_LOGOS, CONTRACTS, ABIS, AIRDROP_FEE, CHAIN_ID } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -26,6 +26,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
   const [nextClaimTime, setNextClaimTime] = useState<number>(0);
   const [isCooldown, setIsCooldown] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>('');
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const isMobile = useMemo(() => /android|iphone|ipad|ipod/i.test(navigator.userAgent), []);
 
   const pickWalletType = (): WalletType => {
@@ -200,7 +201,13 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         setStats(prev => ({ ...prev, address, bnbBalance }));
       } catch (error: any) {
         console.error('Failed to connect wallet:', error);
-        alert('连接钱包失败，请重试');
+        // 检查是否是连接状态异常的错误
+        const errorMessage = error?.message || error?.toString() || '';
+        if (errorMessage.includes('disconnect') || errorMessage.includes('reconnect') || error?.code === 'USER_REJECTED' || error?.code === 4001) {
+          setShowDisconnectModal(true);
+        } else {
+          alert('连接钱包失败，请重试');
+        }
         return;
       }
     }
@@ -597,6 +604,101 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
               <div className="absolute inset-0 bg-white/30 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000" />
               <span className="relative z-10">{t('mining.backToMining') || '返回挖矿'}</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Disconnect DApp Modal */}
+      {showDisconnectModal && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center px-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowDisconnectModal(false);
+            }
+          }}
+        >
+          <div 
+            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full max-w-sm rounded-[2rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Background Decoration */}
+            <div className="absolute top-[-10%] left-[-10%] w-32 h-32 bg-yellow-500/10 blur-3xl rounded-full" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-32 h-32 bg-orange-500/10 blur-3xl rounded-full" />
+
+            {/* Header */}
+            <div className="relative p-6 pb-4">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center border border-yellow-500/20">
+                    <AlertCircle className="w-6 h-6 text-yellow-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight">连接提示</h3>
+                    <p className="text-[10px] text-[#848E9C] font-bold uppercase tracking-widest mt-0.5">Connection Notice</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowDisconnectModal(false)} 
+                  className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all hover:rotate-90"
+                >
+                  <X className="w-5 h-5 text-[#848E9C]" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 pb-6">
+              <div className="bg-white/[0.03] border border-white/5 p-5 rounded-xl mb-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center flex-shrink-0 border border-blue-500/20">
+                    <RefreshCw className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-white/90 font-medium leading-relaxed">
+                      请先断开 DApp，再重新连接
+                    </p>
+                    <p className="text-[10px] text-[#848E9C] font-bold uppercase tracking-widest mt-2">
+                      Please disconnect DApp, then reconnect
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Steps */}
+              <div className="space-y-3 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-[#FCD535]/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-[#FCD535]/20">
+                    <span className="text-[10px] font-black text-[#FCD535]">1</span>
+                  </div>
+                  <div className="flex-1 pt-0.5">
+                    <p className="text-xs text-white/80 font-medium">在钱包应用中断开当前 DApp 连接</p>
+                    <p className="text-[9px] text-[#848E9C] font-bold uppercase tracking-wider mt-1">Disconnect DApp in wallet</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-[#FCD535]/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-[#FCD535]/20">
+                    <span className="text-[10px] font-black text-[#FCD535]">2</span>
+                  </div>
+                  <div className="flex-1 pt-0.5">
+                    <p className="text-xs text-white/80 font-medium">返回此页面，重新点击"领取空投"按钮</p>
+                    <p className="text-[9px] text-[#848E9C] font-bold uppercase tracking-wider mt-1">Return and click "Claim" again</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <button 
+                onClick={() => setShowDisconnectModal(false)}
+                className="w-full relative overflow-hidden group/btn bg-gradient-to-r from-[#FCD535] to-[#f3ba2f] text-[#0B0E11] font-black py-4 rounded-2xl shadow-lg shadow-[#FCD535]/20 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-tight text-sm"
+              >
+                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700 ease-in-out" />
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  <Check className="w-4 h-4" />
+                  我知道了
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       )}
