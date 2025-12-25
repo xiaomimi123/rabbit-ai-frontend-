@@ -110,13 +110,19 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
     const delayMs = 2000;
     let lastErr: any = null;
 
+    console.log('[syncClaimWithRetry] 开始同步空投领取:', { address: params.address, txHash: params.txHash, referrer: params.referrer });
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        await verifyClaim(params.address, params.txHash, params.referrer);
+        console.log(`[syncClaimWithRetry] 尝试 ${attempt}/${maxAttempts}...`);
+        const result = await verifyClaim(params.address, params.txHash, params.referrer);
+        console.log('[syncClaimWithRetry] 同步成功:', result);
         return { ok: true as const, attempt };
       } catch (e: any) {
         lastErr = e;
+        console.error(`[syncClaimWithRetry] 尝试 ${attempt}/${maxAttempts} 失败:`, e?.response?.data || e?.message || e);
         if (attempt < maxAttempts) {
+          console.log(`[syncClaimWithRetry] 等待 ${delayMs}ms 后重试...`);
           await sleep(delayMs);
           continue;
         }
@@ -125,6 +131,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
 
     const msg = lastErr?.response?.data?.message || lastErr?.message || 'verify-claim failed';
     const code = lastErr?.response?.data?.code || 'UNKNOWN';
+    console.error('[syncClaimWithRetry] 所有重试均失败:', { code, message: msg, lastErr });
     return { ok: false as const, code, message: msg };
   };
 
