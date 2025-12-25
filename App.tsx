@@ -38,6 +38,25 @@ const App: React.FC = () => {
     address: ''
   });
 
+  // 页面加载时尝试恢复钱包连接
+  useEffect(() => {
+    const restoreConnection = async () => {
+      try {
+        const { restoreWalletConnection } = await import('./services/web3Service');
+        const provider = await restoreWalletConnection();
+        if (provider) {
+          const signer = provider.getSigner();
+          const address = await signer.getAddress();
+          setStats(prev => ({ ...prev, address }));
+        }
+      } catch (error) {
+        console.warn('Failed to restore wallet connection:', error);
+      }
+    };
+    
+    restoreConnection();
+  }, []);
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [announcement, setAnnouncement] = useState<string>('');
   const hasUnread = notifications.some(n => !n.read);

@@ -19,6 +19,44 @@ let walletConnectProvider: any = null;
 let walletConnectModal: WalletConnectModal | null = null;
 let currentWalletType: WalletType | null = null;
 
+// localStorage 键名
+const STORAGE_KEYS = {
+  WALLET_TYPE: 'rabbit_wallet_type',
+  WALLET_ADDRESS: 'rabbit_wallet_address',
+};
+
+// 保存钱包连接信息到 localStorage
+const saveWalletInfo = (walletType: WalletType, address: string) => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.WALLET_TYPE, walletType);
+    localStorage.setItem(STORAGE_KEYS.WALLET_ADDRESS, address);
+  } catch (error) {
+    console.warn('Failed to save wallet info to localStorage:', error);
+  }
+};
+
+// 从 localStorage 读取钱包连接信息
+const getSavedWalletInfo = (): { walletType: WalletType | null; address: string | null } => {
+  try {
+    const walletType = localStorage.getItem(STORAGE_KEYS.WALLET_TYPE) as WalletType | null;
+    const address = localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS);
+    return { walletType, address };
+  } catch (error) {
+    console.warn('Failed to read wallet info from localStorage:', error);
+    return { walletType: null, address: null };
+  }
+};
+
+// 清除保存的钱包连接信息
+const clearWalletInfo = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.WALLET_TYPE);
+    localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
+  } catch (error) {
+    console.warn('Failed to clear wallet info from localStorage:', error);
+  }
+};
+
 export const getProvider = () => {
   return currentProvider;
 };
@@ -189,21 +227,9 @@ async function initWalletConnectProvider(): Promise<any> {
     },
   });
 
-  const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
-
-  // When WalletConnect emits a URI, open the modal (mobile will deep link to wallet)
+  // When WalletConnect emits a URI, open the modal (不再跳转到 walletconnect 网站)
   provider.on('display_uri', (uri: string) => {
-    // Some mobile browsers / in-app browsers may treat certain wallet schemes as "invalid URL".
-    // Use WalletConnect universal link as a safe fallback to open the wallet.
-    if (isMobile) {
-      try {
-        const universal = `https://walletconnect.com/wc?uri=${encodeURIComponent(uri)}`;
-        // best-effort navigation (wallet apps can intercept universal links)
-        window.location.href = universal;
-      } catch {
-        // ignore
-      }
-    }
+    // 只打开 modal，不跳转页面，避免影响用户体验
     modal.openModal({ uri });
   });
 
@@ -306,6 +332,14 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
       provider = new ethers.providers.Web3Provider(finalWc as any);
       currentProvider = provider;
       currentWalletType = walletType;
+      
+      // 保存连接信息
+      const signer = provider.getSigner();
+      signer.getAddress().then(address => {
+        saveWalletInfo(walletType, address);
+      }).catch(() => {
+        // 如果获取地址失败，稍后重试
+      });
     } else {
       // 使用浏览器扩展钱包
       const walletProvider = getWalletProvider(walletType);
@@ -325,6 +359,14 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
       provider = new ethers.providers.Web3Provider(walletProvider);
       currentProvider = provider;
       currentWalletType = walletType;
+      
+      // 保存连接信息
+      const signer = provider.getSigner();
+      signer.getAddress().then(address => {
+        saveWalletInfo(walletType, address);
+      }).catch(() => {
+        // 如果获取地址失败，稍后重试
+      });
     }
     
     // 连接成功后，检查并切换网络
@@ -381,6 +423,88 @@ export const disconnectWallet = async () => {
   }
   currentProvider = null;
   currentWalletType = null;
+  // 清除保存的连接信息
+  clearWalletInfo();
+};
+
+// 尝试恢复之前的钱包连接
+export const restoreWalletConnection = async (): Promise<ethers.providers.Web3Provider | null> => {
+  try {
+    const { walletType, address } = getSavedWalletInfo();
+    
+    if (!walletType || !address) {
+      return null;
+    }
+    
+    // 验证地址格式
+    if (!ethers.utils.isAddress(address)) {
+      clearWalletInfo();
+      return null;
+    }
+    
+    // 如果是浏览器扩展钱包，尝试恢复连接
+    if (walletType !== 'walletconnect') {
+      const walletProvider = getWalletProvider(walletType);
+      if (!walletProvider) {
+        // 钱包未安装，清除保存的信息
+        clearWalletInfo();
+        return null;
+      }
+      
+      // 检查是否已连接
+      let accounts: string[] = [];
+      if (walletProvider.request) {
+        accounts = await walletProvider.request({ method: 'eth_accounts' });
+      } else if (walletProvider.accounts) {
+        accounts = walletProvider.accounts;
+      }
+      
+      // 检查保存的地址是否在已连接的账户中
+      const isConnected = accounts.some(acc => acc.toLowerCase() === address.toLowerCase());
+      
+      if (isConnected) {
+        const provider = new ethers.providers.Web3Provider(walletProvider);
+        currentProvider = provider;
+        currentWalletType = walletType;
+        return provider;
+      } else {
+        // 地址不匹配，清除保存的信息
+        clearWalletInfo();
+        return null;
+      }
+    } else {
+      // WalletConnect: 尝试恢复 session
+      try {
+        const wc = await initWalletConnectProvider();
+        if (wc.accounts && wc.accounts.length > 0) {
+          const connectedAddress = wc.accounts[0].toLowerCase();
+          if (connectedAddress === address.toLowerCase()) {
+            const provider = new ethers.providers.Web3Provider(wc as any);
+            currentProvider = provider;
+            currentWalletType = walletType;
+            return provider;
+          } else {
+            // 地址不匹配，断开连接
+            await wc.disconnect();
+            clearWalletInfo();
+            return null;
+          }
+        } else {
+          // 未连接，清除保存的信息
+          clearWalletInfo();
+          return null;
+        }
+      } catch {
+        // 恢复失败，清除保存的信息
+        clearWalletInfo();
+        return null;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to restore wallet connection:', error);
+    clearWalletInfo();
+    return null;
+  }
 };
 
 export const switchNetwork = async () => {
