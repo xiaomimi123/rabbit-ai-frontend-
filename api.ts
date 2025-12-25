@@ -23,28 +23,47 @@ api.interceptors.response.use(
   (error) => {
     // 处理网络错误
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      console.error('请求超时，请检查网络连接');
+      console.error('[API Interceptor] 请求超时:', error.config?.url);
       throw new Error('请求超时，请检查网络连接');
     }
     if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-      console.error('网络错误，请检查后端服务是否运行');
+      console.error('[API Interceptor] 网络错误:', error.config?.url);
       throw new Error('网络错误，请检查后端服务是否运行');
     }
     if (error.response) {
       // 服务器返回了错误状态码
       const status = error.response.status;
       const message = error.response.data?.message || error.message;
+      const url = error.config?.url || 'unknown';
+      
       // 404 错误不记录到控制台（这些是可选的 API），直接返回错误对象供调用方处理
       if (status === 404) {
         // 静默处理 404 错误，不记录日志
         return Promise.reject(error);
       }
-      // 其他错误才记录日志
-      console.error(`API 错误 ${status}: ${message}`);
+      
+      // 对于 verify-claim API，始终记录详细错误
+      if (url.includes('/mining/verify-claim')) {
+        console.error(`[API Interceptor] verify-claim API 错误 ${status}:`, {
+          url,
+          status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+          requestData: error.config?.data
+        });
+      } else {
+        // 其他错误才记录日志
+        console.error(`[API Interceptor] API 错误 ${status} (${url}): ${message}`);
+      }
+      
       throw new Error(message || `服务器错误 (${status})`);
     }
     // 其他错误
-    console.error('请求失败:', error.message);
+    console.error('[API Interceptor] 请求失败:', {
+      message: error.message,
+      url: error.config?.url,
+      error
+    });
     throw error;
   }
 );
@@ -60,8 +79,25 @@ export const fetchTeamRewards = async (address: string) => {
 };
 
 export const verifyClaim = async (address: string, txHash: string, referrer: string) => {
-  const { data } = await api.post('/mining/verify-claim', { address, txHash, referrer });
-  return data;
+  try {
+    console.log('[verifyClaim] 调用后端 API:', { address, txHash, referrer });
+    const { data } = await api.post('/mining/verify-claim', { address, txHash, referrer });
+    console.log('[verifyClaim] API 调用成功，返回数据:', data);
+    return data;
+  } catch (error: any) {
+    console.error('[verifyClaim] API 调用失败:', {
+      status: error?.response?.status,
+      statusText: error?.response?.statusText,
+      data: error?.response?.data,
+      message: error?.message,
+      config: {
+        url: error?.config?.url,
+        method: error?.config?.method,
+        data: error?.config?.data,
+      }
+    });
+    throw error;
+  }
 };
 
 export const applyWithdraw = async (address: string, amount: string) => {

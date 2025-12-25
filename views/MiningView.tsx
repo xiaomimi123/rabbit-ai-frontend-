@@ -476,21 +476,41 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       setShowRewardModal(true);
       
       // API 同步（使用当前连接的地址，而不是 stats.address）
+      console.log('[handleClaim] 准备同步空投领取到后端:', {
+        currentAddress,
+        txHash: receipt.hash,
+        referrer: refAddr,
+        receiptStatus: receipt.status,
+        receiptBlockNumber: receipt.blockNumber
+      });
+      
       const syncRes = await syncClaimWithRetry({ 
         address: currentAddress, 
         txHash: receipt.hash, 
         referrer: refAddr 
       });
+      
       if (!syncRes.ok) {
         enqueuePendingClaim({ 
           address: currentAddress, 
           txHash: receipt.hash, 
           referrer: refAddr 
         });
-        console.warn('后端同步失败，已加入待同步队列:', syncRes.message);
-        alert(`领取成功，但后端同步失败：${syncRes.message}\n请稍后刷新页面查看数据`);
+        console.error('[handleClaim] 后端同步失败，已加入待同步队列:', {
+          code: syncRes.code,
+          message: syncRes.message,
+          address: currentAddress,
+          txHash: receipt.hash
+        });
+        // 显示更详细的错误信息
+        const errorMsg = `领取成功，但后端同步失败！\n\n错误代码: ${syncRes.code}\n错误信息: ${syncRes.message}\n\n交易哈希: ${receipt.hash}\n地址: ${currentAddress}\n\n请稍后刷新页面查看数据，或联系管理员处理。`;
+        alert(errorMsg);
       } else {
-        console.log('后端同步成功，用户数据已更新');
+        console.log('[handleClaim] 后端同步成功，用户数据已更新:', {
+          address: currentAddress,
+          txHash: receipt.hash,
+          attempt: syncRes.attempt
+        });
       }
       
       // 更新 stats 中的地址（确保使用当前连接的地址）
