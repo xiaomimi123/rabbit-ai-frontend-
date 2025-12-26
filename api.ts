@@ -71,6 +71,22 @@ export { apiBaseUrl };
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
+    // ⚠️ 运行时检查：如果 API Base URL 配置错误，在控制台显示警告
+    if (typeof window !== 'undefined') {
+      const fullUrl = (config.baseURL || '') + (config.url || '');
+      const isPointingToAdmin = fullUrl.includes('rabbit-ai-admin') || fullUrl.includes('/admin');
+      const isPointingToFrontend = fullUrl.startsWith(currentOrigin);
+      
+      if (isPointingToAdmin || isPointingToFrontend) {
+        console.error(
+          `%c🚨 API 请求配置错误！`,
+          'color: red; font-weight: bold;',
+          '\n请求 URL:', fullUrl,
+          '\n这会导致 CORS 错误或 404！',
+          '\n请检查 Vercel 环境变量 VITE_API_BASE_URL 是否正确配置为后端 Render 地址。'
+        );
+      }
+    }
     return config;
   },
   (error) => {
