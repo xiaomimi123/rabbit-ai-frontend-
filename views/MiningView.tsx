@@ -235,8 +235,37 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
     
     // 检查钱包连接，如果未连接则自动连接（移动端优先 WalletConnect）
     let provider = getProvider();
-    if (!provider || !stats.address || !stats.address.startsWith('0x')) {
+    let needsConnection = false;
+    
+    // 验证 provider 是否真的有效（可以获取地址）
+    if (provider) {
       try {
+        const signer = provider.getSigner();
+        const currentAddress = await signer.getAddress();
+        // 如果 provider 存在但地址不匹配或无效，需要重新连接
+        if (!currentAddress || !currentAddress.startsWith('0x') || 
+            (stats.address && stats.address !== currentAddress)) {
+          needsConnection = true;
+        }
+      } catch (error) {
+        // provider 无效，需要重新连接
+        console.warn('[MiningView] Provider 验证失败，需要重新连接:', error);
+        needsConnection = true;
+        provider = null;
+      }
+    } else {
+      needsConnection = true;
+    }
+    
+    // 如果 stats.address 存在但 provider 无效，清除 stats.address
+    if (needsConnection && stats.address && stats.address.startsWith('0x')) {
+      console.log('[MiningView] 检测到钱包已断开，清除地址状态');
+      setStats(prev => ({ ...prev, address: '', bnbBalance: 0 }));
+    }
+    
+    if (needsConnection) {
+      try {
+        console.log('[MiningView] 开始连接钱包...');
         const walletType = pickWalletType();
         await connectWallet(walletType);
         // 等待一下让钱包状态更新
@@ -264,6 +293,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         }
         // 更新 stats 中的地址和BNB余额
         setStats(prev => ({ ...prev, address, bnbBalance }));
+        console.log('[MiningView] 钱包连接成功，地址:', address);
       } catch (error: any) {
         console.error('Failed to connect wallet:', error);
         // 检查是否是连接状态异常的错误（更精确的判断）
@@ -352,11 +382,18 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
             return;
           }
         } else {
-          // 其他错误，显示通用错误提示
-          alert('连接钱包失败，请重试');
+          // 其他错误，可能是连接被取消或其他原因
+          // 不显示错误提示，让用户知道连接已取消
+          console.warn('[MiningView] 钱包连接失败或取消:', errorMessage);
           return;
         }
       }
+    }
+    
+    // 如果到这里还没有 provider，说明连接失败
+    if (!provider) {
+      console.error('[MiningView] 钱包连接失败，无法继续');
+      return;
     }
 
     // 检查冷却时间
