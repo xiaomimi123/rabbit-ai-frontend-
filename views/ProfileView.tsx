@@ -290,14 +290,21 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       {/* Network Stats Card */}
       <div className="bg-[#1e2329]/50 border border-white/5 rounded-[1.5rem] flex divide-x divide-white/5 backdrop-blur-sm">
         <div className="flex-1 p-5 text-center group hover:bg-white/[0.02] transition-colors">
-          <p className="text-2xl font-black text-white mono mb-1">{inviteCount.toLocaleString()}</p>
+          <p className="text-2xl font-black text-white mono mb-1">
+            {inviteCount > 0 ? inviteCount.toLocaleString() : (stats.teamSize > 0 ? stats.teamSize.toLocaleString() : '0')}
+          </p>
           <div className="flex items-center justify-center gap-1.5">
              <Users2 className="w-3 h-3 text-[#848E9C]" />
              <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest">{t('profile.networkSize') || '网络规模'}</p>
           </div>
         </div>
         <div className="flex-1 p-5 text-center group hover:bg-white/[0.02] transition-colors">
-          <p className="text-2xl font-black text-[#0ECB81] mono mb-1">{parseFloat(teamRewards).toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
+          <p className="text-2xl font-black text-[#0ECB81] mono mb-1">
+            {parseFloat(teamRewards) > 0 
+              ? parseFloat(teamRewards).toLocaleString(undefined, { maximumFractionDigits: 1 })
+              : (stats.teamRewards > 0 ? stats.teamRewards.toLocaleString(undefined, { maximumFractionDigits: 1 }) : '0')
+            }
+          </p>
           <div className="flex items-center justify-center gap-1.5">
              <Trophy className="w-3 h-3 text-[#0ECB81]" />
              <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest">{t('profile.totalYield') || '总收益'}</p>
