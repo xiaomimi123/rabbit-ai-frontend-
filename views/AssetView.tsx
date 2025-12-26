@@ -410,7 +410,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
       {/* VIP TIER EXPLANATION MODAL - REDESIGNED */}
       {showTierModal && (
         <div 
-          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center px-2 sm:px-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
+          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center px-0 sm:px-4 pb-0 sm:pb-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
           onClick={(e) => {
             // 点击背景关闭弹窗
             if (e.target === e.currentTarget) {
@@ -419,73 +419,73 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
           }}
         >
           <div 
-            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col"
+            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header Section */}
-            <div className="relative p-4 sm:p-5 pb-3 flex-shrink-0">
+            <div className="relative p-3 sm:p-5 pb-2 sm:pb-3 flex-shrink-0">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-1 bg-[#FCD535]/20 rounded-b-full" />
-              <div className="flex justify-between items-start mb-3 sm:mb-4">
-                <div className="space-y-0.5 flex-1 pr-2">
-                   <div className="flex items-center gap-2">
-                      <Gem className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FCD535]" />
-                      <h3 className="font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs text-white">{t('asset.vipPrivilege') || 'VIP 特权'}</h3>
+              <div className="flex justify-between items-start mb-2 sm:mb-4">
+                <div className="space-y-0.5 flex-1 pr-2 min-w-0">
+                   <div className="flex items-center gap-1.5 sm:gap-2">
+                      <Gem className="w-3 h-3 sm:w-4 sm:h-4 text-[#FCD535] flex-shrink-0" />
+                      <h3 className="font-black uppercase tracking-[0.2em] text-[9px] sm:text-xs text-white truncate">{t('asset.vipPrivilege') || 'VIP 特权'}</h3>
                    </div>
-                   <p className="text-[8px] sm:text-[9px] text-[#848E9C] font-bold uppercase tracking-widest">{t('asset.holdToEarnRoadmap') || '持币生息路线图 v2.0'}</p>
+                   <p className="text-[7px] sm:text-[9px] text-[#848E9C] font-bold uppercase tracking-widest truncate">{t('asset.holdToEarnRoadmap') || '持币生息路线图 v2.0'}</p>
                 </div>
                 <button 
                   onClick={() => setShowTierModal(false)} 
-                  className="p-1.5 sm:p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all hover:rotate-90 flex-shrink-0 touch-manipulation"
+                  className="p-1.5 sm:p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all hover:rotate-90 flex-shrink-0 touch-manipulation active:scale-90"
                 >
                    <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#848E9C]" />
                 </button>
               </div>
 
               {/* Highlight Card */}
-              <div className="bg-gradient-to-r from-[#FCD535]/10 to-transparent p-2.5 sm:p-3 rounded-xl border border-[#FCD535]/20 flex items-center gap-2 sm:gap-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#FCD535] rounded-xl flex items-center justify-center shadow-lg shadow-[#FCD535]/20 flex-shrink-0">
-                   <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-[#0B0E11] fill-current" />
+              <div className="bg-gradient-to-r from-[#FCD535]/10 to-transparent p-2 sm:p-3 rounded-xl border border-[#FCD535]/20 flex items-center gap-2 sm:gap-3">
+                <div className="w-7 h-7 sm:w-10 sm:h-10 bg-[#FCD535] rounded-xl flex items-center justify-center shadow-lg shadow-[#FCD535]/20 flex-shrink-0">
+                   <Zap className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-[#0B0E11] fill-current" />
                 </div>
                 <div className="min-w-0 flex-1">
-                   <p className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-tight truncate">{t('asset.holdToEarnMode') || '持币生息模式'}</p>
-                   <p className="text-[7px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-tighter mt-0.5 line-clamp-2">{t('asset.walletHoldAutoInterest') || '钱包持币 • 自动计息 • 无需质押'}</p>
+                   <p className="text-[8px] sm:text-[10px] font-black text-white uppercase tracking-tight truncate">{t('asset.holdToEarnMode') || '持币生息模式'}</p>
+                   <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-tighter mt-0.5 line-clamp-2">{t('asset.walletHoldAutoInterest') || '钱包持币 • 自动计息 • 无需质押'}</p>
                 </div>
               </div>
             </div>
             
             {/* Tiers List Section */}
-            <div className="px-3 sm:px-5 space-y-2 sm:space-y-2.5 overflow-y-auto flex-1 pb-3 sm:pb-4 no-scrollbar">
+            <div className="px-2 sm:px-5 space-y-1.5 sm:space-y-2.5 overflow-y-auto flex-1 pb-2 sm:pb-4 no-scrollbar">
               {VIP_TIERS.map((tier) => {
                 const isActive = currentTier?.level === tier.level;
                 return (
                 <div 
                   key={tier.level} 
-                  className={`relative p-3 sm:p-4 rounded-xl border transition-all group ${isActive ? 'bg-white/5 border-[#FCD535]/50 shadow-[0_0_20px_rgba(252,213,53,0.05)]' : 'bg-[#1e2329]/40 border-white/5 opacity-60 grayscale-[0.5]'}`}
+                  className={`relative p-2.5 sm:p-4 rounded-xl border transition-all group ${isActive ? 'bg-white/5 border-[#FCD535]/50 shadow-[0_0_20px_rgba(252,213,53,0.05)]' : 'bg-[#1e2329]/40 border-white/5 opacity-60 grayscale-[0.5]'}`}
                 >
                   {isActive && (
-                    <div className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 bg-[#0ECB81] text-[#0B0E11] px-1.5 sm:px-2 py-0.5 rounded-full text-[6px] sm:text-[7px] font-black uppercase tracking-widest shadow-lg flex items-center gap-0.5 sm:gap-1">
-                      <CheckCircle2 className="w-1.5 h-1.5 sm:w-2 sm:h-2" /> Active
+                    <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1.5 bg-[#0ECB81] text-[#0B0E11] px-1 sm:px-2 py-0.5 rounded-full text-[5px] sm:text-[7px] font-black uppercase tracking-widest shadow-lg flex items-center gap-0.5 sm:gap-1">
+                      <CheckCircle2 className="w-1 h-1 sm:w-2 sm:h-2" /> Active
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center mb-2 sm:mb-3 gap-2">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                       <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-black text-sm sm:text-base flex-shrink-0 ${isActive ? 'bg-gradient-to-br from-[#FCD535] to-orange-400 text-[#0B0E11]' : 'bg-white/5 text-white/40'}`}>
+                  <div className="flex justify-between items-center mb-1.5 sm:mb-3 gap-1.5 sm:gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
+                       <div className={`w-7 h-7 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-black text-xs sm:text-base flex-shrink-0 ${isActive ? 'bg-gradient-to-br from-[#FCD535] to-orange-400 text-[#0B0E11]' : 'bg-white/5 text-white/40'}`}>
                          V{tier.level}
                        </div>
                        <div className="min-w-0 flex-1">
-                         <p className="text-[10px] sm:text-xs font-black text-white uppercase tracking-tight truncate">
+                         <p className="text-[9px] sm:text-xs font-black text-white uppercase tracking-tight truncate">
                            {tier.level === 1 ? (t('asset.tier1Name') || '🌱 新手') :
                             tier.level === 2 ? (t('asset.tier2Name') || '🌿 进阶') :
                             tier.level === 3 ? (t('asset.tier3Name') || '🌳 资深') :
                             tier.level === 4 ? (t('asset.tier4Name') || '💎 核心') : tier.name}
                          </p>
-                         <p className="text-[7px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-[0.1em]">{t('asset.protocolNode') || '协议节点'}</p>
+                         <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-[0.1em]">{t('asset.protocolNode') || '协议节点'}</p>
                        </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                       <p className={`text-lg sm:text-xl font-black mono leading-none tracking-tighter ${currentTier?.level === tier.level ? 'text-[#FCD535]' : 'text-white/20'}`}>{tier.dailyRate}%</p>
-                       <p className="text-[6px] sm:text-[7px] text-[#848E9C] font-bold uppercase tracking-widest mt-0.5">{t('asset.dailyRate') || '日利率'}</p>
+                       <p className={`text-base sm:text-xl font-black mono leading-none tracking-tighter ${currentTier?.level === tier.level ? 'text-[#FCD535]' : 'text-white/20'}`}>{tier.dailyRate}%</p>
+                       <p className="text-[5px] sm:text-[7px] text-[#848E9C] font-bold uppercase tracking-widest mt-0.5">{t('asset.dailyRate') || '日利率'}</p>
                     </div>
                   </div>
                   
@@ -554,15 +554,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
             </div>
 
             {/* Footer Section */}
-            <div className="p-4 sm:p-5 bg-black/40 border-t border-white/5 flex-shrink-0">
+            <div className="p-3 sm:p-5 bg-black/40 border-t border-white/5 flex-shrink-0" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
                <button 
                  onClick={() => setShowTierModal(false)}
-                 className="w-full bg-[#1e2329] border border-white/10 hover:bg-white/5 text-white font-black py-3 sm:py-4 rounded-xl text-[9px] sm:text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-2 touch-manipulation"
+                 className="w-full bg-[#1e2329] border border-white/10 hover:bg-white/5 text-white font-black py-2.5 sm:py-4 rounded-xl text-[8px] sm:text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-2 touch-manipulation min-h-[44px]"
                >
                  {t('asset.acknowledgePrivileges') || '确认特权'}
                  <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                </button>
-               <p className="text-[6px] sm:text-[7px] text-center text-[#848E9C] font-bold uppercase tracking-widest mt-2 sm:mt-3 opacity-50">{t('asset.protocolLayer') || 'Rabbit AI 去中心化协议层 2'}</p>
+               <p className="text-[5px] sm:text-[7px] text-center text-[#848E9C] font-bold uppercase tracking-widest mt-1.5 sm:mt-3 opacity-50">{t('asset.protocolLayer') || 'Rabbit AI 去中心化协议层 2'}</p>
             </div>
           </div>
         </div>
@@ -570,46 +570,46 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
 
       {/* WITHDRAW MODAL - AS PREVIOUSLY IMPLEMENTED */}
       {showWithdrawModal && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center px-2 sm:px-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#1e2329] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200 max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="p-4 sm:p-6 border-b border-white/5 flex justify-between items-center flex-shrink-0">
-              <h3 className="font-black uppercase tracking-widest text-xs sm:text-sm">Withdrawal Node</h3>
-              <button onClick={() => setShowWithdrawModal(false)} className="p-1.5 sm:p-2 hover:bg-white/5 rounded-full transition-colors touch-manipulation flex-shrink-0">
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center px-0 sm:px-6 pb-0 sm:pb-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#1e2329] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_0_50px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200 max-h-[93vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-3 sm:p-6 border-b border-white/5 flex justify-between items-center flex-shrink-0">
+              <h3 className="font-black uppercase tracking-widest text-[10px] sm:text-sm">Withdrawal Node</h3>
+              <button onClick={() => setShowWithdrawModal(false)} className="p-1.5 sm:p-2 hover:bg-white/5 rounded-full transition-colors touch-manipulation flex-shrink-0 active:scale-90">
                  <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#848E9C]" />
               </button>
             </div>
             
-            <div className="p-4 sm:p-7 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
+            <div className="p-3 sm:p-7 space-y-3 sm:space-y-6 overflow-y-auto flex-1">
               {/* Energy Info Card - Always Visible */}
-              <div className="bg-gradient-to-r from-[#FCD535]/10 to-transparent p-3 sm:p-5 rounded-2xl border border-[#FCD535]/20 space-y-2 sm:space-y-3">
+              <div className="bg-gradient-to-r from-[#FCD535]/10 to-transparent p-2.5 sm:p-5 rounded-2xl border border-[#FCD535]/20 space-y-2 sm:space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FCD535]" />
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[#848E9C]">{t('asset.energySystem') || '能量系统'}</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-[#FCD535] flex-shrink-0" />
+                    <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-[#848E9C]">{t('asset.energySystem') || '能量系统'}</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  <div className="bg-black/20 p-2 sm:p-3 rounded-xl border border-white/5">
-                    <p className="text-[7px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-1">当前能量</p>
-                    <p className={`text-base sm:text-lg font-black mono ${stats.energy >= ENERGY_WITHDRAW_THRESHOLD ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                  <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
+                    <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-0.5 sm:mb-1">当前能量</p>
+                    <p className={`text-sm sm:text-lg font-black mono ${stats.energy >= ENERGY_WITHDRAW_THRESHOLD ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
                       {stats.energy}
                     </p>
                   </div>
-                  <div className="bg-black/20 p-2 sm:p-3 rounded-xl border border-white/5">
-                    <p className="text-[7px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-1">能量阈值</p>
-                    <p className="text-base sm:text-lg font-black mono text-[#FCD535]">{ENERGY_WITHDRAW_THRESHOLD}</p>
+                  <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
+                    <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-0.5 sm:mb-1">能量阈值</p>
+                    <p className="text-sm sm:text-lg font-black mono text-[#FCD535]">{ENERGY_WITHDRAW_THRESHOLD}</p>
                   </div>
-                  <div className="bg-black/20 p-2 sm:p-3 rounded-xl border border-white/5">
-                    <p className="text-[7px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-1">所需能量</p>
-                    <p className="text-base sm:text-lg font-black mono text-[#F6465D]">
+                  <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
+                    <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-0.5 sm:mb-1">所需能量</p>
+                    <p className="text-sm sm:text-lg font-black mono text-[#F6465D]">
                       {Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) || '0'}
                     </p>
                   </div>
                 </div>
                 {stats.energy < ENERGY_WITHDRAW_THRESHOLD && (
-                  <div className="mt-2 p-2.5 sm:p-3 bg-red-500/10 rounded-xl border border-red-500/20 flex items-start gap-2">
-                    <Info className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-[8px] sm:text-[9px] text-red-400 font-bold uppercase tracking-tight leading-relaxed">
+                  <div className="mt-1.5 sm:mt-2 p-2 sm:p-3 bg-red-500/10 rounded-xl border border-red-500/20 flex items-start gap-1.5 sm:gap-2">
+                    <Info className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-[7px] sm:text-[9px] text-red-400 font-bold uppercase tracking-tight leading-relaxed">
                       {t('asset.energyInsufficient') || '能量值不足：最低需要'} {ENERGY_WITHDRAW_THRESHOLD} {t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}
                     </p>
                   </div>
@@ -617,9 +617,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
               </div>
               
               <div className="space-y-2 sm:space-y-3">
-                <div className="flex justify-between text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[#848E9C]">
-                  <span>{t('asset.availableLiquidity') || 'Available Liquidity'}</span>
-                  <span className="text-white text-[8px] sm:text-[10px]">${earnings ? earnings.pendingUsdt.toFixed(4) : stats.pendingUsdt.toFixed(4)} USDT</span>
+                <div className="flex justify-between text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-[#848E9C]">
+                  <span className="truncate pr-2">{t('asset.availableLiquidity') || 'Available Liquidity'}</span>
+                  <span className="text-white text-[7px] sm:text-[10px] flex-shrink-0">${earnings ? earnings.pendingUsdt.toFixed(4) : stats.pendingUsdt.toFixed(4)} USDT</span>
                 </div>
                 <div className="relative">
                   <input 
@@ -638,7 +638,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                       }
                     }}
                     disabled={stats.energy < ENERGY_WITHDRAW_THRESHOLD}
-                    className={`w-full bg-[#0b0e11] border rounded-2xl py-4 sm:py-5 px-4 sm:px-5 text-xl sm:text-2xl font-black mono text-white outline-none transition-colors touch-manipulation ${
+                    className={`w-full bg-[#0b0e11] border rounded-2xl py-3 sm:py-5 px-3 sm:px-5 text-lg sm:text-2xl font-black mono text-white outline-none transition-colors touch-manipulation min-h-[48px] ${
                       stats.energy < ENERGY_WITHDRAW_THRESHOLD 
                         ? 'border-red-500/20 opacity-50 cursor-not-allowed' 
                         : 'border-white/5 focus:border-[#FCD535]'
@@ -655,7 +655,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                       setWithdrawAmount(maxVal.toFixed(2));
                     }} 
                     disabled={stats.energy < ENERGY_WITHDRAW_THRESHOLD}
-                    className={`absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 text-[9px] sm:text-[10px] font-black px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border transition-colors touch-manipulation ${
+                    className={`absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 text-[8px] sm:text-[10px] font-black px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border transition-colors touch-manipulation min-h-[32px] ${
                       stats.energy < ENERGY_WITHDRAW_THRESHOLD
                         ? 'text-[#848E9C] bg-white/5 border-white/5 opacity-50 cursor-not-allowed'
                         : 'text-[#FCD535] bg-[#FCD535]/10 border-[#FCD535]/20 hover:bg-[#FCD535]/20 active:bg-[#FCD535]/30'
@@ -666,16 +666,16 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                 </div>
               </div>
 
-              <div className="bg-black/20 p-3 sm:p-5 rounded-2xl border border-white/5 space-y-2 sm:space-y-3">
-                 <div className="flex justify-between text-[9px] sm:text-[10px] font-bold uppercase">
+              <div className="bg-black/20 p-2.5 sm:p-5 rounded-2xl border border-white/5 space-y-1.5 sm:space-y-3">
+                 <div className="flex justify-between text-[8px] sm:text-[10px] font-bold uppercase">
                     <span className="text-[#848E9C]">{t('asset.networkFee') || 'Network Fee'}</span>
                     <span className="text-[#0ECB81]">{t('asset.free') || 'Free'}</span>
                  </div>
-                 <div className="flex justify-between text-[9px] sm:text-[10px] font-bold uppercase">
+                 <div className="flex justify-between text-[8px] sm:text-[10px] font-bold uppercase">
                     <span className="text-[#848E9C]">{t('asset.energyBurn') || 'Energy Burn'}</span>
                     <span className="text-[#F6465D] mono">-{Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.units') || 'Units'}</span>
                  </div>
-                 <div className="flex justify-between text-[9px] sm:text-[10px] font-bold uppercase pt-2 border-t border-white/5">
+                 <div className="flex justify-between text-[8px] sm:text-[10px] font-bold uppercase pt-1.5 sm:pt-2 border-t border-white/5">
                     <span className="text-[#848E9C]">{t('asset.remainingEnergy') || 'Remaining Energy'}</span>
                     <span className={`mono ${stats.energy - Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
                       {stats.energy - Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.units') || 'Units'}
@@ -744,7 +744,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   stats.energy < Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) || 
                   loading
                 }
-                className="w-full bg-[#FCD535] text-[#0B0E11] font-black py-4 sm:py-5 rounded-2xl disabled:opacity-20 disabled:cursor-not-allowed text-xs sm:text-sm uppercase tracking-[0.2em] shadow-lg shadow-[#FCD535]/10 active:scale-95 transition-all touch-manipulation flex-shrink-0"
+                className="w-full bg-[#FCD535] text-[#0B0E11] font-black py-3 sm:py-5 rounded-2xl disabled:opacity-20 disabled:cursor-not-allowed text-[10px] sm:text-sm uppercase tracking-[0.2em] shadow-lg shadow-[#FCD535]/10 active:scale-95 transition-all touch-manipulation flex-shrink-0 min-h-[48px]"
+                style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
               >
                 {loading ? (t('asset.processing') || '处理中...') : (t('asset.executeTransaction') || '执行交易')}
               </button>
