@@ -581,7 +581,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                <p className="text-[5px] sm:text-[7px] text-center text-[#848E9C] font-bold uppercase tracking-widest mt-1.5 sm:mt-3 opacity-50">{t('asset.protocolLayer') || 'Rabbit AI 去中心化协议层 2'}</p>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* WITHDRAW MODAL - Using Portal */}
