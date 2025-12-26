@@ -27,9 +27,21 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       if (!stats.address || !stats.address.startsWith('0x')) return;
       
       const [info, teamData] = await Promise.all([
-        fetchUserInfo(stats.address).catch(() => ({ energy: 0, inviteCount: 0, referrer: '', usdtAvailable: 0, usdtTotal: 0, usdtLocked: 0 })),
-        fetchTeamRewards(stats.address).catch(() => ({ totalRewards: '0' })),
+        fetchUserInfo(stats.address).catch((err) => {
+          console.warn('[ProfileView] Failed to fetch user info:', err);
+          return { energy: 0, inviteCount: 0, referrer: '', usdtAvailable: 0, usdtTotal: 0, usdtLocked: 0 };
+        }),
+        fetchTeamRewards(stats.address).catch((err) => {
+          console.warn('[ProfileView] Failed to fetch team rewards:', err);
+          return { totalRewards: '0' };
+        }),
       ]);
+      
+      console.log('[ProfileView] Loaded user data:', {
+        inviteCount: info?.inviteCount,
+        teamRewards: teamData?.totalRewards,
+        address: stats.address,
+      });
       
       setEnergy(Number(info?.energy || 0));
       setInviteCount(Number(info?.inviteCount || 0));
@@ -113,17 +125,19 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
         referrals.forEach((ref: any) => {
           const energy = Number(ref.energy || 5);
           const createdAt = ref.createdAt || ref.time || new Date().toISOString();
+          // 使用实际的奖励金额，如果没有则显示 0
+          const rewardAmount = parseFloat(ref.rewardAmount || '0');
           
           timeline.push({
             type: 'invite',
             icon: '🤝',
-            title: t('profile.networkReward') || '邀请好友',
+            title: t('profile.networkReward') || '网络奖励',
             description: shortenAddress(ref.address || ''),
             energy: `+${energy} ${t('profile.energy') || '能量'}`,
             time: createdAt,
             timestamp: new Date(createdAt).getTime(),
             address: ref.address,
-            amount: '50',
+            amount: rewardAmount.toFixed(2), // 使用实际奖励金额，保留2位小数
             currency: 'RAT',
             energyChange: energy,
           });
