@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2 } from 'lucide-react';
 import { UserStats } from '../types';
 import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_WITHDRAW_THRESHOLD, ENERGY_PER_USDT_WITHDRAW, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
-import { fetchRatBalance, fetchEarnings, applyWithdraw } from '../api';
+import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getProvider, getContract } from '../services/web3Service';
 
