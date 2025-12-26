@@ -330,21 +330,10 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
             const { disconnectWallet } = await import('../services/web3Service');
             await disconnectWallet();
             
-            // 2. 清除所有 WalletConnect session 数据
-            const keysToRemove: string[] = [];
-            for (let i = 0; i < localStorage.length; i++) {
-              const key = localStorage.key(i);
-              if (key && (key.startsWith('wc@2:') || key.startsWith('walletconnect'))) {
-                keysToRemove.push(key);
-              }
-            }
-            keysToRemove.forEach(key => localStorage.removeItem(key));
-            console.log('[MiningView] 已自动清理 WalletConnect session 数据');
+            // 2. 等待断开完成
+            await new Promise(resolve => setTimeout(resolve, 300));
             
-            // 3. 等待清理完成
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // 4. 尝试重新连接
+            // 3. 尝试重新连接（connectWallet 内部会处理清理逻辑）
             try {
               const newProvider = await connectWallet();
               // 等待一下让钱包状态更新
@@ -372,15 +361,24 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
               // 更新 provider 变量，继续执行领取逻辑
               provider = newProvider;
             } catch (retryError: any) {
-              // 重试失败，显示弹窗让用户手动处理
-              console.warn('[MiningView] 自动重连失败，显示断开提示:', retryError);
-              setShowDisconnectModal(true);
+              // 重试失败，可能是用户取消了连接或其他原因
+              const retryErrorMessage = retryError?.message || retryError?.toString() || '';
+              console.warn('[MiningView] 自动重连失败:', retryErrorMessage);
+              
+              // 如果是用户取消，不显示错误
+              if (retryError?.code === 'USER_REJECTED' || retryError?.code === 4001 || 
+                  retryErrorMessage.includes('User rejected') || retryErrorMessage.includes('user rejected')) {
+                return;
+              }
+              
+              // 其他错误，显示通用错误提示
+              showError('连接失败，请刷新页面后重试');
               return;
             }
           } catch (cleanError) {
-            // 清理失败，显示弹窗
+            // 清理失败，显示通用错误提示
             console.error('[MiningView] 自动清理失败:', cleanError);
-            setShowDisconnectModal(true);
+            showError('连接失败，请刷新页面后重试');
             return;
           }
         } else {
