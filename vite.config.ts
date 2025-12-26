@@ -45,5 +45,18 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      build: {
+        chunkSizeWarningLimit: 1000, // 设置块大小警告限制为 1000 KB
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              // 将大型依赖分离到单独的 chunk
+              'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+              'vendor-ethers': ['ethers'],
+              'vendor-walletconnect': ['@walletconnect/ethereum-provider', '@walletconnect/modal'],
+            },
+          },
+        },
+      },
     };
 });
