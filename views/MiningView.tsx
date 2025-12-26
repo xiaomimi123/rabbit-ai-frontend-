@@ -680,12 +680,23 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
             <div className="w-full space-y-3">
               <button 
                 onClick={handleClaim}
-                disabled={claiming}
-                className="w-full relative group/btn overflow-hidden bg-gradient-to-r from-[#FCD535] to-[#f3ba2f] text-[#0B0E11] font-black py-4 rounded-2xl transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-[#FCD535]/10"
+                disabled={claiming || isCooldown}
+                className={`w-full relative group/btn overflow-hidden font-black py-4 rounded-2xl transition-all active:scale-95 disabled:opacity-50 shadow-lg ${
+                  isCooldown 
+                    ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed shadow-zinc-900/10' 
+                    : 'bg-gradient-to-r from-[#FCD535] to-[#f3ba2f] text-[#0B0E11] shadow-[#FCD535]/10'
+                }`}
               >
-                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700 ease-in-out" />
+                {!isCooldown && (
+                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700 ease-in-out" />
+                )}
                 <span className="relative z-10 text-lg uppercase tracking-tight">
-                  {claiming ? (t('mining.blockchainSyncing') || '区块链同步中...') : (t('mining.claimButton') || '领取 10.00 RAT')}
+                  {claiming 
+                    ? (t('mining.blockchainSyncing') || '区块链同步中...') 
+                    : isCooldown 
+                      ? (t('mining.cooldown') || '冷却中，请稍候') 
+                      : (t('mining.claimButton') || '领取 10.00 RAT')
+                  }
                 </span>
               </button>
             </div>
