@@ -314,14 +314,31 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
             
             // 4. 尝试重新连接
             try {
-              const provider = await connectWallet();
-              const signer = provider.getSigner();
+              const newProvider = await connectWallet();
+              // 等待一下让钱包状态更新
+              await sleep(800);
+              const signer = newProvider.getSigner();
               const address = await signer.getAddress();
               
+              if (!address || !address.startsWith('0x')) {
+                throw new Error('获取地址失败');
+              }
+              
+              // 获取BNB余额
+              let bnbBalance = 0;
+              try {
+                const balance = await newProvider.getBalance(address);
+                bnbBalance = parseFloat(ethers.utils.formatEther(balance));
+              } catch (error) {
+                console.error('Failed to get BNB balance:', error);
+              }
+              
               // 连接成功，更新状态
-              setStats(prev => ({ ...prev, address }));
+              setStats(prev => ({ ...prev, address, bnbBalance }));
               console.log('[MiningView] 自动重连成功，继续执行领取操作');
-              // 继续执行领取逻辑，不返回
+              
+              // 更新 provider 变量，继续执行领取逻辑
+              provider = newProvider;
             } catch (retryError: any) {
               // 重试失败，显示弹窗让用户手动处理
               console.warn('[MiningView] 自动重连失败，显示断开提示:', retryError);
