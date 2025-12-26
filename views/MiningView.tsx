@@ -419,7 +419,49 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
           value: feeAmount,
           gasLimit: gasLimit
         });
+        
+        // ⚠️ 关键：在等待确认前，先获取交易哈希（tx.hash 在交易发送后立即可用）
+        const txHash = tx?.hash;
+        if (!txHash) {
+          console.error('[handleClaim] 交易发送成功但无法获取交易哈希:', { tx });
+          alert('交易发送成功，但无法获取交易哈希。请检查交易状态。');
+          setClaiming(false);
+          return;
+        }
+        console.log('[handleClaim] 交易已发送，等待确认:', { txHash, blockNumber: tx.blockNumber });
+        
+        // 等待交易确认
         receipt = await tx.wait();
+        
+        // ⚠️ 验证 receipt 和交易状态
+        if (!receipt) {
+          console.error('[handleClaim] 交易确认失败，receipt 为 undefined:', { txHash });
+          alert('交易确认失败，请检查交易状态。交易哈希: ' + txHash);
+          setClaiming(false);
+          return;
+        }
+        
+        if (receipt.status !== 1) {
+          console.error('[handleClaim] 交易失败（状态码不为 1）:', { txHash, status: receipt.status });
+          alert('交易失败，请重试。交易哈希: ' + txHash);
+          setClaiming(false);
+          return;
+        }
+        
+        // ⚠️ 再次验证 receipt.hash（应该与 tx.hash 一致）
+        const receiptHash = receipt.hash || txHash;
+        if (!receiptHash) {
+          console.error('[handleClaim] receipt.hash 和 tx.hash 都为空:', { receipt, tx });
+          alert('无法获取交易哈希，请检查交易状态。');
+          setClaiming(false);
+          return;
+        }
+        
+        console.log('[handleClaim] 交易确认成功:', { 
+          txHash: receiptHash, 
+          blockNumber: receipt.blockNumber,
+          status: receipt.status 
+        });
       } catch (txError: any) {
         // 交易发送失败的错误处理
         const code = txError?.code;
@@ -461,15 +503,31 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         return;
       }
 
+      // ⚠️ 关键：获取交易哈希（优先使用 receipt.hash，如果不存在则使用 tx.hash）
+      const finalTxHash = receipt?.hash || tx?.hash;
+      
+      // ⚠️ 最终验证：确保交易哈希存在
+      if (!finalTxHash) {
+        console.error('[handleClaim] 致命错误：无法获取交易哈希', { 
+          receipt: receipt ? { hash: receipt.hash, status: receipt.status } : null,
+          tx: tx ? { hash: tx.hash } : null
+        });
+        alert('无法获取交易哈希，请检查交易状态或联系管理员。');
+        setClaiming(false);
+        return;
+      }
+
       // 解析 Claimed 事件
       const iface = new ethers.utils.Interface(ABIS.AIRDROP);
       let wonAmount = '0';
-      receipt.logs.forEach((log: any) => {
-          try {
-              const parsed = iface.parseLog(log);
-              if(parsed?.name === 'Claimed') wonAmount = ethers.utils.formatEther(parsed.args.amount);
-          } catch(e) {}
-      });
+      if (receipt?.logs) {
+        receipt.logs.forEach((log: any) => {
+            try {
+                const parsed = iface.parseLog(log);
+                if(parsed?.name === 'Claimed') wonAmount = ethers.utils.formatEther(parsed.args.amount);
+            } catch(e) {}
+        });
+      }
 
       // 显示奖励弹窗
       setRewardAmount(wonAmount);
@@ -478,37 +536,38 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       // API 同步（使用当前连接的地址，而不是 stats.address）
       console.log('[handleClaim] 准备同步空投领取到后端:', {
         currentAddress,
-        txHash: receipt.hash,
+        txHash: finalTxHash,
         referrer: refAddr,
-        receiptStatus: receipt.status,
-        receiptBlockNumber: receipt.blockNumber
+        receiptStatus: receipt?.status,
+        receiptBlockNumber: receipt?.blockNumber,
+        txHashSource: receipt?.hash ? 'receipt.hash' : 'tx.hash'
       });
       
       const syncRes = await syncClaimWithRetry({ 
         address: currentAddress, 
-        txHash: receipt.hash, 
+        txHash: finalTxHash, 
         referrer: refAddr 
       });
       
       if (!syncRes.ok) {
         enqueuePendingClaim({ 
           address: currentAddress, 
-          txHash: receipt.hash, 
+          txHash: finalTxHash, 
           referrer: refAddr 
         });
         console.error('[handleClaim] 后端同步失败，已加入待同步队列:', {
           code: syncRes.code,
           message: syncRes.message,
           address: currentAddress,
-          txHash: receipt.hash
+          txHash: finalTxHash
         });
         // 显示更详细的错误信息
-        const errorMsg = `领取成功，但后端同步失败！\n\n错误代码: ${syncRes.code}\n错误信息: ${syncRes.message}\n\n交易哈希: ${receipt.hash}\n地址: ${currentAddress}\n\n请稍后刷新页面查看数据，或联系管理员处理。`;
+        const errorMsg = `领取成功，但后端同步失败！\n\n错误代码: ${syncRes.code}\n错误信息: ${syncRes.message}\n\n交易哈希: ${finalTxHash}\n地址: ${currentAddress}\n\n请稍后刷新页面查看数据，或联系管理员处理。`;
         alert(errorMsg);
       } else {
         console.log('[handleClaim] 后端同步成功，用户数据已更新:', {
           address: currentAddress,
-          txHash: receipt.hash,
+          txHash: finalTxHash,
           attempt: syncRes.attempt
         });
       }

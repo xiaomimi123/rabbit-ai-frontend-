@@ -1,9 +1,51 @@
 import axios from 'axios';
 
+// 获取 API Base URL
+// 优先使用环境变量 VITE_API_BASE_URL，如果没有配置则使用相对路径（开发环境）
+function getApiBaseUrl(): string {
+  const envUrl = (import.meta.env?.VITE_API_BASE_URL as string | undefined)?.trim();
+  
+  // 如果配置了环境变量，使用环境变量
+  if (envUrl) {
+    // 移除末尾的斜杠（如果有）
+    const baseUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
+    // 确保以 /api 结尾
+    return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
+  }
+  
+  // 如果没有配置环境变量，使用相对路径（开发环境由 Vite 代理）
+  return '/api/';
+}
+
+const apiBaseUrl = getApiBaseUrl();
+const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+
+// ⚠️ 环境检查：如果 API Base URL 指向了前端自身域名，打印警告
+if (typeof window !== 'undefined' && apiBaseUrl.startsWith(currentOrigin)) {
+  console.error(
+    '%c⚠️ 警告：API Base URL 配置错误！',
+    'color: red; font-size: 16px; font-weight: bold; background: yellow; padding: 4px;'
+  );
+  console.error(
+    'API Base URL 指向了前端自身域名，这会导致所有 API 请求返回 404。',
+    '\n当前配置:', apiBaseUrl,
+    '\n前端域名:', currentOrigin,
+    '\n\n解决方案：',
+    '\n1. 前往 Vercel Dashboard -> Settings -> Environment Variables',
+    '\n2. 找到 VITE_API_BASE_URL 环境变量',
+    '\n3. 将其值设置为后端 Render 地址（例如: https://rabbit-ai-backend.onrender.com）',
+    '\n4. 注意：不要带末尾的斜杠',
+    '\n5. 重新部署前端（Redeploy）使环境变量生效'
+  );
+}
+
 const api = axios.create({
-  baseURL: '/api/',
+  baseURL: apiBaseUrl,
   timeout: 20000,
 });
+
+// 导出 apiBaseUrl 供其他模块使用（用于日志等）
+export { apiBaseUrl };
 
 // 请求拦截器
 api.interceptors.request.use(
@@ -79,9 +121,28 @@ export const fetchTeamRewards = async (address: string) => {
 };
 
 export const verifyClaim = async (address: string, txHash: string, referrer: string) => {
+  // ⚠️ 参数验证：确保 txHash 不为空
+  if (!txHash || txHash === 'undefined' || txHash.trim() === '') {
+    const errorMsg = `[verifyClaim] 错误：txHash 参数无效 (${txHash})`;
+    console.error(errorMsg, { address, txHash, referrer });
+    throw new Error(errorMsg);
+  }
+  
+  // 构建请求 payload
+  const payload = { address, txHash, referrer };
+  
   try {
-    console.log('[verifyClaim] 调用后端 API:', { address, txHash, referrer });
-    const { data } = await api.post('/mining/verify-claim', { address, txHash, referrer });
+    // ⚠️ 优化日志：在调用前打印完整 payload
+    console.log('[verifyClaim] 调用后端 API，完整 payload:', {
+      address,
+      txHash,
+      referrer,
+      payload,
+      apiBaseUrl: apiBaseUrl,
+      fullUrl: `${apiBaseUrl}/mining/verify-claim`
+    });
+    
+    const { data } = await api.post('/mining/verify-claim', payload);
     console.log('[verifyClaim] API 调用成功，返回数据:', data);
     return data;
   } catch (error: any) {
@@ -90,10 +151,12 @@ export const verifyClaim = async (address: string, txHash: string, referrer: str
       statusText: error?.response?.statusText,
       data: error?.response?.data,
       message: error?.message,
+      requestPayload: payload,
       config: {
         url: error?.config?.url,
         method: error?.config?.method,
         data: error?.config?.data,
+        baseURL: error?.config?.baseURL,
       }
     });
     throw error;
