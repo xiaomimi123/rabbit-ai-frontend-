@@ -6,6 +6,7 @@ import { Gift, Copy, Check, Users, Zap, Sparkles, X, Trophy, ShieldCheck, Dollar
 import { UserStats } from '../types';
 import { PARTNERS, AUDIT_LOGOS, CONTRACTS, ABIS, AIRDROP_FEE, CHAIN_ID } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import { getProvider, getContract, formatError, switchNetwork, connectWallet, disconnectWallet } from '../services/web3Service';
 import { verifyClaim } from '../api';
 import { getPartnerIcon } from '../components/PartnerIcons';
@@ -18,6 +19,7 @@ interface MiningViewProps {
 
 const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
   const { t } = useLanguage();
+  const { showError, showWarning, showInfo, showSuccess } = useToast();
   const DEFAULT_COOLDOWN = 4 * 3600; // 4 小时占位，用于未领取前静态显示
   const [countdown, setCountdown] = useState(DEFAULT_COOLDOWN); 
   const [copied, setCopied] = useState(false);
@@ -273,14 +275,14 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         provider = getProvider();
         // 重新检查地址（需要从钱包获取）
         if (!provider) {
-          alert(t('common.connectWallet') || '请先连接钱包');
+          showError(t('common.connectWallet') || '请先连接钱包');
           return;
         }
         // 获取当前连接的地址
         const signer = provider.getSigner();
         const address = await signer.getAddress();
         if (!address || !address.startsWith('0x')) {
-          alert(t('common.connectWallet') || '请先连接钱包');
+          showError(t('common.connectWallet') || '请先连接钱包');
           return;
         }
         // 获取BNB余额
@@ -398,7 +400,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
 
     // 检查冷却时间
     if (isCooldown) {
-      alert(t('mining.cooldown') || '冷却中，请稍候');
+      showWarning(t('mining.cooldown') || '冷却中，请稍候');
       return;
     }
     
@@ -444,7 +446,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       // 获取当前地址（确保使用最新地址）
       const currentAddress = await signer.getAddress();
       if (!currentAddress || !currentAddress.startsWith('0x')) {
-        alert(t('common.connectWallet') || '请先连接钱包');
+        showError(t('common.connectWallet') || '请先连接钱包');
         setClaiming(false);
         return;
       }
@@ -462,7 +464,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       if (balance.lt(requiredBalance)) {
         const balanceFormatted = ethers.utils.formatEther(balance);
         const requiredFormatted = ethers.utils.formatEther(requiredBalance);
-        alert(`${t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励'}\n当前余额: ${parseFloat(balanceFormatted).toFixed(6)} BNB\n需要: ${parseFloat(requiredFormatted).toFixed(6)} BNB`);
+        showError(`${t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励'}\n当前余额: ${parseFloat(balanceFormatted).toFixed(6)} BNB\n需要: ${parseFloat(requiredFormatted).toFixed(6)} BNB`);
         setClaiming(false);
         return;
       }
@@ -482,28 +484,28 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         
         // ACTION_REJECTED (用户点了拒绝)
         if (code === 'ACTION_REJECTED' || code === 4001 || errorMsg.includes('user rejected')) {
-          alert('您取消了交易');
+          showInfo('您取消了交易');
           setClaiming(false);
           return;
         }
         
         // INSUFFICIENT_FUNDS (没钱付 Gas)
         if (code === 'INSUFFICIENT_FUNDS' || errorMsg.includes('insufficient funds') || errorMsg.includes('Insufficient')) {
-          alert('BNB 余额不足以支付 Gas 费');
+          showError('BNB 余额不足以支付 Gas 费');
           setClaiming(false);
           return;
         }
         
         // CALL_EXCEPTION (合约报错)
         if (code === 'CALL_EXCEPTION' || errorMsg.includes('Cooldown') || errorMsg.includes('cooldown')) {
-          alert('领取失败，可能处于冷却期或空投池已空');
+          showWarning('领取失败，可能处于冷却期或空投池已空');
           setClaiming(false);
           fetchCooldown();
           return;
         }
         
         if (errorMsg.includes('balance')) {
-          alert(t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励');
+          showError(t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励');
           setClaiming(false);
           return;
         }
@@ -525,7 +527,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         const txHash = tx?.hash;
         if (!txHash) {
           console.error('[handleClaim] 交易发送成功但无法获取交易哈希:', { tx });
-          alert('交易发送成功，但无法获取交易哈希。请检查交易状态。');
+          showError('交易发送成功，但无法获取交易哈希。请检查交易状态。');
           setClaiming(false);
           return;
         }
@@ -537,14 +539,14 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         // ⚠️ 验证 receipt 和交易状态
         if (!receipt) {
           console.error('[handleClaim] 交易确认失败，receipt 为 undefined:', { txHash });
-          alert('交易确认失败，请检查交易状态。交易哈希: ' + txHash);
+          showError('交易确认失败，请检查交易状态。交易哈希: ' + txHash);
           setClaiming(false);
           return;
         }
         
         if (receipt.status !== 1) {
           console.error('[handleClaim] 交易失败（状态码不为 1）:', { txHash, status: receipt.status });
-          alert('交易失败，请重试。交易哈希: ' + txHash);
+          showError('交易失败，请重试。交易哈希: ' + txHash);
           setClaiming(false);
           return;
         }
@@ -553,7 +555,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         const receiptHash = receipt.hash || txHash;
         if (!receiptHash) {
           console.error('[handleClaim] receipt.hash 和 tx.hash 都为空:', { receipt, tx });
-          alert('无法获取交易哈希，请检查交易状态。');
+          showError('无法获取交易哈希，请检查交易状态。');
           setClaiming(false);
           return;
         }
@@ -570,21 +572,21 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         
         // ACTION_REJECTED (用户点了拒绝)
         if (code === 'ACTION_REJECTED' || code === 4001 || errorMsg.includes('user rejected')) {
-          alert('您取消了交易');
+          showInfo('您取消了交易');
           setClaiming(false);
           return;
         }
         
         // INSUFFICIENT_FUNDS (没钱付 Gas)
         if (code === 'INSUFFICIENT_FUNDS' || errorMsg.includes('insufficient funds')) {
-          alert('BNB 余额不足以支付 Gas 费');
+          showError('BNB 余额不足以支付 Gas 费');
           setClaiming(false);
           return;
         }
         
         // CALL_EXCEPTION (合约报错)
         if (code === 'CALL_EXCEPTION' || errorMsg.includes('Cooldown') || errorMsg.includes('cooldown')) {
-          alert('领取失败，可能处于冷却期或空投池已空');
+          showWarning('领取失败，可能处于冷却期或空投池已空');
           setClaiming(false);
           fetchCooldown();
           return;
@@ -592,14 +594,14 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         
         // NETWORK_ERROR (网络错误)
         if (code === 'NETWORK_ERROR' || errorMsg.includes('network')) {
-          alert('网络错误，请检查网络连接');
+          showError('网络错误，请检查网络连接');
           setClaiming(false);
           return;
         }
         
         // 其他错误
         const friendlyMsg = txError?.reason || errorMsg || '交易失败';
-        alert(friendlyMsg);
+        showError(friendlyMsg);
         setClaiming(false);
         return;
       }
@@ -613,7 +615,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
           receipt: receipt ? { hash: receipt.hash, status: receipt.status } : null,
           tx: tx ? { hash: tx.hash } : null
         });
-        alert('无法获取交易哈希，请检查交易状态或联系管理员。');
+        showError('无法获取交易哈希，请检查交易状态或联系管理员。');
         setClaiming(false);
         return;
       }
@@ -664,7 +666,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         });
         // 显示更详细的错误信息
         const errorMsg = `领取成功，但后端同步失败！\n\n错误代码: ${syncRes.code}\n错误信息: ${syncRes.message}\n\n交易哈希: ${finalTxHash}\n地址: ${currentAddress}\n\n请稍后刷新页面查看数据，或联系管理员处理。`;
-        alert(errorMsg);
+        showWarning(errorMsg, 8000);
       } else {
         console.log('[handleClaim] 后端同步成功，用户数据已更新:', {
           address: currentAddress,
@@ -724,27 +726,27 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       console.error('Claim error details:', err);
       
       if (err?.code === 'NETWORK_ERROR' || err?.message?.includes('network changed')) {
-        alert(`检测到网络不匹配，请切换到 BNB Smart Chain Mainnet (Chain ID: ${CHAIN_ID})`);
+        showError(`检测到网络不匹配，请切换到 BNB Smart Chain Mainnet (Chain ID: ${CHAIN_ID})`);
       } else if (err?.code === -32603 || err?.code === 'SERVER_ERROR' || err?.code === 'UNPREDICTABLE_GAS_LIMIT') {
         const errorData = err?.data || err?.error || {};
         const errorMessage = errorData?.message || err?.message || err?.reason || 'Internal RPC error';
         
         if (errorMessage.includes('Contract empty') || errorMessage.includes('contract empty')) {
-          alert(t('mining.contractEmpty') || '合约代币余额不足，请联系管理员充值');
+          showError(t('mining.contractEmpty') || '合约代币余额不足，请联系管理员充值');
         } else if (errorMessage.includes('Cooldown') || errorMessage.includes('cooldown')) {
-          alert(t('mining.cooldown') || '冷却中，请稍候');
+          showWarning(t('mining.cooldown') || '冷却中，请稍候');
           fetchCooldown();
         } else if (errorMessage.includes('Insufficient') || errorMessage.includes('balance')) {
-          alert(t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励');
+          showError(t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励');
         } else {
-          alert(`交易失败: ${errorMessage}`);
+          showError(`交易失败: ${errorMessage}`);
         }
       } else {
         const errorMsg = err?.message || err?.reason || formatError(err);
         if (errorMsg.includes('Contract empty') || errorMsg.includes('contract empty')) {
-          alert(t('mining.contractEmpty') || '合约代币余额不足，请联系管理员充值');
+          showError(t('mining.contractEmpty') || '合约代币余额不足，请联系管理员充值');
         } else {
-          alert(formatError(err));
+          showError(formatError(err));
         }
       }
     } finally {

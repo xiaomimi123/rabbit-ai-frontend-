@@ -7,6 +7,7 @@ import { UserStats } from '../types';
 import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_WITHDRAW_THRESHOLD, ENERGY_PER_USDT_WITHDRAW, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
 import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import { getProvider, getContract } from '../services/web3Service';
 
 interface AssetViewProps {
@@ -17,6 +18,7 @@ interface AssetViewProps {
 
 const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProfile }) => {
   const { t } = useLanguage();
+  const { showError, showWarning, showInfo } = useToast();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -678,7 +680,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                     onClick={() => {
                       const currentEnergy = modalEnergy !== null ? modalEnergy : stats.energy;
                       if (currentEnergy < ENERGY_WITHDRAW_THRESHOLD) {
-                        alert(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
+                        showWarning(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
                         return;
                       }
                       const maxVal = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
@@ -720,7 +722,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   
                   // 首先检查能量启动门槛 - 如果能量不足，直接阻止提交
                   if (currentEnergy < ENERGY_WITHDRAW_THRESHOLD) {
-                    alert(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
+                    showWarning(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
                     return;
                   }
 
@@ -728,13 +730,13 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   
                   // 验证输入
                   if (!withdrawAmount || amount <= 0) {
-                    alert('请输入有效的提现金额');
+                    showError('请输入有效的提现金额');
                     return;
                   }
                   
                   const availableUsdt = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
                   if (amount > availableUsdt) {
-                    alert('提现金额不能超过可提现余额');
+                    showError('提现金额不能超过可提现余额');
                     return;
                   }
                   
@@ -743,7 +745,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   
                   // 检查能量是否足够支付本次提现
                   if (currentEnergy < requiredEnergy) {
-                    alert(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量，当前能量：${currentEnergy}`);
+                    showError(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量，当前能量：${currentEnergy}`);
                     return;
                   }
 
@@ -777,7 +779,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   } catch (error: any) {
                     console.error('Withdraw failed:', error);
                     const errorMsg = error?.response?.data?.message || error?.message || (t('asset.withdrawFailed') || '提现失败');
-                    alert(errorMsg);
+                    showError(errorMsg);
                   } finally {
                     setLoading(false);
                   }
