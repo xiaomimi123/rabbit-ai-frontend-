@@ -20,23 +20,44 @@ function getApiBaseUrl(): string {
 const apiBaseUrl = getApiBaseUrl();
 const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
 
-// ⚠️ 环境检查：如果 API Base URL 指向了前端自身域名，打印警告
-if (typeof window !== 'undefined' && apiBaseUrl.startsWith(currentOrigin)) {
-  console.error(
-    '%c⚠️ 警告：API Base URL 配置错误！',
-    'color: red; font-size: 16px; font-weight: bold; background: yellow; padding: 4px;'
-  );
-  console.error(
-    'API Base URL 指向了前端自身域名，这会导致所有 API 请求返回 404。',
-    '\n当前配置:', apiBaseUrl,
-    '\n前端域名:', currentOrigin,
-    '\n\n解决方案：',
-    '\n1. 前往 Vercel Dashboard -> Settings -> Environment Variables',
-    '\n2. 找到 VITE_API_BASE_URL 环境变量',
-    '\n3. 将其值设置为后端 Render 地址（例如: https://rabbit-ai-backend.onrender.com）',
-    '\n4. 注意：不要带末尾的斜杠',
-    '\n5. 重新部署前端（Redeploy）使环境变量生效'
-  );
+// ⚠️ 环境检查：检测错误的 API Base URL 配置
+if (typeof window !== 'undefined') {
+  const isPointingToFrontend = apiBaseUrl.startsWith(currentOrigin);
+  const isPointingToAdmin = apiBaseUrl.includes('rabbit-ai-admin') || apiBaseUrl.includes('admin');
+  const isPointingToWrongService = isPointingToFrontend || isPointingToAdmin;
+  
+  if (isPointingToWrongService) {
+    console.error(
+      '%c🚨 严重错误：API Base URL 配置错误！',
+      'color: white; font-size: 18px; font-weight: bold; background: red; padding: 8px; border-radius: 4px;'
+    );
+    console.error(
+      '%cAPI Base URL 指向了错误的服务！',
+      'color: red; font-size: 14px; font-weight: bold;'
+    );
+    console.error(
+      '当前配置:', apiBaseUrl,
+      '\n前端域名:', currentOrigin,
+      '\n错误类型:', isPointingToFrontend ? '指向前端自身' : isPointingToAdmin ? '指向管理员后台' : '未知错误',
+      '\n\n❌ 这会导致所有 API 请求失败（CORS 错误或 404）！',
+      '\n\n✅ 解决方案：',
+      '\n1. 前往 Vercel Dashboard -> Settings -> Environment Variables',
+      '\n2. 找到 VITE_API_BASE_URL 环境变量',
+      '\n3. 将其值设置为后端 Render 地址（例如: https://rabbit-ai-backend.onrender.com）',
+      '\n4. ⚠️ 注意：不要设置为管理员后台地址（rabbit-ai-admin.vercel.app）',
+      '\n5. ⚠️ 注意：不要带末尾的斜杠',
+      '\n6. 重新部署前端（Redeploy）使环境变量生效'
+    );
+    
+    // 在页面上显示错误提示（可选，但可能会影响用户体验）
+    // 可以考虑在开发环境显示，生产环境只记录日志
+    if (import.meta.env.DEV) {
+      console.warn(
+        '%c💡 提示：在开发环境，如果未配置 VITE_API_BASE_URL，将使用相对路径 /api/（由 Vite 代理）',
+        'color: blue; font-size: 12px;'
+      );
+    }
+  }
 }
 
 const api = axios.create({
