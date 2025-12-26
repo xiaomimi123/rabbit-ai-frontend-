@@ -692,10 +692,10 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
                 )}
                 <span className="relative z-10 text-lg uppercase tracking-tight">
                   {claiming 
-                    ? (t('mining.blockchainSyncing') || '区块链同步中...') 
+                    ? '区块链同步中...'
                     : isCooldown 
-                      ? (t('mining.cooldown') || '冷却中，请稍候') 
-                      : (t('mining.claimButton') || '领取 10.00 RAT')
+                      ? '冷却中，请稍候'
+                      : '领取RAT空投奖励'
                   }
                 </span>
               </button>
