@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@walletconnect/ethereum-provider": "^2.23.1",
-    "@walletconnect/modal": "^2.7.0", // ⚠️ 已弃用警告：此包已被弃用，建议迁移到 @reown/appkit，但需要大量代码更改。当前版本仍可正常使用。
+    "@walletconnect/modal": "^2.7.0"
     "@walletconnect/types": "^2.23.1",
     "axios": "^1.6.2",
     "buffer": "^6.0.3",
