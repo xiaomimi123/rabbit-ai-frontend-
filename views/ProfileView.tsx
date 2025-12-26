@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, Sparkles, TrendingUp, Info } from 'lucide-react';
 import { UserStats, HistoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -352,100 +353,112 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
         </div>
       </div>
 
-      {/* ENERGY EXPLANATION MODAL */}
-      {showEnergyModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300">
-          <div className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full max-w-sm rounded-[3rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden relative">
-            
+      {/* ENERGY EXPLANATION MODAL - Using Portal */}
+      {showEnergyModal && createPortal(
+        <div 
+          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center px-0 sm:px-4 pb-0 sm:pb-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
+          onClick={(e) => {
+            // 点击背景关闭弹窗
+            if (e.target === e.currentTarget) {
+              setShowEnergyModal(false);
+            }
+          }}
+        >
+          <div 
+            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Background Decoration */}
             <div className="absolute top-[-10%] left-[-10%] w-32 h-32 bg-[#FCD535]/10 blur-3xl rounded-full" />
             <div className="absolute bottom-[-10%] right-[-10%] w-32 h-32 bg-blue-500/10 blur-3xl rounded-full" />
 
             {/* Header */}
-            <div className="p-8 pb-4 relative z-10">
-              <div className="flex justify-between items-start mb-6">
-                <div className="space-y-1">
-                   <div className="flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-[#FCD535] fill-[#FCD535]" />
-                      <h3 className="font-black uppercase tracking-[0.2em] text-sm text-white">{t('profile.energyExplanation') || '能量值说明'}</h3>
+            <div className="relative p-3 sm:p-8 pb-2 sm:pb-4 flex-shrink-0 z-10">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-1 bg-[#FCD535]/20 rounded-b-full" />
+              <div className="flex justify-between items-start mb-3 sm:mb-6">
+                <div className="space-y-0.5 sm:space-y-1 flex-1 pr-2 min-w-0">
+                   <div className="flex items-center gap-1.5 sm:gap-2">
+                      <Zap className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-[#FCD535] fill-[#FCD535] flex-shrink-0" />
+                      <h3 className="font-black uppercase tracking-[0.2em] text-[9px] sm:text-sm text-white truncate">{t('profile.energyExplanation') || '能量值说明'}</h3>
                    </div>
-                   <p className="text-[10px] text-[#848E9C] font-bold uppercase tracking-widest">{t('profile.energySystem') || '能量系统 v2.0'}</p>
+                   <p className="text-[7px] sm:text-[10px] text-[#848E9C] font-bold uppercase tracking-widest truncate">{t('profile.energySystem') || '能量系统 v2.0'}</p>
                 </div>
                 <button 
                   onClick={() => setShowEnergyModal(false)} 
-                  className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
+                  className="p-1.5 sm:p-3 bg-white/5 hover:bg-white/10 rounded-xl sm:rounded-2xl transition-all flex-shrink-0 touch-manipulation active:scale-90"
                 >
-                   <X className="w-5 h-5 text-[#848E9C]" />
+                   <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#848E9C]" />
                 </button>
               </div>
 
-              <p className="text-xs text-[#848E9C] leading-relaxed mb-6 font-medium">
+              <p className="text-[8px] sm:text-xs text-[#848E9C] leading-relaxed mb-3 sm:mb-6 font-medium">
                 {t('profile.energyDescription') || '能量值 (Grid Energy) 是 Rabbit AI 协议的核心消耗燃料，用于保障流动性提取的安全性与公平性。'}
               </p>
             </div>
 
             {/* Content List */}
-            <div className="px-8 space-y-4 pb-8 relative z-10 max-h-[50vh] overflow-y-auto no-scrollbar">
+            <div className="px-3 sm:px-8 space-y-3 sm:space-y-4 pb-3 sm:pb-8 relative z-10 overflow-y-auto flex-1 no-scrollbar">
                {/* How to Earn */}
-               <div className="space-y-3">
-                  <h4 className="text-[10px] font-black text-[#FCD535] uppercase tracking-[0.3em] flex items-center gap-2">
-                    <TrendingUp className="w-3 h-3" /> {t('profile.howToEarn') || '如何获取'}
+               <div className="space-y-2 sm:space-y-3">
+                  <h4 className="text-[9px] sm:text-[10px] font-black text-[#FCD535] uppercase tracking-[0.3em] flex items-center gap-1.5 sm:gap-2">
+                    <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {t('profile.howToEarn') || '如何获取'}
                   </h4>
                   
-                  <div className="grid gap-2">
-                     <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-2xl">
-                        <div className="flex items-center gap-3">
-                           <Gift className="w-4 h-4 text-white/40" />
-                           <span className="text-[11px] font-bold text-white/90">{t('profile.dailyAirdropClaim') || '每日空投领取'}</span>
+                  <div className="grid gap-1.5 sm:gap-2">
+                     <div className="flex items-center justify-between p-3 sm:p-4 bg-white/[0.03] border border-white/5 rounded-xl sm:rounded-2xl">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                           <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 flex-shrink-0" />
+                           <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate">{t('profile.dailyAirdropClaim') || '每日空投领取'}</span>
                         </div>
-                        <span className="text-xs font-black text-[#FCD535] mono">+1 ⚡</span>
+                        <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+1 ⚡</span>
                      </div>
-                     <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-2xl">
-                        <div className="flex items-center gap-3">
-                           <Users2 className="w-4 h-4 text-white/40" />
-                           <span className="text-[11px] font-bold text-white/90">{t('profile.inviteFriendSuccess') || '邀请好友成功'}</span>
+                     <div className="flex items-center justify-between p-3 sm:p-4 bg-white/[0.03] border border-white/5 rounded-xl sm:rounded-2xl">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                           <Users2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 flex-shrink-0" />
+                           <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate">{t('profile.inviteFriendSuccess') || '邀请好友成功'}</span>
                         </div>
-                        <span className="text-xs font-black text-[#FCD535] mono">+5 ⚡</span>
+                        <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+5 ⚡</span>
                      </div>
                   </div>
                </div>
 
                {/* How to Use */}
-               <div className="space-y-3 pt-2">
-                  <h4 className="text-[10px] font-black text-[#F6465D] uppercase tracking-[0.3em] flex items-center gap-2">
-                    <Activity className="w-3 h-3" /> {t('profile.consumptionRules') || '消耗规则'}
+               <div className="space-y-2 sm:space-y-3 pt-1 sm:pt-2">
+                  <h4 className="text-[9px] sm:text-[10px] font-black text-[#F6465D] uppercase tracking-[0.3em] flex items-center gap-1.5 sm:gap-2">
+                    <Activity className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {t('profile.consumptionRules') || '消耗规则'}
                   </h4>
                   
-                  <div className="p-4 bg-red-500/5 border border-red-500/10 rounded-2xl space-y-3">
+                  <div className="p-3 sm:p-4 bg-red-500/5 border border-red-500/10 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3">
                      <div className="flex justify-between items-center">
-                        <span className="text-[11px] font-bold text-white/90">{t('profile.usdtWithdrawRatio') || 'USDT 收益提现'}</span>
-                        <span className="text-xs font-black text-[#F6465D] mono">{t('profile.ratio1to10') || '1:10 比例'}</span>
+                        <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate pr-2">{t('profile.usdtWithdrawRatio') || 'USDT 收益提现'}</span>
+                        <span className="text-[10px] sm:text-xs font-black text-[#F6465D] mono flex-shrink-0">{t('profile.ratio1to10') || '1:10 比例'}</span>
                      </div>
-                     <p className="text-[9px] text-[#848E9C] leading-normal font-bold uppercase tracking-tight">
+                     <p className="text-[8px] sm:text-[9px] text-[#848E9C] leading-normal font-bold uppercase tracking-tight">
                        {t('profile.withdrawRule') || '* 每提现 1 USDT 需消耗 10 单位能量。最低提现水位线为 30 能量。'}
                      </p>
                   </div>
                </div>
 
-               <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex items-start gap-3">
-                  <Sparkles className="w-4 h-4 text-blue-400 mt-0.5" />
-                  <p className="text-[10px] text-blue-400/80 font-medium leading-relaxed">
+               <div className="p-3 sm:p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl sm:rounded-2xl flex items-start gap-2 sm:gap-3">
+                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-[9px] sm:text-[10px] text-blue-400/80 font-medium leading-relaxed">
                     {t('profile.vip3FuturePrivilege') || 'VIP 3 以上等级用户将在未来的协议更新中获得每日能量恢复特权，敬请期待。'}
                   </p>
                </div>
             </div>
 
             {/* Footer */}
-            <div className="p-8 pt-4">
+            <div className="p-3 sm:p-8 pt-2 sm:pt-4 flex-shrink-0" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
                <button 
                  onClick={() => setShowEnergyModal(false)}
-                 className="w-full bg-[#FCD535] text-[#0B0E11] font-black py-5 rounded-[1.5rem] text-[11px] uppercase tracking-[0.3em] shadow-xl shadow-[#FCD535]/10 active:scale-95 transition-all"
+                 className="w-full bg-[#FCD535] text-[#0B0E11] font-black py-3 sm:py-5 rounded-xl sm:rounded-[1.5rem] text-[9px] sm:text-[11px] uppercase tracking-[0.3em] shadow-xl shadow-[#FCD535]/10 active:scale-95 transition-all touch-manipulation min-h-[44px]"
                >
                  {t('profile.confirmAndReturn') || '确认并返回'}
                </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
