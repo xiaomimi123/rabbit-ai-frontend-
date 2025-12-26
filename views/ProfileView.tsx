@@ -96,7 +96,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
             icon: '✅',
             title: t('profile.airdropClaim') || '领取空投',
             description: `${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} RAT`,
-            energy: `+${energy} ${t('profile.unit') || '单位'}`,
+            energy: `+${energy} ${t('profile.energy') || '能量'}`,
             time: createdAt,
             timestamp: new Date(createdAt).getTime(),
             txHash: claim.txHash || claim.tx_hash,
@@ -118,7 +118,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
             icon: '🤝',
             title: t('profile.networkReward') || '邀请好友',
             description: shortenAddress(ref.address || ''),
-            energy: `+${energy} ${t('profile.unit') || '单位'}`,
+            energy: `+${energy} ${t('profile.energy') || '能量'}`,
             time: createdAt,
             timestamp: new Date(createdAt).getTime(),
             address: ref.address,
@@ -142,7 +142,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
             icon: '💸',
             title: t('profile.liquidityWithdraw') || '提取收益',
             description: `${amount.toFixed(2)} USDT`,
-            energy: `-${energyCost} ${t('profile.unit') || '单位'}`,
+            energy: `-${energyCost} ${t('profile.energy') || '能量'}`,
             time: createdAt,
             timestamp: new Date(createdAt).getTime(),
             status: withdraw.status || 'Pending',
@@ -183,6 +183,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
     if (stats.address && stats.address.startsWith('0x')) {
       setIsLoading(true);
       loadExtraData().finally(() => setIsLoading(false));
+    } else {
+      // 如果没有地址，清空数据
+      setEnergy(0);
+      setInviteCount(0);
+      setTeamRewards('0');
+      setTimelineHistory([]);
     }
   }, [stats.address]);
 

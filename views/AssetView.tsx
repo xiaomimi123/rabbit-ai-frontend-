@@ -110,7 +110,17 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
     loadEarningsData();
     // 每30秒刷新一次
     const interval = setInterval(loadEarningsData, 30000);
-    return () => clearInterval(interval);
+    
+    // 监听 refreshEnergy 事件，当能量更新时也刷新收益数据
+    const handleRefresh = () => {
+      loadEarningsData();
+    };
+    window.addEventListener('refreshEnergy', handleRefresh);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('refreshEnergy', handleRefresh);
+    };
   }, [stats.address, setStats]);
 
   const usdtValuation = useMemo(() => {

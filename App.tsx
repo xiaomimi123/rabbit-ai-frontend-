@@ -199,19 +199,24 @@ const App: React.FC = () => {
     return () => window.removeEventListener('refreshNotifications', handleRefresh);
   }, [stats.address]);
 
-  // 监听能量值刷新事件，刷新用户信息
+  // 监听能量值刷新事件，刷新用户信息（包括团队奖励）
   useEffect(() => {
     const handleRefreshEnergy = async () => {
       if (!stats.address || !stats.address.startsWith('0x')) return;
       
       try {
-        const { fetchUserInfo } = await import('./api');
-        const userInfo = await fetchUserInfo(stats.address);
+        const { fetchUserInfo, fetchTeamRewards } = await import('./api');
+        const [userInfo, teamData] = await Promise.all([
+          fetchUserInfo(stats.address).catch(() => null),
+          fetchTeamRewards(stats.address).catch(() => ({ totalRewards: '0' })),
+        ]);
+        
         if (userInfo) {
           setStats(prev => ({
             ...prev,
             energy: Number(userInfo.energy || 0),
             teamSize: Number(userInfo.inviteCount || 0),
+            teamRewards: parseFloat(teamData?.totalRewards || '0'),
           }));
         }
       } catch (error) {
@@ -223,19 +228,24 @@ const App: React.FC = () => {
     return () => window.removeEventListener('refreshEnergy', handleRefreshEnergy);
   }, [stats.address]);
 
-  // 页面加载时，如果有地址，加载用户信息
+  // 页面加载时，如果有地址，加载用户信息（包括团队奖励）
   useEffect(() => {
     const loadUserInfo = async () => {
       if (!stats.address || !stats.address.startsWith('0x')) return;
       
       try {
-        const { fetchUserInfo } = await import('./api');
-        const userInfo = await fetchUserInfo(stats.address);
+        const { fetchUserInfo, fetchTeamRewards } = await import('./api');
+        const [userInfo, teamData] = await Promise.all([
+          fetchUserInfo(stats.address).catch(() => null),
+          fetchTeamRewards(stats.address).catch(() => ({ totalRewards: '0' })),
+        ]);
+        
         if (userInfo) {
           setStats(prev => ({
             ...prev,
             energy: Number(userInfo.energy || 0),
             teamSize: Number(userInfo.inviteCount || 0),
+            teamRewards: parseFloat(teamData?.totalRewards || '0'),
           }));
         }
       } catch (error) {
