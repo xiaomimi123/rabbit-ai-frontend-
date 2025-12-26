@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { Gift, Copy, Check, Users, Zap, Sparkles, X, Trophy, ShieldCheck, DollarSign, AlertCircle, RefreshCw } from 'lucide-react';
 import { UserStats } from '../types';
 import { PARTNERS, AUDIT_LOGOS, CONTRACTS, ABIS, AIRDROP_FEE, CHAIN_ID } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getProvider, getContract, formatError, switchNetwork, connectWallet } from '../services/web3Service';
+import { getProvider, getContract, formatError, switchNetwork, connectWallet, disconnectWallet } from '../services/web3Service';
 import { verifyClaim } from '../api';
 import { getPartnerIcon } from '../components/PartnerIcons';
 import { WalletType } from '../types';
@@ -879,18 +880,17 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         </div>
       )}
 
-      {/* Disconnect DApp Modal */}
-      {showDisconnectModal && (
+      {/* Disconnect DApp Modal - Using Portal */}
+      {showDisconnectModal && createPortal(
         <div 
-          className="fixed inset-0 z-[200] flex items-center justify-center px-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
+          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center px-0 sm:px-4 pb-0 sm:pb-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
           onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowDisconnectModal(false);
-            }
+            // 点击背景不关闭，必须点击按钮刷新
+            e.stopPropagation();
           }}
         >
           <div 
-            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full max-w-sm rounded-[2rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden relative"
+            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Background Decoration */}
@@ -898,80 +898,138 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
             <div className="absolute bottom-[-10%] right-[-10%] w-32 h-32 bg-orange-500/10 blur-3xl rounded-full" />
 
             {/* Header */}
-            <div className="relative p-6 pb-4">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center border border-yellow-500/20">
-                    <AlertCircle className="w-6 h-6 text-yellow-400" />
+            <div className="relative p-3 sm:p-6 pb-2 sm:pb-4 flex-shrink-0">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-1 bg-[#FCD535]/20 rounded-b-full" />
+              <div className="flex justify-between items-start mb-3 sm:mb-4">
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 pr-2 min-w-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-500/10 rounded-xl sm:rounded-2xl flex items-center justify-center border border-yellow-500/20 flex-shrink-0">
+                    <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-white uppercase tracking-tight">连接提示</h3>
-                    <p className="text-[10px] text-[#848E9C] font-bold uppercase tracking-widest mt-0.5">Connection Notice</p>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-lg font-black text-white uppercase tracking-tight truncate">连接提示</h3>
+                    <p className="text-[8px] sm:text-[10px] text-[#848E9C] font-bold uppercase tracking-widest mt-0.5 truncate">Connection Notice</p>
                   </div>
                 </div>
                 <button 
-                  onClick={() => setShowDisconnectModal(false)} 
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all hover:rotate-90"
+                  onClick={async () => {
+                    // 关闭按钮也执行清理和刷新
+                    try {
+                      await disconnectWallet();
+                      const keysToRemove: string[] = [];
+                      for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && (key.startsWith('wc@2:') || key.startsWith('walletconnect'))) {
+                          keysToRemove.push(key);
+                        }
+                      }
+                      keysToRemove.forEach(key => localStorage.removeItem(key));
+                      setShowDisconnectModal(false);
+                      setTimeout(() => window.location.reload(), 300);
+                    } catch (error) {
+                      console.error('[DisconnectModal] 清理失败:', error);
+                      setShowDisconnectModal(false);
+                      setTimeout(() => window.location.reload(), 300);
+                    }
+                  }}
+                  className="p-1.5 sm:p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all hover:rotate-90 flex-shrink-0 touch-manipulation active:scale-90"
                 >
-                  <X className="w-5 h-5 text-[#848E9C]" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#848E9C]" />
                 </button>
               </div>
             </div>
 
             {/* Content */}
-            <div className="px-6 pb-6">
-              <div className="bg-white/[0.03] border border-white/5 p-5 rounded-xl mb-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center flex-shrink-0 border border-blue-500/20">
-                    <RefreshCw className="w-5 h-5 text-blue-400" />
+            <div className="px-3 sm:px-6 pb-3 sm:pb-6 overflow-y-auto flex-1">
+              <div className="bg-white/[0.03] border border-white/5 p-3 sm:p-5 rounded-xl mb-4 sm:mb-6">
+                <div className="flex items-start gap-2 sm:gap-4">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500/10 rounded-xl flex items-center justify-center flex-shrink-0 border border-blue-500/20">
+                    <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-white/90 font-medium leading-relaxed">
-                      请先断开 DApp，再重新连接
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm text-white/90 font-medium leading-relaxed">
+                      检测到连接冲突，将自动刷新页面并清除连接数据
                     </p>
-                    <p className="text-[10px] text-[#848E9C] font-bold uppercase tracking-widest mt-2">
-                      Please disconnect DApp, then reconnect
+                    <p className="text-[9px] sm:text-[10px] text-[#848E9C] font-bold uppercase tracking-widest mt-1.5 sm:mt-2">
+                      Connection conflict detected, will auto-refresh
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* Steps */}
-              <div className="space-y-3 mb-6">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-[#FCD535]/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-[#FCD535]/20">
-                    <span className="text-[10px] font-black text-[#FCD535]">1</span>
+              <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-[#FCD535]/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-[#FCD535]/20">
+                    <span className="text-[9px] sm:text-[10px] font-black text-[#FCD535]">1</span>
                   </div>
-                  <div className="flex-1 pt-0.5">
-                    <p className="text-xs text-white/80 font-medium">在钱包应用中断开当前 DApp 连接</p>
-                    <p className="text-[9px] text-[#848E9C] font-bold uppercase tracking-wider mt-1">Disconnect DApp in wallet</p>
+                  <div className="flex-1 pt-0.5 min-w-0">
+                    <p className="text-[10px] sm:text-xs text-white/80 font-medium">清除所有连接数据和缓存</p>
+                    <p className="text-[8px] sm:text-[9px] text-[#848E9C] font-bold uppercase tracking-wider mt-1">Clear all connection data</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-[#FCD535]/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-[#FCD535]/20">
-                    <span className="text-[10px] font-black text-[#FCD535]">2</span>
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-[#FCD535]/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-[#FCD535]/20">
+                    <span className="text-[9px] sm:text-[10px] font-black text-[#FCD535]">2</span>
                   </div>
-                  <div className="flex-1 pt-0.5">
-                    <p className="text-xs text-white/80 font-medium">返回此页面，重新点击"领取空投"按钮</p>
-                    <p className="text-[9px] text-[#848E9C] font-bold uppercase tracking-wider mt-1">Return and click "Claim" again</p>
+                  <div className="flex-1 pt-0.5 min-w-0">
+                    <p className="text-[10px] sm:text-xs text-white/80 font-medium">页面将自动刷新，请重新连接钱包</p>
+                    <p className="text-[8px] sm:text-[9px] text-[#848E9C] font-bold uppercase tracking-wider mt-1">Page will auto-refresh, reconnect wallet</p>
                   </div>
                 </div>
               </div>
 
               {/* Action Button */}
-              <button 
-                onClick={() => setShowDisconnectModal(false)}
-                className="w-full relative overflow-hidden group/btn bg-gradient-to-r from-[#FCD535] to-[#f3ba2f] text-[#0B0E11] font-black py-4 rounded-2xl shadow-lg shadow-[#FCD535]/20 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-tight text-sm"
-              >
-                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700 ease-in-out" />
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  <Check className="w-4 h-4" />
-                  我知道了
-                </span>
-              </button>
+              <div className="flex-shrink-0" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
+                <button 
+                  onClick={async () => {
+                    try {
+                      // 1. 断开当前钱包连接
+                      await disconnectWallet();
+                      
+                      // 2. 清除所有 WalletConnect session 数据
+                      try {
+                        const keysToRemove: string[] = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                          const key = localStorage.key(i);
+                          if (key && (key.startsWith('wc@2:') || key.startsWith('walletconnect'))) {
+                            keysToRemove.push(key);
+                          }
+                        }
+                        keysToRemove.forEach(key => localStorage.removeItem(key));
+                        console.log('[DisconnectModal] 已清除 WalletConnect session 数据');
+                      } catch (cleanError) {
+                        console.warn('[DisconnectModal] 清除 WalletConnect session 失败:', cleanError);
+                      }
+                      
+                      // 3. 关闭弹窗
+                      setShowDisconnectModal(false);
+                      
+                      // 4. 延迟刷新页面，让用户看到弹窗关闭动画
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 300);
+                    } catch (error) {
+                      console.error('[DisconnectModal] 清理连接数据失败:', error);
+                      // 即使清理失败，也刷新页面
+                      setShowDisconnectModal(false);
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 300);
+                    }
+                  }}
+                  className="w-full relative overflow-hidden group/btn bg-gradient-to-r from-[#FCD535] to-[#f3ba2f] text-[#0B0E11] font-black py-3 sm:py-4 rounded-xl sm:rounded-2xl shadow-lg shadow-[#FCD535]/20 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-tight text-[10px] sm:text-sm touch-manipulation min-h-[44px]"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700 ease-in-out" />
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    刷新并重新连接
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
