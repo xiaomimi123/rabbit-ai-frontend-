@@ -270,12 +270,13 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         const errorMessage = error?.message || error?.toString() || '';
         const errorCode = error?.code || error?.error?.code;
         
-        // 只在特定情况下显示断开重连提示
-        const shouldShowDisconnectModal = 
+        // 检测是否是 session 冲突错误
+        const isSessionConflict = 
           errorMessage.includes('Session already exists') ||
           errorMessage.includes('already connected') ||
           errorMessage.includes('请尝试在钱包中断开') ||
-          errorCode === -32002; // Session already exists
+          errorMessage.includes('请先断开 DApp') ||
+          errorCode === -32002;
         
         // 用户拒绝连接的情况，不显示断开重连提示
         const isUserRejected = 
@@ -284,15 +285,60 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
           errorMessage.includes('User rejected') ||
           errorMessage.includes('user rejected');
         
-        if (shouldShowDisconnectModal) {
-          setShowDisconnectModal(true);
-        } else if (isUserRejected) {
+        if (isUserRejected) {
           // 用户拒绝，不显示任何提示（钱包已处理）
           return;
-        } else {
-          alert('连接钱包失败，请重试');
         }
-        return;
+        
+        // 如果是 session 冲突，先尝试自动清理并重试
+        if (isSessionConflict) {
+          console.log('[MiningView] 检测到 session 冲突，尝试自动清理并重试...');
+          try {
+            // 1. 先断开当前连接
+            const { disconnectWallet } = await import('../services/web3Service');
+            await disconnectWallet();
+            
+            // 2. 清除所有 WalletConnect session 数据
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && (key.startsWith('wc@2:') || key.startsWith('walletconnect'))) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            console.log('[MiningView] 已自动清理 WalletConnect session 数据');
+            
+            // 3. 等待清理完成
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // 4. 尝试重新连接
+            try {
+              const provider = await connectWallet();
+              const signer = provider.getSigner();
+              const address = await signer.getAddress();
+              
+              // 连接成功，更新状态
+              setStats(prev => ({ ...prev, address }));
+              console.log('[MiningView] 自动重连成功，继续执行领取操作');
+              // 继续执行领取逻辑，不返回
+            } catch (retryError: any) {
+              // 重试失败，显示弹窗让用户手动处理
+              console.warn('[MiningView] 自动重连失败，显示断开提示:', retryError);
+              setShowDisconnectModal(true);
+              return;
+            }
+          } catch (cleanError) {
+            // 清理失败，显示弹窗
+            console.error('[MiningView] 自动清理失败:', cleanError);
+            setShowDisconnectModal(true);
+            return;
+          }
+        } else {
+          // 其他错误，显示通用错误提示
+          alert('连接钱包失败，请重试');
+          return;
+        }
       }
     }
 
