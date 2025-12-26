@@ -188,7 +188,7 @@ function getWalletConnectModal(): WalletConnectModal {
 }
 
 // 彻底清理 WalletConnect session 数据
-function clearWalletConnectSessions(): void {
+export function clearWalletConnectSessions(): void {
   try {
     const keysToRemove: string[] = [];
     // 遍历所有 localStorage 键
