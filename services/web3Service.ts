@@ -212,6 +212,28 @@ async function initWalletConnectProvider(): Promise<any> {
     throw new Error('请先配置 WalletConnect 项目 ID');
   }
 
+  // 在初始化前，先清理可能存在的旧 session（从 localStorage）
+  // WalletConnect v2 使用 'wc@2:' 作为前缀存储 session
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('wc@2:') || key.startsWith('walletconnect'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+        console.log('[WalletConnect] 已清理旧 session:', key);
+      } catch (e) {
+        console.warn('[WalletConnect] 清理 session 失败:', key, e);
+      }
+    });
+  } catch (e) {
+    console.warn('[WalletConnect] 清理 localStorage 时出错:', e);
+  }
+
   const modal = getWalletConnectModal();
 
   const provider = await EthereumProvider.init({
@@ -295,20 +317,55 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
       } catch (enableError: any) {
         // 如果 enable 失败，可能是已有连接但状态不一致
         // 先尝试断开，然后重新连接
-        if (enableError?.message?.includes('Session already exists') || 
-            enableError?.message?.includes('already connected') ||
-            enableError?.code === -32002) {
+        const errorMessage = enableError?.message || enableError?.toString() || '';
+        const errorCode = enableError?.code || enableError?.error?.code;
+        
+        if (errorMessage.includes('Session already exists') || 
+            errorMessage.includes('already connected') ||
+            errorCode === -32002) {
+          console.log('[WalletConnect] 检测到 session 冲突，尝试清理并重新连接...');
           try {
-            await wc.disconnect();
-            // 等待断开完成
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // 先断开当前 provider
+            try {
+              await wc.disconnect();
+            } catch (disconnectError) {
+              console.warn('[WalletConnect] 断开连接时出错:', disconnectError);
+            }
+            
+            // 清理 localStorage 中的 WalletConnect session
+            try {
+              const keysToRemove: string[] = [];
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('wc@2:') || key.startsWith('walletconnect'))) {
+                  keysToRemove.push(key);
+                }
+              }
+              keysToRemove.forEach(key => localStorage.removeItem(key));
+              console.log('[WalletConnect] 已清理 localStorage 中的 session 数据');
+            } catch (cleanError) {
+              console.warn('[WalletConnect] 清理 localStorage 失败:', cleanError);
+            }
+            
+            // 等待清理完成
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
             // 重新初始化
             walletConnectProvider = null;
             const newWc = await initWalletConnectProvider();
             await newWc.enable();
             walletConnectProvider = newWc;
-          } catch (retryError) {
-            throw new Error('连接失败，请尝试在钱包中断开 DApp 后重新连接');
+            console.log('[WalletConnect] 重新连接成功');
+          } catch (retryError: any) {
+            console.error('[WalletConnect] 重试连接失败:', retryError);
+            // 抛出更友好的错误信息
+            const retryErrorMessage = retryError?.message || retryError?.toString() || '';
+            if (retryErrorMessage.includes('Session already exists') || 
+                retryErrorMessage.includes('already connected')) {
+              throw new Error('请先断开 DApp，再重新连接');
+            } else {
+              throw new Error('连接失败，请尝试在钱包中断开 DApp 后重新连接');
+            }
           }
         } else {
           throw enableError;
