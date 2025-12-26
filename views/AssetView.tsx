@@ -586,7 +586,16 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
 
       {/* WITHDRAW MODAL - Using Portal */}
       {showWithdrawModal && createPortal(
-        <div className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center px-0 sm:px-6 pb-0 sm:pb-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+        <div 
+          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center px-0 sm:px-6 pb-0 sm:pb-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={(e) => {
+            // 点击背景关闭弹窗
+            if (e.target === e.currentTarget) {
+              setShowWithdrawModal(false);
+              setModalEnergy(null);
+            }
+          }}
+        >
           <div 
             className="bg-[#1e2329] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_0_50px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200 max-h-[93vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
