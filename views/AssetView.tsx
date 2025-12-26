@@ -30,6 +30,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
   const [loading, setLoading] = useState(false);
   const [ratBalanceError, setRatBalanceError] = useState(false);
   const [earningsError, setEarningsError] = useState(false);
+  // 提现弹窗中的能量值（实时从API获取，响应更快）
+  const [modalEnergy, setModalEnergy] = useState<number | null>(null);
 
   // 加载持币余额和收益信息
   useEffect(() => {
@@ -384,7 +386,20 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
 
         <div className="grid grid-cols-2 gap-4">
           <button 
-            onClick={() => {
+            onClick={async () => {
+              // 打开弹窗前，实时获取最新的能量值
+              if (stats.address && stats.address.startsWith('0x')) {
+                try {
+                  const userInfo = await fetchUserInfo(stats.address);
+                  setModalEnergy(Number(userInfo?.energy || 0));
+                } catch (error) {
+                  console.warn('Failed to fetch energy for modal:', error);
+                  // 如果获取失败，使用 stats.energy 作为后备
+                  setModalEnergy(stats.energy);
+                }
+              } else {
+                setModalEnergy(stats.energy);
+              }
               // 允许打开弹窗，即使能量不足也可以查看能量信息
               setShowWithdrawModal(true);
             }}
@@ -591,8 +606,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                 <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
                   <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
                     <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-0.5 sm:mb-1">当前能量</p>
-                    <p className={`text-sm sm:text-lg font-black mono ${stats.energy >= ENERGY_WITHDRAW_THRESHOLD ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
-                      {stats.energy}
+                    <p className={`text-sm sm:text-lg font-black mono ${(modalEnergy !== null ? modalEnergy : stats.energy) >= ENERGY_WITHDRAW_THRESHOLD ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                      {modalEnergy !== null ? modalEnergy : stats.energy}
                     </p>
                   </div>
                   <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
@@ -606,7 +621,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                     </p>
                   </div>
                 </div>
-                {stats.energy < ENERGY_WITHDRAW_THRESHOLD && (
+                {(modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD && (
                   <div className="mt-1.5 sm:mt-2 p-2 sm:p-3 bg-red-500/10 rounded-xl border border-red-500/20 flex items-start gap-1.5 sm:gap-2">
                     <Info className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
                     <p className="text-[7px] sm:text-[9px] text-red-400 font-bold uppercase tracking-tight leading-relaxed">
@@ -637,9 +652,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                         setWithdrawAmount(val);
                       }
                     }}
-                    disabled={stats.energy < ENERGY_WITHDRAW_THRESHOLD}
+                    disabled={(modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD}
                     className={`w-full bg-[#0b0e11] border rounded-2xl py-3 sm:py-5 px-3 sm:px-5 text-lg sm:text-2xl font-black mono text-white outline-none transition-colors touch-manipulation min-h-[48px] ${
-                      stats.energy < ENERGY_WITHDRAW_THRESHOLD 
+                      (modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD 
                         ? 'border-red-500/20 opacity-50 cursor-not-allowed' 
                         : 'border-white/5 focus:border-[#FCD535]'
                     }`}
@@ -647,14 +662,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   />
                   <button 
                     onClick={() => {
-                      if (stats.energy < ENERGY_WITHDRAW_THRESHOLD) {
+                      const currentEnergy = modalEnergy !== null ? modalEnergy : stats.energy;
+                      if (currentEnergy < ENERGY_WITHDRAW_THRESHOLD) {
                         alert(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
                         return;
                       }
                       const maxVal = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
                       setWithdrawAmount(maxVal.toFixed(2));
                     }} 
-                    disabled={stats.energy < ENERGY_WITHDRAW_THRESHOLD}
+                    disabled={(modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD}
                     className={`absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 text-[8px] sm:text-[10px] font-black px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border transition-colors touch-manipulation min-h-[32px] ${
                       stats.energy < ENERGY_WITHDRAW_THRESHOLD
                         ? 'text-[#848E9C] bg-white/5 border-white/5 opacity-50 cursor-not-allowed'
@@ -677,16 +693,19 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                  </div>
                  <div className="flex justify-between text-[8px] sm:text-[10px] font-bold uppercase pt-1.5 sm:pt-2 border-t border-white/5">
                     <span className="text-[#848E9C]">{t('asset.remainingEnergy') || 'Remaining Energy'}</span>
-                    <span className={`mono ${stats.energy - Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
-                      {stats.energy - Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.units') || 'Units'}
+                    <span className={`mono ${((modalEnergy !== null ? modalEnergy : stats.energy) - Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)) >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                      {(modalEnergy !== null ? modalEnergy : stats.energy) - Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.units') || 'Units'}
                     </span>
                  </div>
               </div>
 
               <button 
                 onClick={async () => {
+                  // 使用弹窗中的实时能量值（如果已获取），否则使用 stats.energy
+                  const currentEnergy = modalEnergy !== null ? modalEnergy : stats.energy;
+                  
                   // 首先检查能量启动门槛 - 如果能量不足，直接阻止提交
-                  if (stats.energy < ENERGY_WITHDRAW_THRESHOLD) {
+                  if (currentEnergy < ENERGY_WITHDRAW_THRESHOLD) {
                     alert(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
                     return;
                   }
@@ -709,8 +728,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   const requiredEnergy = Math.ceil(amount * ENERGY_PER_USDT_WITHDRAW);
                   
                   // 检查能量是否足够支付本次提现
-                  if (stats.energy < requiredEnergy) {
-                    alert(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量，当前能量：${stats.energy}`);
+                  if (currentEnergy < requiredEnergy) {
+                    alert(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量，当前能量：${currentEnergy}`);
                     return;
                   }
 
@@ -721,11 +740,24 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                     setWithdrawAmount('');
                     // 刷新数据
                     const earningsData = await fetchEarnings(stats.address);
-                    setStats(prev => ({ 
-                      ...prev, 
-                      pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
-                      energy: prev.energy - requiredEnergy
-                    }));
+                    // 重新获取最新的能量值
+                    try {
+                      const userInfo = await fetchUserInfo(stats.address);
+                      const updatedEnergy = Number(userInfo?.energy || 0);
+                      setModalEnergy(updatedEnergy);
+                      setStats(prev => ({ 
+                        ...prev, 
+                        pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
+                        energy: updatedEnergy
+                      }));
+                    } catch (error) {
+                      // 如果获取失败，使用计算值
+                      setStats(prev => ({ 
+                        ...prev, 
+                        pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
+                        energy: prev.energy - requiredEnergy
+                      }));
+                    }
                     // 触发能量刷新事件
                     window.dispatchEvent(new CustomEvent('refreshEnergy'));
                   } catch (error: any) {
@@ -737,11 +769,11 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   }
                 }}
                 disabled={
-                  stats.energy < ENERGY_WITHDRAW_THRESHOLD || 
+                  (modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD || 
                   !withdrawAmount || 
                   parseFloat(withdrawAmount) <= 0 || 
                   parseFloat(withdrawAmount) > (earnings ? earnings.pendingUsdt : stats.pendingUsdt) ||
-                  stats.energy < Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) || 
+                  (modalEnergy !== null ? modalEnergy : stats.energy) < Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) || 
                   loading
                 }
                 className="w-full bg-[#FCD535] text-[#0B0E11] font-black py-3 sm:py-5 rounded-2xl disabled:opacity-20 disabled:cursor-not-allowed text-[10px] sm:text-sm uppercase tracking-[0.2em] shadow-lg shadow-[#FCD535]/10 active:scale-95 transition-all touch-manipulation flex-shrink-0 min-h-[48px]"
