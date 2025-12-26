@@ -242,6 +242,34 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
     return () => window.removeEventListener('refreshEnergy', handleRefresh);
   }, [stats.address]);
 
+  // 自动轮询：每30秒刷新一次数据（确保 Indexer 同步的新数据能及时显示）
+  useEffect(() => {
+    if (!stats.address || !stats.address.startsWith('0x')) return;
+    
+    // 设置定时器，每30秒刷新一次
+    const interval = setInterval(() => {
+      console.log('[ProfileView] Auto-refreshing data (30s interval)...');
+      loadExtraData();
+    }, 30000); // 30秒
+    
+    return () => clearInterval(interval);
+  }, [stats.address]);
+
+  // 页面可见性检测：当用户切换回页面时自动刷新
+  useEffect(() => {
+    if (!stats.address || !stats.address.startsWith('0x')) return;
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[ProfileView] Page became visible, refreshing data...');
+        loadExtraData();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [stats.address]);
+
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
       {/* Identity Header */}

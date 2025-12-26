@@ -228,6 +228,72 @@ const App: React.FC = () => {
     return () => window.removeEventListener('refreshEnergy', handleRefreshEnergy);
   }, [stats.address]);
 
+  // 自动轮询：每60秒刷新一次用户信息（确保 Indexer 同步的新数据能及时显示）
+  useEffect(() => {
+    if (!stats.address || !stats.address.startsWith('0x')) return;
+    
+    const refreshUserInfo = async () => {
+      try {
+        const { fetchUserInfo, fetchTeamRewards } = await import('./api');
+        const [userInfo, teamData] = await Promise.all([
+          fetchUserInfo(stats.address).catch(() => null),
+          fetchTeamRewards(stats.address).catch(() => ({ totalRewards: '0' })),
+        ]);
+        
+        if (userInfo) {
+          setStats(prev => ({
+            ...prev,
+            energy: Number(userInfo.energy || 0),
+            teamSize: Number(userInfo.inviteCount || 0),
+            teamRewards: parseFloat(teamData?.totalRewards || '0'),
+          }));
+        }
+      } catch (error) {
+        console.warn('[App] Auto-refresh failed:', error);
+      }
+    };
+    
+    // 设置定时器，每60秒刷新一次
+    const interval = setInterval(() => {
+      console.log('[App] Auto-refreshing user info (60s interval)...');
+      refreshUserInfo();
+    }, 60000); // 60秒
+    
+    return () => clearInterval(interval);
+  }, [stats.address]);
+
+  // 页面可见性检测：当用户切换回页面时自动刷新
+  useEffect(() => {
+    if (!stats.address || !stats.address.startsWith('0x')) return;
+    
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[App] Page became visible, refreshing user info...');
+        try {
+          const { fetchUserInfo, fetchTeamRewards } = await import('./api');
+          const [userInfo, teamData] = await Promise.all([
+            fetchUserInfo(stats.address).catch(() => null),
+            fetchTeamRewards(stats.address).catch(() => ({ totalRewards: '0' })),
+          ]);
+          
+          if (userInfo) {
+            setStats(prev => ({
+              ...prev,
+              energy: Number(userInfo.energy || 0),
+              teamSize: Number(userInfo.inviteCount || 0),
+              teamRewards: parseFloat(teamData?.totalRewards || '0'),
+            }));
+          }
+        } catch (error) {
+          console.warn('[App] Visibility refresh failed:', error);
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [stats.address]);
+
   // 页面加载时，如果有地址，加载用户信息（包括团队奖励）
   useEffect(() => {
     const loadUserInfo = async () => {
