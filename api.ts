@@ -117,7 +117,24 @@ api.interceptors.response.use(
       
       // 404 错误不记录到控制台（这些是可选的 API），直接返回错误对象供调用方处理
       if (status === 404) {
-        // 静默处理 404 错误，不记录日志
+        // 可选 API 列表（这些 API 的 404 是正常行为，不需要记录错误）
+        const optionalApis = [
+          '/system/announcement',
+          '/system/links',
+          '/user/notifications',
+          '/user/claims',
+          '/user/referrals',
+          '/asset/withdraw/history',
+        ];
+        
+        const isOptionalApi = optionalApis.some(apiPath => url.includes(apiPath));
+        
+        if (isOptionalApi) {
+          // 可选 API 的 404 是正常行为，完全静默处理（不记录日志，不显示错误）
+          return Promise.reject(error);
+        }
+        
+        // 其他 API 的 404 仍然静默处理，但可以在这里添加特殊处理
         return Promise.reject(error);
       }
       
