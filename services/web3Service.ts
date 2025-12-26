@@ -352,6 +352,11 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
     
     if (walletType === 'walletconnect') {
       // 使用 WalletConnect
+      // 在连接前，先彻底清理所有可能的旧 session 数据
+      clearWalletConnectSessions();
+      walletConnectProvider = null;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       const wc = await initWalletConnectProvider();
       
       try {

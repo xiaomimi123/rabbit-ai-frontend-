@@ -322,18 +322,21 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
           return;
         }
         
-        // 如果是 session 冲突，先尝试自动清理并重试
+        // 如果是 session 冲突或包含"请先断开 DApp"的错误，先尝试自动清理并重试
         if (isSessionConflict) {
-          console.log('[MiningView] 检测到 session 冲突，尝试自动清理并重试...');
+          console.log('[MiningView] 检测到 session 冲突或断开提示，尝试自动清理并重试...');
           try {
             // 1. 先断开当前连接
-            const { disconnectWallet } = await import('../services/web3Service');
+            const { disconnectWallet, clearWalletConnectSessions } = await import('../services/web3Service');
             await disconnectWallet();
             
-            // 2. 等待断开完成
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // 2. 彻底清理所有 WalletConnect session 数据
+            clearWalletConnectSessions();
             
-            // 3. 尝试重新连接（connectWallet 内部会处理清理逻辑）
+            // 3. 等待清理完成
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // 4. 尝试重新连接（connectWallet 内部会再次清理）
             try {
               const newProvider = await connectWallet();
               // 等待一下让钱包状态更新
@@ -368,6 +371,12 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
               // 如果是用户取消，不显示错误
               if (retryError?.code === 'USER_REJECTED' || retryError?.code === 4001 || 
                   retryErrorMessage.includes('User rejected') || retryErrorMessage.includes('user rejected')) {
+                return;
+              }
+              
+              // 如果仍然包含"请先断开 DApp"，说明清理不彻底，建议刷新页面
+              if (retryErrorMessage.includes('请先断开') || retryErrorMessage.includes('断开 DApp')) {
+                showWarning('连接失败，请刷新页面后重试');
                 return;
               }
               
