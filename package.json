@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@walletconnect/ethereum-provider": "^2.23.1",
-    "@walletconnect/modal": "^2.7.0"
+    "@walletconnect/modal": "^2.7.0",
     "@walletconnect/types": "^2.23.1",
     "axios": "^1.6.2",
     "buffer": "^6.0.3",
