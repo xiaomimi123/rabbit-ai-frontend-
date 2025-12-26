@@ -58,18 +58,28 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       // 并行获取所有历史记录
       const [withdrawals, claims, referrals] = await Promise.all([
         getWithdrawHistory(stats.address).catch((err) => {
-          console.warn('Failed to load withdraw history:', err);
+          console.warn('[ProfileView] Failed to load withdraw history:', err);
           return [];
         }),
         getClaimsHistory(stats.address).catch((err) => {
-          console.warn('Failed to load claims history:', err);
+          console.warn('[ProfileView] Failed to load claims history:', err);
           return [];
         }),
         getReferralHistory(stats.address).catch((err) => {
-          console.warn('Failed to load referral history:', err);
+          console.warn('[ProfileView] Failed to load referral history:', err);
           return [];
         }),
       ]);
+
+      // 调试日志：打印获取到的数据
+      console.log('[ProfileView] Loaded history data:', {
+        withdrawals: withdrawals?.length || 0,
+        claims: claims?.length || 0,
+        referrals: referrals?.length || 0,
+        withdrawalsData: withdrawals,
+        claimsData: claims,
+        referralsData: referrals,
+      });
 
       // 合并并格式化记录
       const timeline: any[] = [];
@@ -146,6 +156,17 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
 
       // 按时间倒序排序（最新的在前）
       timeline.sort((a, b) => b.timestamp - a.timestamp);
+
+      // 调试日志：打印合并后的时间轴
+      console.log('[ProfileView] Merged timeline:', {
+        total: timeline.length,
+        byType: {
+          airdrop: timeline.filter((t) => t.type === 'airdrop').length,
+          invite: timeline.filter((t) => t.type === 'invite').length,
+          withdraw: timeline.filter((t) => t.type === 'withdraw').length,
+        },
+        timeline: timeline.slice(0, 10),
+      });
 
       // 只显示最近 10 条记录
       setTimelineHistory(timeline.slice(0, 10));
