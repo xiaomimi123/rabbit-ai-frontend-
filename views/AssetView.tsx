@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2 } from 'lucide-react';
 import { UserStats } from '../types';
@@ -422,10 +423,10 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
         </div>
       </div>
 
-      {/* VIP TIER EXPLANATION MODAL - REDESIGNED */}
-      {showTierModal && (
+      {/* VIP TIER EXPLANATION MODAL - REDESIGNED - Using Portal */}
+      {showTierModal && createPortal(
         <div 
-          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center px-0 sm:px-4 pb-0 sm:pb-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
+          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center px-0 sm:px-4 pb-0 sm:pb-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
           onClick={(e) => {
             // 点击背景关闭弹窗
             if (e.target === e.currentTarget) {
@@ -583,10 +584,13 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
         </div>
       )}
 
-      {/* WITHDRAW MODAL - AS PREVIOUSLY IMPLEMENTED */}
-      {showWithdrawModal && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center px-0 sm:px-6 pb-0 sm:pb-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#1e2329] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_0_50px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200 max-h-[93vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
+      {/* WITHDRAW MODAL - Using Portal */}
+      {showWithdrawModal && createPortal(
+        <div className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center px-0 sm:px-6 pb-0 sm:pb-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div 
+            className="bg-[#1e2329] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_0_50px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200 max-h-[93vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-3 sm:p-6 border-b border-white/5 flex justify-between items-center flex-shrink-0">
               <h3 className="font-black uppercase tracking-widest text-[10px] sm:text-sm">Withdrawal Node</h3>
               <button onClick={() => setShowWithdrawModal(false)} className="p-1.5 sm:p-2 hover:bg-white/5 rounded-full transition-colors touch-manipulation flex-shrink-0 active:scale-90">
@@ -783,7 +787,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

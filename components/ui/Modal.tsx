@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -7,9 +8,23 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  overlayClassName?: string;
+  contentClassName?: string;
+  showCloseButton?: boolean;
+  closeOnOverlayClick?: boolean;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, className = '' }) => {
+export const Modal: React.FC<ModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  title, 
+  children, 
+  className = '',
+  overlayClassName = '',
+  contentClassName = '',
+  showCloseButton = true,
+  closeOnOverlayClick = true,
+}) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -23,31 +38,34 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
+      className={`fixed inset-0 z-[50] flex items-end sm:items-center justify-center ${overlayClassName}`}
+      onClick={closeOnOverlayClick ? onClose : undefined}
     >
       <div 
-        className={`bg-dark-900 border border-primary-500/30 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto ${className}`}
+        className={`${className} ${contentClassName}`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
           <div className="flex items-center justify-between p-4 border-b border-white/5">
             <h3 className="text-lg font-bold text-white">{title}</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors p-1"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {showCloseButton && (
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-white transition-colors p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
         )}
-        <div className="p-4">
-          {children}
-        </div>
+        {children}
       </div>
     </div>
   );
+
+  // 使用 Portal 渲染到 body，避免父级样式干扰
+  return createPortal(modalContent, document.body);
 };
 
