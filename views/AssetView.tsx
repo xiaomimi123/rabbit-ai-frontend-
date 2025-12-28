@@ -13,10 +13,9 @@ import { getProvider, getContract } from '../services/web3Service';
 interface AssetViewProps {
   stats: UserStats;
   setStats: React.Dispatch<React.SetStateAction<UserStats>>;
-  onNavigateToProfile?: () => void;
 }
 
-const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProfile }) => {
+const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   const { t } = useLanguage();
   const { showError, showWarning, showInfo } = useToast();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -387,42 +386,30 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <button 
-            onClick={async () => {
-              // 打开弹窗前，实时获取最新的能量值
-              if (stats.address && stats.address.startsWith('0x')) {
-                try {
-                  const userInfo = await fetchUserInfo(stats.address);
-                  setModalEnergy(Number(userInfo?.energy || 0));
-                } catch (error) {
-                  console.warn('Failed to fetch energy for modal:', error);
-                  // 如果获取失败，使用 stats.energy 作为后备
-                  setModalEnergy(stats.energy);
-                }
-              } else {
+        <button 
+          onClick={async () => {
+            // 打开弹窗前，实时获取最新的能量值
+            if (stats.address && stats.address.startsWith('0x')) {
+              try {
+                const userInfo = await fetchUserInfo(stats.address);
+                setModalEnergy(Number(userInfo?.energy || 0));
+              } catch (error) {
+                console.warn('Failed to fetch energy for modal:', error);
+                // 如果获取失败，使用 stats.energy 作为后备
                 setModalEnergy(stats.energy);
               }
-              // 允许打开弹窗，即使能量不足也可以查看能量信息
-              setShowWithdrawModal(true);
-            }}
-            className="group relative font-black py-4 rounded-[1.25rem] flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl overflow-hidden bg-[#FCD535] text-[#0B0E11] shadow-[#FCD535]/10"
-          >
-            <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            <span className="relative z-10 text-[11px] uppercase tracking-widest">{t('asset.withdrawal') || '提现'}</span>
-            <ArrowUpRight className="w-4 h-4 relative z-10" />
-          </button>
-          <button 
-            onClick={() => {
-              if (onNavigateToProfile) {
-                onNavigateToProfile();
-              }
-            }}
-            className="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black py-4 rounded-[1.25rem] text-[11px] uppercase tracking-widest transition-all active:scale-95"
-          >
-            {t('asset.history') || '历史'}
-          </button>
-        </div>
+            } else {
+              setModalEnergy(stats.energy);
+            }
+            // 允许打开弹窗，即使能量不足也可以查看能量信息
+            setShowWithdrawModal(true);
+          }}
+          className="w-full group relative font-black py-4 rounded-[1.25rem] flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl overflow-hidden bg-[#FCD535] text-[#0B0E11] shadow-[#FCD535]/10"
+        >
+          <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          <span className="relative z-10 text-[11px] uppercase tracking-widest">{t('asset.withdrawal') || '提现'}</span>
+          <ArrowUpRight className="w-4 h-4 relative z-10" />
+        </button>
       </div>
 
       {/* VIP TIER EXPLANATION MODAL - REDESIGNED - Using Portal */}
@@ -610,49 +597,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
               </button>
             </div>
             
-            <div className="p-3 sm:p-7 space-y-3 sm:space-y-6 overflow-y-auto flex-1">
-              {/* Energy Info Card - Always Visible */}
-              <div className="bg-gradient-to-r from-[#FCD535]/10 to-transparent p-2.5 sm:p-5 rounded-2xl border border-[#FCD535]/20 space-y-2 sm:space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-[#FCD535] flex-shrink-0" />
-                    <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-[#848E9C]">{t('asset.energySystem') || '能量系统'}</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 sm:gap-3">
-                  <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
-                    <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-0.5 sm:mb-1">当前能量</p>
-                    <p className={`text-sm sm:text-lg font-black mono ${(modalEnergy !== null ? modalEnergy : stats.energy) > 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
-                      {modalEnergy !== null ? modalEnergy : stats.energy}
-                    </p>
-                  </div>
-                  <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
-                    <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-0.5 sm:mb-1">所需能量</p>
-                    <p className={`text-sm sm:text-lg font-black mono ${
-                      (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) 
-                        ? 'text-[#0ECB81]' 
-                        : 'text-[#F6465D]'
-                    }`}>
-                      {Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) || '0'}
-                    </p>
-                  </div>
-                </div>
-                {(modalEnergy !== null ? modalEnergy : stats.energy) < Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) && parseFloat(withdrawAmount || '0') > 0 && (
-                  <div className="mt-1.5 sm:mt-2 p-2 sm:p-3 bg-red-500/10 rounded-xl border border-red-500/20 flex items-start gap-1.5 sm:gap-2">
-                    <Info className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-[7px] sm:text-[9px] text-red-400 font-bold uppercase tracking-tight leading-relaxed">
-                      {t('asset.energyInsufficientForAmount') || '能量不足：提现'} {withdrawAmount} USDT {t('asset.requiresEnergy') || '需要'} {Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.energy') || '能量'}
-                    </p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="space-y-2 sm:space-y-3">
-                <div className="flex justify-between text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-[#848E9C]">
-                  <span className="truncate pr-2">{t('asset.availableLiquidity') || 'Available Liquidity'}</span>
-                  <span className="text-white text-[7px] sm:text-[10px] flex-shrink-0">${earnings ? earnings.pendingUsdt.toFixed(4) : stats.pendingUsdt.toFixed(4)} USDT</span>
+            <div className="p-3 sm:p-7 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
+              {/* 收银台风格：超大输入框 */}
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex justify-between items-center text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-[#848E9C]">
+                  <span>{t('asset.availableLiquidity') || 'Available Liquidity'}</span>
+                  <span className="text-white">${earnings ? earnings.pendingUsdt.toFixed(4) : stats.pendingUsdt.toFixed(4)} USDT</span>
                 </div>
                 <div className="relative">
+                  <div className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 text-2xl sm:text-4xl font-black text-[#848E9C] pointer-events-none">$</div>
                   <input 
                     type="number" 
                     step="0.01"
@@ -668,37 +621,114 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                         setWithdrawAmount(val);
                       }
                     }}
-                    className="w-full bg-[#0b0e11] border border-white/5 rounded-2xl py-3 sm:py-5 px-3 sm:px-5 text-lg sm:text-2xl font-black mono text-white outline-none transition-colors touch-manipulation min-h-[48px] focus:border-[#FCD535]"
+                    className="w-full bg-[#0b0e11] border-2 border-white/10 rounded-3xl py-6 sm:py-8 px-12 sm:px-16 text-3xl sm:text-5xl font-black mono text-white outline-none transition-all touch-manipulation min-h-[80px] sm:min-h-[100px] focus:border-[#FCD535] focus:bg-[#0b0e11]/80"
                     placeholder="0.00"
+                    autoFocus
                   />
                   <button 
                     onClick={() => {
                       const maxVal = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
                       setWithdrawAmount(maxVal.toFixed(2));
                     }} 
-                    className="absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 text-[8px] sm:text-[10px] font-black px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border transition-colors touch-manipulation min-h-[32px] text-[#FCD535] bg-[#FCD535]/10 border-[#FCD535]/20 hover:bg-[#FCD535]/20 active:bg-[#FCD535]/30"
+                    className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 text-[9px] sm:text-[11px] font-black px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border-2 transition-all touch-manipulation min-h-[36px] text-[#FCD535] bg-[#FCD535]/10 border-[#FCD535]/30 hover:bg-[#FCD535]/20 hover:border-[#FCD535]/50 active:scale-95"
                   >
                     {t('common.max') || 'MAX'}
                   </button>
                 </div>
               </div>
 
-              <div className="bg-black/20 p-2.5 sm:p-5 rounded-2xl border border-white/5 space-y-1.5 sm:space-y-3">
-                 <div className="flex justify-between text-[8px] sm:text-[10px] font-bold uppercase">
+              {/* 能量信息：只在用户输入金额后显示 */}
+              {withdrawAmount && parseFloat(withdrawAmount) > 0 && (
+                <div className="bg-black/30 p-3 sm:p-4 rounded-2xl border border-white/5 space-y-2 sm:space-y-2.5">
+                  <div className="flex justify-between items-center text-[9px] sm:text-[11px] font-bold uppercase">
+                    <span className="text-[#848E9C] flex items-center gap-1.5">
+                      <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-[#FCD535]" />
+                      {t('asset.energyBurn') || 'Energy Burn'}
+                    </span>
+                    <span className={`mono font-black ${
+                      (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)
+                        ? 'text-[#0ECB81]'
+                        : 'text-[#F6465D]'
+                    }`}>
+                      -{Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.units') || 'Units'}
+                    </span>
+                  </div>
+                  {/* === 🔴 能量不足时的强引导 (Growth Hack) === */}
+                  {(modalEnergy !== null ? modalEnergy : stats.energy) < Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) && (
+                    <div className="pt-2 border-t border-white/5 space-y-3 animate-in slide-in-from-bottom-2 fade-in">
+                      {/* 提示文案 */}
+                      <div className="flex items-start gap-2 p-2.5 sm:p-3 bg-red-500/10 rounded-xl border border-red-500/20">
+                        <Info className="w-3 h-3 sm:w-4 sm:h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-[9px] sm:text-[11px] text-red-400 font-bold leading-relaxed">
+                          还差 <span className="text-white font-mono font-black">{Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) - (modalEnergy !== null ? modalEnergy : stats.energy)}</span> 能量。
+                          完成下方任务立即获取：
+                        </p>
+                      </div>
+
+                      {/* 👇 新增：两个裂变按钮 👇 */}
+                      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                        <button
+                          onClick={async () => {
+                            // 复制邀请链接
+                            if (stats.address && stats.address.startsWith('0x')) {
+                              const link = `${window.location.origin}${window.location.pathname}?ref=${stats.address}`;
+                              try {
+                                await navigator.clipboard.writeText(link);
+                                showInfo('邀请链接已复制！发送给好友即可。');
+                              } catch (error) {
+                                // 降级方案：使用传统方法
+                                const textArea = document.createElement('textarea');
+                                textArea.value = link;
+                                textArea.style.position = 'fixed';
+                                textArea.style.opacity = '0';
+                                document.body.appendChild(textArea);
+                                textArea.select();
+                                try {
+                                  document.execCommand('copy');
+                                  showInfo('邀请链接已复制！发送给好友即可。');
+                                } catch (err) {
+                                  showError('复制失败，请手动复制链接');
+                                }
+                                document.body.removeChild(textArea);
+                              }
+                            } else {
+                              showError('请先连接钱包');
+                            }
+                          }}
+                          className="bg-[#FCD535] text-[#0B0E11] p-3 sm:p-4 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#FCD535]/20"
+                        >
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase">邀请好友</span>
+                          <span className="text-[8px] sm:text-[9px] font-bold opacity-80">+2 能量/人</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            // 关闭弹窗去领空投
+                            setShowWithdrawModal(false);
+                            // 触发切换到挖矿页面的事件
+                            window.dispatchEvent(new CustomEvent('switchToMining'));
+                            showInfo('去首页领取空投，每次可获得 +1 能量！');
+                          }}
+                          className="bg-white/10 text-white p-3 sm:p-4 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:bg-white/20 active:scale-95 transition-all border border-white/20"
+                        >
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase">领取空投</span>
+                          <span className="text-[8px] sm:text-[9px] font-bold opacity-60">+1 能量/4小时</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 费用信息：简化显示 */}
+              {withdrawAmount && parseFloat(withdrawAmount) > 0 && (
+                <div className="bg-black/20 p-2.5 sm:p-3 rounded-xl border border-white/5">
+                  <div className="flex justify-between text-[8px] sm:text-[9px] font-bold uppercase">
                     <span className="text-[#848E9C]">{t('asset.networkFee') || 'Network Fee'}</span>
                     <span className="text-[#0ECB81]">{t('asset.free') || 'Free'}</span>
-                 </div>
-                 <div className="flex justify-between text-[8px] sm:text-[10px] font-bold uppercase">
-                    <span className="text-[#848E9C]">{t('asset.energyBurn') || 'Energy Burn'}</span>
-                    <span className="text-[#F6465D] mono">-{Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.units') || 'Units'}</span>
-                 </div>
-                 <div className="flex justify-between text-[8px] sm:text-[10px] font-bold uppercase pt-1.5 sm:pt-2 border-t border-white/5">
-                    <span className="text-[#848E9C]">{t('asset.remainingEnergy') || 'Remaining Energy'}</span>
-                    <span className={`mono ${((modalEnergy !== null ? modalEnergy : stats.energy) - Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)) >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
-                      {(modalEnergy !== null ? modalEnergy : stats.energy) - Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.units') || 'Units'}
-                    </span>
-                 </div>
-              </div>
+                  </div>
+                </div>
+              )}
 
               <button 
                 onClick={async () => {
@@ -724,7 +754,31 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   
                   // 检查能量是否足够支付本次提现
                   if (currentEnergy < requiredEnergy) {
-                    showError(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量，当前能量：${currentEnergy}`);
+                    // 狼性优化：点击报错按钮，直接触发复制邀请链接
+                    if (stats.address && stats.address.startsWith('0x')) {
+                      const link = `${window.location.origin}${window.location.pathname}?ref=${stats.address}`;
+                      try {
+                        await navigator.clipboard.writeText(link);
+                        showWarning(`能量不足！邀请链接已复制，去邀请好友补充能量吧！(差 ${requiredEnergy - currentEnergy} 点)`);
+                      } catch (error) {
+                        // 降级方案：使用传统方法
+                        const textArea = document.createElement('textarea');
+                        textArea.value = link;
+                        textArea.style.position = 'fixed';
+                        textArea.style.opacity = '0';
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        try {
+                          document.execCommand('copy');
+                          showWarning(`能量不足！邀请链接已复制，去邀请好友补充能量吧！(差 ${requiredEnergy - currentEnergy} 点)`);
+                        } catch (err) {
+                          showWarning(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量。邀请好友或领取空投可获得能量！`);
+                        }
+                        document.body.removeChild(textArea);
+                      }
+                    } else {
+                      showWarning(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量。请先连接钱包，然后邀请好友或领取空投可获得能量！`);
+                    }
                     return;
                   }
 
@@ -767,13 +821,26 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   !withdrawAmount || 
                   parseFloat(withdrawAmount) <= 0 || 
                   parseFloat(withdrawAmount) > (earnings ? earnings.pendingUsdt : stats.pendingUsdt) ||
-                  (modalEnergy !== null ? modalEnergy : stats.energy) < Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) || 
                   loading
                 }
-                className="w-full bg-[#FCD535] text-[#0B0E11] font-black py-3 sm:py-5 rounded-2xl disabled:opacity-20 disabled:cursor-not-allowed text-[10px] sm:text-sm uppercase tracking-[0.2em] shadow-lg shadow-[#FCD535]/10 active:scale-95 transition-all touch-manipulation flex-shrink-0 min-h-[48px]"
+                className={`w-full font-black py-4 sm:py-6 rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all touch-manipulation flex-shrink-0 min-h-[56px] ${
+                  withdrawAmount && parseFloat(withdrawAmount) > 0 && (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)
+                    ? 'bg-[#FCD535] text-[#0B0E11] shadow-[#FCD535]/20'
+                    : withdrawAmount && parseFloat(withdrawAmount) > 0
+                    ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 shadow-red-500/10'
+                    : 'bg-[#FCD535] text-[#0B0E11] shadow-[#FCD535]/20'
+                }`}
                 style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
               >
-                {loading ? (t('asset.processing') || '处理中...') : (t('asset.executeTransaction') || '执行交易')}
+                {loading ? (
+                  t('asset.processing') || '处理中...'
+                ) : !withdrawAmount || parseFloat(withdrawAmount) <= 0 ? (
+                  t('asset.enterAmount') || '请输入提现金额'
+                ) : (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) ? (
+                  t('asset.confirmWithdraw') || '确认提现'
+                ) : (
+                  t('asset.insufficientEnergy') || '能量不足'
+                )}
               </button>
             </div>
           </div>

@@ -335,6 +335,15 @@ const App: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen, showLanguageMenu]);
 
+  // 监听切换到挖矿页面的事件（用于能量不足时的引导）
+  useEffect(() => {
+    const handleSwitchToMining = () => {
+      setActiveTab('mining');
+    };
+    window.addEventListener('switchToMining', handleSwitchToMining);
+    return () => window.removeEventListener('switchToMining', handleSwitchToMining);
+  }, []);
+
   // Handle link navigation
   const handleLinkClick = (url: string | undefined, type: 'whitepaper' | 'audits' | 'support') => {
     if (!url || url.trim() === '') {
@@ -357,7 +366,7 @@ const App: React.FC = () => {
   const renderView = () => {
     switch (activeTab) {
       case 'mining': return <MiningView stats={stats} setStats={setStats} />;
-      case 'asset': return <AssetView stats={stats} setStats={setStats} onNavigateToProfile={() => setActiveTab('profile')} />;
+      case 'asset': return <AssetView stats={stats} setStats={setStats} />;
       case 'profile': return <ProfileView stats={stats} />;
       case 'notifications': return <NotificationsView notifications={notifications} setNotifications={setNotifications} onBack={() => setActiveTab('mining')} address={stats.address} onMarkAllAsRead={handleMarkAllAsRead} />;
       default: return <AssetView stats={stats} setStats={setStats} />;
