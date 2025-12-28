@@ -291,12 +291,14 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
             <User className="w-8 h-8 text-[#FCD535] relative z-10" />
           </div>
           <div className="flex-1 min-w-0 overflow-hidden">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 relative">
               <h2 className="font-black text-white text-[10px] mono tracking-tighter flex-1 min-w-0 leading-tight">
                 {stats.address ? shortenAddress(stats.address) : '--'}
               </h2>
               <button
-                onClick={async () => {
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   if (!stats.address) return;
                   try {
                     await navigator.clipboard.writeText(stats.address);
@@ -323,8 +325,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                     document.body.removeChild(textArea);
                   }
                 }}
-                className="p-1 bg-[#FCD535]/10 hover:bg-[#FCD535]/20 rounded-md flex-shrink-0 transition-colors active:scale-95"
-                title="复制地址"
+                className="p-1 bg-[#FCD535]/10 hover:bg-[#FCD535]/20 rounded-md flex-shrink-0 transition-colors active:scale-95 relative z-10 cursor-pointer"
+                title={t('common.copy') || '复制地址'}
               >
                 {addressCopied ? (
                   <Check className="w-3 h-3 text-[#0ECB81]" />
@@ -332,12 +334,11 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                   <Copy className="w-3 h-3 text-[#FCD535]" />
                 )}
               </button>
-              <div className="p-1 bg-[#FCD535]/10 rounded-md flex-shrink-0">
-                 <Shield className="w-3 h-3 text-[#FCD535]" />
-              </div>
               {stats.address && stats.address.startsWith('0x') && (
                 <button
-                  onClick={async () => {
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     try {
                       await disconnectWallet();
                       // 清理 localStorage 中的 WalletConnect 相关数据
@@ -356,7 +357,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                       showError(t('profile.disconnectFailed') || '断开连接失败');
                     }
                   }}
-                  className="p-1 bg-red-500/10 hover:bg-red-500/20 rounded-md flex-shrink-0 transition-colors active:scale-95"
+                  className="p-1 bg-red-500/10 hover:bg-red-500/20 rounded-md flex-shrink-0 transition-colors active:scale-95 relative z-10 cursor-pointer"
                   title={t('profile.disconnect') || '断开连接'}
                 >
                   <LogOut className="w-3 h-3 text-red-400" />
