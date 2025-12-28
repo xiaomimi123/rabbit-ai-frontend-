@@ -120,19 +120,24 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
         });
       }
 
-      // 2. 邀请记录
+      // 2. 邀请记录（包括每次下级领取的能量奖励）
       if (Array.isArray(referrals) && referrals.length > 0) {
         referrals.forEach((ref: any) => {
-          const energy = Number(ref.energy || 2); // ✅ 邀请奖励从 5 改为 2
+          // ✅ 使用后端返回的动态能量值（第一次3点，之后1点）
+          const energy = Number(ref.energy || 1);
           const createdAt = ref.createdAt || ref.time || new Date().toISOString();
           // 使用实际的奖励金额，如果没有则显示 0
           const rewardAmount = parseFloat(ref.rewardAmount || '0');
+          // 判断是否是第一次领取，用于显示不同的描述
+          const isFirstClaim = ref.isFirstClaim !== false; // 默认为 true（兼容旧数据）
           
           timeline.push({
             type: 'invite',
             icon: '🤝',
             title: t('profile.networkReward') || '网络奖励',
-            description: shortenAddress(ref.address || ''),
+            description: isFirstClaim 
+              ? `${shortenAddress(ref.address || '')} ${t('profile.firstClaim') || '首次领取'}`
+              : `${shortenAddress(ref.address || '')} ${t('profile.downstreamClaim') || '下级领取'}`,
             energy: `+${energy} ${t('profile.energy') || '能量'}`,
             time: createdAt,
             timestamp: new Date(createdAt).getTime(),
