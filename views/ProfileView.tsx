@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, TrendingUp, Info, Copy, Check } from 'lucide-react';
+import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, TrendingUp, Info, Copy, Check, LogOut } from 'lucide-react';
 import { UserStats, HistoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { fetchUserInfo, fetchTeamRewards, getWithdrawHistory, getClaimsHistory, getReferralHistory } from '../api';
-import { shortenAddress } from '../services/web3Service';
+import { shortenAddress, disconnectWallet } from '../services/web3Service';
 import { ENERGY_PER_USDT_WITHDRAW } from '../constants';
 
 interface ProfileViewProps {
@@ -335,6 +335,33 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
               <div className="p-1 bg-[#FCD535]/10 rounded-md flex-shrink-0">
                  <Shield className="w-3 h-3 text-[#FCD535]" />
               </div>
+              {stats.address && stats.address.startsWith('0x') && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await disconnectWallet();
+                      // 清理 localStorage 中的 WalletConnect 相关数据
+                      const keysToRemove: string[] = [];
+                      for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && (key.startsWith('wc@2:') || key.startsWith('walletconnect'))) {
+                          keysToRemove.push(key);
+                        }
+                      }
+                      keysToRemove.forEach(key => localStorage.removeItem(key));
+                      showSuccess(t('profile.disconnected') || '已断开连接');
+                      setTimeout(() => window.location.reload(), 300);
+                    } catch (error) {
+                      console.error('[ProfileView] 断开连接失败:', error);
+                      showError(t('profile.disconnectFailed') || '断开连接失败');
+                    }
+                  }}
+                  className="p-1 bg-red-500/10 hover:bg-red-500/20 rounded-md flex-shrink-0 transition-colors active:scale-95"
+                  title={t('profile.disconnect') || '断开连接'}
+                >
+                  <LogOut className="w-3 h-3 text-red-400" />
+                </button>
+              )}
             </div>
             <p className="text-[10px] text-[#848E9C] font-black uppercase tracking-widest">{t('profile.identityVerified') || '身份已验证 • 等级 1'}</p>
           </div>
