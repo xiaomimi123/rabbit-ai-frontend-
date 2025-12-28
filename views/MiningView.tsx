@@ -874,11 +874,11 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
           
           <div className="flex items-center gap-4 bg-emerald-500/5 p-4 rounded-xl border border-emerald-500/10">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 font-black italic">
-              +5
+              +2
             </div>
             <div className="flex-1">
               <p className="text-xs font-bold text-white">{t('mining.referralBonus') || '推荐奖励'}</p>
-              <p className="text-[10px] text-[#848E9C]">{t('mining.referralDesc') || '每邀请一个节点获得 5 能量单位'}</p>
+              <p className="text-[10px] text-[#848E9C]">{t('mining.referralDesc') || '每邀请一个节点获得 2 能量单位，每次下级领取空投额外获得 1 能量'}</p>
             </div>
           </div>
         </div>

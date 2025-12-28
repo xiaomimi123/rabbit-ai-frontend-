@@ -123,7 +123,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       // 2. 邀请记录
       if (Array.isArray(referrals) && referrals.length > 0) {
         referrals.forEach((ref: any) => {
-          const energy = Number(ref.energy || 5);
+          const energy = Number(ref.energy || 2); // ✅ 邀请奖励从 5 改为 2
           const createdAt = ref.createdAt || ref.time || new Date().toISOString();
           // 使用实际的奖励金额，如果没有则显示 0
           const rewardAmount = parseFloat(ref.rewardAmount || '0');
