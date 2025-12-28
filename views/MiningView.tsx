@@ -1011,15 +1011,16 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       {/* Disconnect DApp Modal - Using Portal */}
       {showDisconnectModal && createPortal(
         <div 
-          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center px-0 sm:px-4 pb-0 sm:pb-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
+          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
           onClick={(e) => {
             // 点击背景不关闭，必须点击按钮刷新
             e.stopPropagation();
           }}
         >
           <div 
-            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col relative"
+            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full sm:max-w-sm rounded-t-[2rem] rounded-b-none sm:rounded-b-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] sm:shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col relative"
             onClick={(e) => e.stopPropagation()}
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           >
             {/* Background Decoration */}
             <div className="absolute top-[-10%] left-[-10%] w-32 h-32 bg-yellow-500/10 blur-3xl rounded-full" />

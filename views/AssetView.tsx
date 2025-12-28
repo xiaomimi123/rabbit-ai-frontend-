@@ -294,7 +294,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
         <div className="space-y-1">
           <div className="text-5xl font-black text-white tracking-tighter mono">
             <span className="text-[#FCD535] text-3xl mr-1 font-medium">$</span>
-            {usdtValuation === null ? (
+            {!stats.address || !stats.address.startsWith('0x') ? (
+              '0.00'
+            ) : usdtValuation === null ? (
               <span className="inline-block w-32 h-12 bg-white/5 rounded animate-pulse" />
             ) : ratBalanceError ? (
               <span className="text-[#848E9C]">--</span>
@@ -303,7 +305,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             )}
           </div>
           <p className="text-xs text-[#848E9C] font-bold mono">
-            ≈ {ratBalance === null ? (
+            ≈ {!stats.address || !stats.address.startsWith('0x') ? (
+              '0'
+            ) : ratBalance === null ? (
               <span className="inline-block w-24 h-4 bg-white/5 rounded animate-pulse" />
             ) : ratBalanceError ? (
               '--'
@@ -402,7 +406,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                 <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest">{t('asset.vipUpgradeProgress') || 'VIP 升级进度'}</p>
              </div>
              <p className="text-[10px] text-white font-black mono">
-               {progress === null ? (
+               {!stats.address || !stats.address.startsWith('0x') ? (
+                 '0%'
+               ) : progress === null ? (
                  <span className="inline-block w-8 h-4 bg-white/5 rounded animate-pulse" />
                ) : (
                  `${progress}%`
@@ -412,7 +418,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
           <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden mb-4 p-[1px] border border-white/5">
             <div 
               className="h-full bg-gradient-to-r from-[#FCD535] via-orange-400 to-[#FCD535] rounded-full transition-all duration-1000 ease-out" 
-              style={{ width: progress === null ? '0%' : `${progress}%`, backgroundSize: '200% 100%' }} 
+              style={{ width: (!stats.address || !stats.address.startsWith('0x')) ? '0%' : (progress === null ? '0%' : `${progress}%`), backgroundSize: '200% 100%' }} 
             />
           </div>
           <div className="flex justify-center items-center gap-2 text-[#848E9C] group-hover:text-[#FCD535] transition-colors">
@@ -434,7 +440,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
         <div className="space-y-4 mb-6">
           <div className="text-5xl font-black text-white mono tracking-tighter flex items-baseline">
             <span className="text-xl font-normal text-[#848E9C] mr-3">$</span>
-            {earnings === null ? (
+            {!stats.address || !stats.address.startsWith('0x') ? (
+              '0.0000'
+            ) : earnings === null ? (
               <span className="inline-block w-32 h-12 bg-white/5 rounded animate-pulse" />
             ) : earningsError ? (
               <span className="text-[#848E9C]">--</span>
@@ -491,7 +499,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       {/* VIP TIER EXPLANATION MODAL - REDESIGNED - Using Portal */}
       {showTierModal && createPortal(
         <div 
-          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center px-0 sm:px-4 pb-0 sm:pb-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
+          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-300"
           onClick={(e) => {
             // 点击背景关闭弹窗
             if (e.target === e.currentTarget) {
@@ -500,8 +508,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
           }}
         >
           <div 
-            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col"
+            className="bg-gradient-to-b from-[#1e2329] to-[#0b0e11] w-full sm:max-w-sm rounded-t-[2rem] rounded-b-none sm:rounded-b-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] sm:shadow-[0_40px_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           >
             {/* Header Section */}
             <div className="relative p-3 sm:p-5 pb-2 sm:pb-3 flex-shrink-0">
@@ -720,7 +729,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       {/* WITHDRAW MODAL - Using Portal */}
       {showWithdrawModal && createPortal(
         <div 
-          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center px-0 sm:px-6 pb-0 sm:pb-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
+          className="fixed inset-0 z-[50] flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
           onClick={(e) => {
             // 点击背景关闭弹窗
             if (e.target === e.currentTarget) {
@@ -730,8 +739,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
           }}
         >
           <div 
-            className="bg-[#1e2329] w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_0_50px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200 max-h-[93vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+            className="bg-[#1e2329] w-full sm:max-w-sm rounded-t-[2rem] rounded-b-none sm:rounded-b-[2rem] border-t border-l border-r border-white/10 sm:border border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] sm:shadow-[0_0_50px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200 max-h-[93vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           >
             <div className="p-3 sm:p-6 border-b border-white/5 flex justify-between items-center flex-shrink-0">
               <h3 className="font-black uppercase tracking-widest text-[10px] sm:text-sm">{t('asset.withdrawalNode') || 'Withdrawal Node'}</h3>
@@ -972,7 +982,6 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                     ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 shadow-red-500/10'
                     : 'bg-[#FCD535] text-[#0B0E11] shadow-[#FCD535]/20'
                 }`}
-                style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
               >
                 {loading ? (
                   t('asset.processing') || '处理中...'
