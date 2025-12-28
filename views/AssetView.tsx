@@ -621,7 +621,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                         setWithdrawAmount(val);
                       }
                     }}
-                    className="w-full bg-[#0b0e11] border-2 border-white/10 rounded-3xl py-6 sm:py-8 px-12 sm:px-16 text-3xl sm:text-5xl font-black mono text-white outline-none transition-all touch-manipulation min-h-[80px] sm:min-h-[100px] focus:border-[#FCD535] focus:bg-[#0b0e11]/80"
+                    className="w-full bg-[#0b0e11] border-2 border-white/10 rounded-3xl py-6 sm:py-8 px-12 sm:px-16 text-3xl sm:text-5xl font-black mono text-white outline-none transition-all touch-manipulation min-h-[80px] sm:min-h-[100px] focus:border-[#FCD535] focus:bg-[#0b0e11]/80 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0.00"
                     autoFocus
                   />
