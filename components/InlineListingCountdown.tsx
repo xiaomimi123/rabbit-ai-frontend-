@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Rocket, Bell, ExternalLink } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface CountdownProps {
   targetDate: string;   // 格式: "2026-01-01T12:00:00"
   exchangeName: string; // 交易所名称，如 "Binance"
+  bgImageUrl?: string;  // 背景图片 URL（可选）
 }
 
-export const InlineListingCountdown: React.FC<CountdownProps> = ({ targetDate, exchangeName }) => {
+export const InlineListingCountdown: React.FC<CountdownProps> = ({ targetDate, exchangeName, bgImageUrl = '' }) => {
+  const { t } = useLanguage();
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
@@ -29,52 +31,75 @@ export const InlineListingCountdown: React.FC<CountdownProps> = ({ targetDate, e
   }, [targetDate]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-[2rem] p-[1px] bg-gradient-to-b from-[#FCD535]/30 to-transparent">
-      {/* 内部卡片背景 */}
-      <div className="relative bg-[#1e2329] border border-white/5 rounded-[2rem] p-5 overflow-hidden">
-        
-        {/* 背景装饰：金色光晕 */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-[#FCD535]/10 blur-[50px] rounded-full pointer-events-none" />
+    <div className="relative w-full overflow-hidden rounded-[2rem] shadow-2xl group">
+      
+      {/* ============================================================
+          🌟 背景层：BNB 主题
+          ============================================================ */}
+      
+      {/* 方案 A: 使用在线图片 URL (从配置中读取) */}
+      {bgImageUrl && (
+        <div 
+          className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat opacity-60"
+          style={{
+            backgroundImage: `url(${bgImageUrl})`,
+          }}
+        />
+      )}
 
-        {/* 标题行 */}
-        <div className="flex justify-between items-center mb-5 relative z-10">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#FCD535]/10 flex items-center justify-center border border-[#FCD535]/20">
-               <Rocket className="w-4 h-4 text-[#FCD535] animate-pulse" />
+      {/* 方案 B: CSS 纯代码绘制的 BNB 金色流光背景 (作为备用层) */}
+      <div className="absolute inset-0 bg-[#0b0e11]">
+        {/* 左上角金色光晕 */}
+        <div className="absolute -top-10 -left-10 w-40 h-40 bg-[#FCD535]/20 blur-[60px] rounded-full" />
+        {/* 右下角金色光晕 */}
+        <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#FCD535]/10 blur-[60px] rounded-full" />
+        {/* 中心 BNB Logo 隐约水印 */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-[20px] border-[#FCD535]/5 rounded-full rotate-12" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border-[20px] border-[#FCD535]/5 rotate-45" />
+      </div>
+      
+      {/* 黑色遮罩：确保文字清晰 */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80 backdrop-blur-[1px]" />
+
+      {/* ============================================================
+          🌟 内容层：悬浮在背景之上
+          ============================================================ */}
+      <div className="relative z-10 p-5">
+        
+        {/* 标题栏 */}
+        <div className="flex items-center mb-6 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#FCD535] flex items-center justify-center shadow-lg shadow-[#FCD535]/20">
+               {/* BNB Logo SVG */}
+               <svg className="w-6 h-6 text-black fill-current" viewBox="0 0 32 32">
+                 <path d="M16 32C7.163 32 0 24.837 0 16S7.163 0 16 0s16 7.163 16 16-7.163 16-16 16zm-3.884-17.595L16 10.52l3.886 3.886 2.26-2.26L16 6l-6.144 6.144 2.26 2.26zM6 16l2.26 2.26L10.52 16l-2.26-2.26L6 16zm6.116 1.595l3.884 3.886 3.886-3.886 2.26 2.259L16 26l-6.144-6.144 2.26-2.26zM21.48 16l2.26-2.26L26 16l-2.26 2.26L21.48 16z"/>
+               </svg>
             </div>
             <div>
-              <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                Listing Countdown
+              <h3 className="text-sm font-black text-white uppercase tracking-wider leading-tight">
+                {t('mining.listingCountdown') || 'Listing Countdown'}
               </h3>
-              <p className="text-[10px] text-[#848E9C] font-bold">
-                即将上线 <span className="text-[#FCD535]">{exchangeName}</span>
+              <p className="text-[10px] text-[#FCD535] font-bold mt-0.5">
+                {t('mining.comingSoon') || 'Coming Soon'} <span className="text-[#FCD535]">{exchangeName}</span>
               </p>
             </div>
           </div>
-          
-          {/* 通知按钮 */}
-          <button className="bg-white/5 hover:bg-white/10 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all border border-white/5">
-             <Bell className="w-3 h-3" />
-             提醒我
-          </button>
         </div>
 
         {/* 倒计时数字主体 */}
         <div className="flex items-center justify-center gap-2 sm:gap-4 relative z-10">
-          <TimeBlock value={timeLeft.days} label="DAYS" />
-          <div className="flex flex-col justify-center items-center pb-4 text-[#848E9C]/30 font-black text-xl">:</div>
-          <TimeBlock value={timeLeft.hours} label="HRS" />
-          <div className="flex flex-col justify-center items-center pb-4 text-[#848E9C]/30 font-black text-xl">:</div>
-          <TimeBlock value={timeLeft.minutes} label="MIN" />
-          <div className="flex flex-col justify-center items-center pb-4 text-[#848E9C]/30 font-black text-xl">:</div>
-          <TimeBlock value={timeLeft.seconds} label="SEC" isActive={true} />
+          <TimeBlock value={timeLeft.days} label={t('mining.days') || 'DAYS'} />
+          <div className="flex flex-col justify-center items-center pb-5 text-white/20 font-black text-xl">:</div>
+          <TimeBlock value={timeLeft.hours} label={t('mining.hours') || 'HRS'} />
+          <div className="flex flex-col justify-center items-center pb-5 text-white/20 font-black text-xl">:</div>
+          <TimeBlock value={timeLeft.minutes} label={t('mining.minutes') || 'MIN'} />
+          <div className="flex flex-col justify-center items-center pb-5 text-white/20 font-black text-xl">:</div>
+          <TimeBlock value={timeLeft.seconds} label={t('mining.seconds') || 'SEC'} isActive={true} />
         </div>
         
-        {/* 底部装饰条 */}
-        <div className="mt-4 flex items-center justify-center gap-2 opacity-40">
-           <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-white/20" />
-           <p className="text-[8px] text-[#848E9C] font-bold uppercase tracking-[0.2em]">Official Launch</p>
-           <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/20" />
+        {/* 底部装饰文字 */}
+        <div className="mt-5 text-center">
+           <p className="text-[8px] text-[#848E9C] font-bold uppercase tracking-[0.3em] opacity-60">{t('mining.officialLaunch') || 'Official Launch'}</p>
         </div>
 
       </div>
@@ -84,19 +109,16 @@ export const InlineListingCountdown: React.FC<CountdownProps> = ({ targetDate, e
 
 // 子组件：时间块
 const TimeBlock = ({ value, label, isActive = false }: { value: number; label: string; isActive?: boolean }) => (
-  <div className="flex flex-col items-center gap-1.5">
-    <div className={`w-full aspect-square flex items-center justify-center rounded-xl border relative overflow-hidden group ${isActive ? 'bg-[#FCD535]/10 border-[#FCD535]/30' : 'bg-[#0b0e11] border-white/10'}`}>
-      
-      {/* 秒针跳动时的闪光特效 */}
-      {isActive && (
-        <div className="absolute inset-0 bg-[#FCD535]/20 animate-pulse" />
-      )}
-      
+  <div className="flex flex-col items-center gap-2">
+    {/* 数字框：加了半透明磨砂效果 */}
+    <div className={`w-full aspect-square flex items-center justify-center rounded-2xl border backdrop-blur-md shadow-xl relative overflow-hidden ${isActive ? 'bg-[#FCD535]/20 border-[#FCD535]/50' : 'bg-black/30 border-white/10'}`}>
       <span className={`text-2xl sm:text-3xl font-black mono tracking-tighter relative z-10 ${isActive ? 'text-[#FCD535]' : 'text-white'}`}>
         {String(value).padStart(2, '0')}
       </span>
+      {/* 扫光特效 */}
+      {isActive && <div className="absolute inset-0 bg-white/10 animate-pulse" />}
     </div>
-    <span className="text-[9px] font-black text-[#848E9C] uppercase tracking-widest">{label}</span>
+    <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">{label}</span>
   </div>
 );
 

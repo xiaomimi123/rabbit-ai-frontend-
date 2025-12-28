@@ -1,5 +1,17 @@
 import axios from 'axios';
 
+// 系统配置相关类型
+export interface SystemConfigItem {
+  key: string;
+  value: any;
+  updatedAt?: string;
+}
+
+export interface SystemConfigResponse {
+  ok: boolean;
+  items: SystemConfigItem[];
+}
+
 // 获取 API Base URL
 // 优先使用环境变量 VITE_API_BASE_URL，如果没有配置则使用相对路径（开发环境）
 function getApiBaseUrl(): string {
@@ -352,6 +364,26 @@ export const fetchSystemAnnouncement = async () => {
     }
     // 其他错误才抛出
     throw error;
+  }
+};
+
+// 获取倒计时配置（公开 API，无需认证）
+export const fetchCountdownConfig = async () => {
+  try {
+    const { data } = await api.get('/system/countdown-config');
+    return {
+      targetDate: data.targetDate || '2026-01-15T12:00:00',
+      exchangeName: data.exchangeName || 'Binance',
+      bgImageUrl: data.bgImageUrl || '',
+    };
+  } catch (error: any) {
+    // 如果 API 不存在或出错，返回默认值
+    console.warn('Failed to fetch countdown config, using defaults:', error);
+    return {
+      targetDate: '2026-01-15T12:00:00',
+      exchangeName: 'Binance',
+      bgImageUrl: '',
+    };
   }
 };
 

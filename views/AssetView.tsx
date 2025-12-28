@@ -317,14 +317,11 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             </p>
           )}
         </div>
-        <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-4">
+        <div className="mt-8 flex items-center border-t border-white/5 pt-4">
           <div className="flex items-center gap-2">
              <ShieldCheck className="w-3.5 h-3.5 text-[#0ECB81]" />
              <span className="text-[10px] font-bold text-[#848E9C]">{t('asset.securedAssets') || 'Secured Assets Protected'}</span>
           </div>
-          <button className="text-[#FCD535] text-[10px] font-black uppercase flex items-center gap-1">
-             {t('asset.explorer') || 'Explorer'} <ChevronRight className="w-3 h-3" />
-          </button>
         </div>
       </div>
 
@@ -579,7 +576,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                 >
                   {isActive && (
                     <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1.5 bg-[#0ECB81] text-[#0B0E11] px-1 sm:px-2 py-0.5 rounded-full text-[5px] sm:text-[7px] font-black uppercase tracking-widest shadow-lg flex items-center gap-0.5 sm:gap-1 z-10">
-                      <CheckCircle2 className="w-1 h-1 sm:w-2 sm:h-2" /> Active
+                      <CheckCircle2 className="w-1 h-1 sm:w-2 sm:h-2" /> {t('asset.active') || 'Active'}
                     </div>
                   )}
 
@@ -588,7 +585,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                     <div className="mb-2 sm:mb-3">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[7px] sm:text-[8px] text-[#848E9C] font-bold">
-                          {isNextTarget ? '距离此等级还差' : '距离此等级还差'}
+                          {t('asset.distanceToTier') || 'Distance to this tier'}
                         </span>
                         <span className={`text-[8px] sm:text-[9px] font-black mono ${isNextTarget ? 'text-[#FCD535]' : 'text-[#848E9C]'}`}>
                           {distanceToTier.toLocaleString()} RAT
@@ -737,7 +734,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-3 sm:p-6 border-b border-white/5 flex justify-between items-center flex-shrink-0">
-              <h3 className="font-black uppercase tracking-widest text-[10px] sm:text-sm">Withdrawal Node</h3>
+              <h3 className="font-black uppercase tracking-widest text-[10px] sm:text-sm">{t('asset.withdrawalNode') || 'Withdrawal Node'}</h3>
               <button onClick={() => setShowWithdrawModal(false)} className="p-1.5 sm:p-2 hover:bg-white/5 rounded-full transition-colors touch-manipulation flex-shrink-0 active:scale-90">
                  <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#848E9C]" />
               </button>
@@ -806,8 +803,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                       <div className="flex items-start gap-2 p-2.5 sm:p-3 bg-red-500/10 rounded-xl border border-red-500/20">
                         <Info className="w-3 h-3 sm:w-4 sm:h-4 text-red-400 mt-0.5 flex-shrink-0" />
                         <p className="text-[9px] sm:text-[11px] text-red-400 font-bold leading-relaxed">
-                          还差 <span className="text-white font-mono font-black">{Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) - (modalEnergy !== null ? modalEnergy : stats.energy)}</span> 能量。
-                          完成下方任务立即获取：
+                          {(t('asset.energyShortageDesc') || '还差 {amount} 能量。完成下方任务立即获取：').replace('{amount}', String(Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) - (modalEnergy !== null ? modalEnergy : stats.energy)))}
                         </p>
                       </div>
 
@@ -820,7 +816,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                               const link = `${window.location.origin}${window.location.pathname}?ref=${stats.address}`;
                               try {
                                 await navigator.clipboard.writeText(link);
-                                showInfo('邀请链接已复制！发送给好友即可。');
+                                showInfo(t('asset.inviteLinkCopied') || 'Invitation link copied! Send it to your friends.');
                               } catch (error) {
                                 // 降级方案：使用传统方法
                                 const textArea = document.createElement('textarea');
@@ -831,20 +827,20 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                                 textArea.select();
                                 try {
                                   document.execCommand('copy');
-                                  showInfo('邀请链接已复制！发送给好友即可。');
+                                  showInfo(t('asset.inviteLinkCopied') || 'Invitation link copied! Send it to your friends.');
                                 } catch (err) {
-                                  showError('复制失败，请手动复制链接');
+                                  showError(t('asset.copyFailed') || 'Copy failed, please copy the link manually');
                                 }
                                 document.body.removeChild(textArea);
                               }
                             } else {
-                              showError('请先连接钱包');
+                              showError(t('asset.connectWalletFirst') || 'Please connect wallet first');
                             }
                           }}
                           className="bg-[#FCD535] text-[#0B0E11] p-3 sm:p-4 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#FCD535]/20"
                         >
-                          <span className="text-[10px] sm:text-[11px] font-black uppercase">邀请好友</span>
-                          <span className="text-[8px] sm:text-[9px] font-bold opacity-80">+2 能量/人</span>
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase">{t('asset.inviteFriend') || 'Invite Friend'}</span>
+                          <span className="text-[8px] sm:text-[9px] font-bold opacity-80">{t('asset.energyPerPerson') || '+2 Energy/person'}</span>
                         </button>
 
                         <button
@@ -853,12 +849,12 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                             setShowWithdrawModal(false);
                             // 触发切换到挖矿页面的事件
                             window.dispatchEvent(new CustomEvent('switchToMining'));
-                            showInfo('去首页领取空投，每次可获得 +1 能量！');
+                            showInfo(t('asset.goToClaimAirdrop') || 'Go to homepage to claim airdrop, get +1 energy each time!');
                           }}
                           className="bg-white/10 text-white p-3 sm:p-4 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:bg-white/20 active:scale-95 transition-all border border-white/20"
                         >
-                          <span className="text-[10px] sm:text-[11px] font-black uppercase">领取空投</span>
-                          <span className="text-[8px] sm:text-[9px] font-bold opacity-60">+1 能量/4小时</span>
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase">{t('asset.claimAirdrop') || 'Claim Airdrop'}</span>
+                          <span className="text-[8px] sm:text-[9px] font-bold opacity-60">{t('asset.energyPer4Hours') || '+1 Energy/4h'}</span>
                         </button>
                       </div>
                     </div>
@@ -885,13 +881,13 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                   
                   // 验证输入
                   if (!withdrawAmount || amount <= 0) {
-                    showError('请输入有效的提现金额');
+                    showError(t('asset.invalidWithdrawAmount') || 'Please enter a valid withdrawal amount');
                     return;
                   }
                   
                   const availableUsdt = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
                   if (amount > availableUsdt) {
-                    showError('提现金额不能超过可提现余额');
+                    showError(t('asset.withdrawAmountExceeded') || 'Withdrawal amount cannot exceed available balance');
                     return;
                   }
                   
@@ -905,7 +901,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                       const link = `${window.location.origin}${window.location.pathname}?ref=${stats.address}`;
                       try {
                         await navigator.clipboard.writeText(link);
-                        showWarning(`能量不足！邀请链接已复制，去邀请好友补充能量吧！(差 ${requiredEnergy - currentEnergy} 点)`);
+                        showWarning((t('asset.energyShortageWithLink') || 'Energy shortage! Invitation link copied, go invite friends to replenish energy! (Need {amount} more)').replace('{amount}', String(requiredEnergy - currentEnergy)));
                       } catch (error) {
                         // 降级方案：使用传统方法
                         const textArea = document.createElement('textarea');
@@ -916,14 +912,14 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                         textArea.select();
                         try {
                           document.execCommand('copy');
-                          showWarning(`能量不足！邀请链接已复制，去邀请好友补充能量吧！(差 ${requiredEnergy - currentEnergy} 点)`);
+                          showWarning((t('asset.energyShortageWithLink') || 'Energy shortage! Invitation link copied, go invite friends to replenish energy! (Need {amount} more)').replace('{amount}', String(requiredEnergy - currentEnergy)));
                         } catch (err) {
-                          showWarning(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量。邀请好友或领取空投可获得能量！`);
+                          showWarning((t('asset.energyShortageWithAmount') || 'Energy shortage, withdrawing {usdt} USDT requires {energy} energy. Invite friends or claim airdrop to get energy!').replace('{usdt}', amount.toFixed(2)).replace('{energy}', String(requiredEnergy)));
                         }
                         document.body.removeChild(textArea);
                       }
                     } else {
-                      showWarning(`能量不足，提现 ${amount.toFixed(2)} USDT 需要 ${requiredEnergy} 能量。请先连接钱包，然后邀请好友或领取空投可获得能量！`);
+                      showWarning((t('asset.energyShortageWithWallet') || 'Energy shortage, withdrawing {usdt} USDT requires {energy} energy. Please connect wallet first, then invite friends or claim airdrop to get energy!').replace('{usdt}', amount.toFixed(2)).replace('{energy}', String(requiredEnergy)));
                     }
                     return;
                   }

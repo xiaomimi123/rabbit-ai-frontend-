@@ -11,6 +11,7 @@ import { getProvider, getContract, formatError, switchNetwork, connectWallet, di
 import { verifyClaim } from '../api';
 import { getPartnerIcon } from '../components/PartnerIcons';
 import { InlineListingCountdown } from '../components/InlineListingCountdown';
+import { fetchCountdownConfig } from '../api';
 import { WalletType } from '../types';
 
 interface MiningViewProps {
@@ -31,6 +32,11 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
   const [isCooldown, setIsCooldown] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>('');
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [countdownConfig, setCountdownConfig] = useState({
+    targetDate: '2026-01-15T12:00:00',
+    exchangeName: 'Binance',
+    bgImageUrl: '',
+  });
   const isMobile = useMemo(() => /android|iphone|ipad|ipod/i.test(navigator.userAgent), []);
 
   const pickWalletType = (): WalletType => {
@@ -202,6 +208,20 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       fetchCooldown();
     }
   }, [stats.address, fetchCooldown]);
+
+  // 获取倒计时配置
+  useEffect(() => {
+    const loadCountdownConfig = async () => {
+      try {
+        const config = await fetchCountdownConfig();
+        setCountdownConfig(config);
+      } catch (error) {
+        console.warn('Failed to load countdown config:', error);
+        // 使用默认值，不抛出错误
+      }
+    };
+    loadCountdownConfig();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -887,8 +907,9 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
 
       {/* Listing Countdown */}
       <InlineListingCountdown 
-        targetDate="2026-01-15T12:00:00"
-        exchangeName="Binance"
+        targetDate={countdownConfig.targetDate}
+        exchangeName={countdownConfig.exchangeName}
+        bgImageUrl={countdownConfig.bgImageUrl}
       />
 
       {/* Institutional Partners */}

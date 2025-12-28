@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, Sparkles, TrendingUp, Info, Copy, Check } from 'lucide-react';
+import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, TrendingUp, Info, Copy, Check } from 'lucide-react';
 import { UserStats, HistoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import { fetchUserInfo, fetchTeamRewards, getWithdrawHistory, getClaimsHistory, getReferralHistory } from '../api';
 import { shortenAddress } from '../services/web3Service';
 import { ENERGY_PER_USDT_WITHDRAW } from '../constants';
@@ -14,6 +15,7 @@ interface ProfileViewProps {
 
 const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
   const { t } = useLanguage();
+  const { showSuccess, showError } = useToast();
   const [showEnergyModal, setShowEnergyModal] = useState(false);
   const [energy, setEnergy] = useState(stats.energy);
   const [teamRewards, setTeamRewards] = useState<string>('0');
@@ -299,6 +301,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                   try {
                     await navigator.clipboard.writeText(stats.address);
                     setAddressCopied(true);
+                    showSuccess(t('common.copied') || '已复制');
                     setTimeout(() => setAddressCopied(false), 2000);
                   } catch (error) {
                     // 降级方案：使用传统方法
@@ -311,9 +314,11 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                     try {
                       document.execCommand('copy');
                       setAddressCopied(true);
+                      showSuccess(t('common.copied') || '已复制');
                       setTimeout(() => setAddressCopied(false), 2000);
                     } catch (err) {
                       console.error('Failed to copy address:', err);
+                      showError(t('common.error') || '复制失败');
                     }
                     document.body.removeChild(textArea);
                   }
@@ -510,14 +515,14 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                               }}
                               className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FCD535]/10 hover:bg-[#FCD535]/20 text-[#FCD535] text-[8px] sm:text-[9px] font-black uppercase rounded-lg border border-[#FCD535]/30 transition-all active:scale-95"
                            >
-                              去完成
+                              {t('profile.goComplete') || 'Go Complete'}
                            </button>
                         </div>
                      </div>
                      <div className="flex items-center justify-between p-3 sm:p-4 bg-white/[0.03] border border-white/5 rounded-xl sm:rounded-2xl group hover:border-[#FCD535]/30 transition-all">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                            <Users2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 flex-shrink-0" />
-                           <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate">{t('profile.inviteFriendSuccess') || '邀请好友成功'}</span>
+                           <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate">{t('profile.inviteFriendSuccess') || '邀请好友获得2点能量值'}</span>
                         </div>
                         <div className="flex items-center gap-2">
                            <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+2 ⚡</span>
@@ -528,6 +533,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                                   try {
                                     await navigator.clipboard.writeText(link);
                                     setShowEnergyModal(false);
+                                    showSuccess(t('profile.inviteLinkCopiedSuccess') || 'Invitation link copied! Share with friends to get +2 energy.');
                                   } catch (error) {
                                     const textArea = document.createElement('textarea');
                                     textArea.value = link;
@@ -538,11 +544,15 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                                     try {
                                       document.execCommand('copy');
                                       setShowEnergyModal(false);
+                                      showSuccess(t('profile.inviteLinkCopiedSuccess') || 'Invitation link copied! Share with friends to get +2 energy.');
                                     } catch (err) {
                                       console.error('Failed to copy:', err);
+                                      showError(t('profile.copyFailed') || 'Copy failed, please copy the link manually');
                                     }
                                     document.body.removeChild(textArea);
                                   }
+                                } else {
+                                  showError(t('profile.connectWalletFirst') || 'Please connect wallet first');
                                 }
                               }}
                               className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FCD535]/10 hover:bg-[#FCD535]/20 text-[#FCD535] text-[8px] sm:text-[9px] font-black uppercase rounded-lg border border-[#FCD535]/30 transition-all active:scale-95"
@@ -571,12 +581,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                   </div>
                </div>
 
-               <div className="p-3 sm:p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl sm:rounded-2xl flex items-start gap-2 sm:gap-3">
-                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-[9px] sm:text-[10px] text-blue-400/80 font-medium leading-relaxed">
-                    {t('profile.vip3FuturePrivilege') || 'VIP 3 以上等级用户将在未来的协议更新中获得每日能量恢复特权，敬请期待。'}
-                  </p>
-               </div>
             </div>
 
             {/* Footer */}
