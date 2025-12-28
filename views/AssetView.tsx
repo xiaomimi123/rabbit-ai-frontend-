@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2 } from 'lucide-react';
 import { UserStats } from '../types';
-import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_WITHDRAW_THRESHOLD, ENERGY_PER_USDT_WITHDRAW, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
+import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_PER_USDT_WITHDRAW, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
 import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
@@ -720,12 +720,6 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   // 使用弹窗中的实时能量值（如果已获取），否则使用 stats.energy
                   const currentEnergy = modalEnergy !== null ? modalEnergy : stats.energy;
                   
-                  // 首先检查能量启动门槛 - 如果能量不足，直接阻止提交
-                  if (currentEnergy < ENERGY_WITHDRAW_THRESHOLD) {
-                    showWarning(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
-                    return;
-                  }
-
                   const amount = parseFloat(withdrawAmount || '0');
                   
                   // 验证输入
@@ -785,7 +779,6 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                   }
                 }}
                 disabled={
-                  (modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD || 
                   !withdrawAmount || 
                   parseFloat(withdrawAmount) <= 0 || 
                   parseFloat(withdrawAmount) > (earnings ? earnings.pendingUsdt : stats.pendingUsdt) ||
