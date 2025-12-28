@@ -119,7 +119,7 @@
 ### 1. 响应数据字段
 
 **`/api/user/info` 返回字段**:
-- 后端返回: `minEnergyToWithdraw: 30` (已修复)
+- 后端返回: 已移除 `minEnergyToWithdraw` 字段（已取消能量门槛）
 - 前端应确保使用此字段，而不是硬编码
 
 ### 2. 空数据返回
