@@ -34,6 +34,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   const [earningsError, setEarningsError] = useState(false);
   // 提现弹窗中的能量值（实时从API获取，响应更快）
   const [modalEnergy, setModalEnergy] = useState<number | null>(null);
+  // 总奖励动态增长值（每小时随机增加3位数字）
+  const [totalRewardGrowth, setTotalRewardGrowth] = useState(0);
 
   // 加载持币余额和收益信息
   useEffect(() => {
@@ -127,6 +129,51 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     };
   }, [stats.address, setStats]);
 
+  // 总奖励动态增长效果：每小时随机增加3位数字（100-999）
+  useEffect(() => {
+    // 初始化：从 localStorage 读取上次的增长值，如果没有则从当前时间计算
+    const getStoredGrowth = () => {
+      try {
+        const stored = localStorage.getItem('rabbit_total_reward_growth');
+        const storedTime = localStorage.getItem('rabbit_total_reward_growth_time');
+        if (stored && storedTime) {
+          const lastUpdate = parseInt(storedTime, 10);
+          const now = Date.now();
+          const hoursPassed = Math.floor((now - lastUpdate) / (1000 * 60 * 60));
+          
+          // 计算应该增长的值（每小时增加100-999）
+          let growth = parseFloat(stored);
+          for (let i = 0; i < hoursPassed; i++) {
+            growth += Math.floor(Math.random() * 900) + 100; // 100-999
+          }
+          
+          // 更新存储
+          localStorage.setItem('rabbit_total_reward_growth', growth.toString());
+          localStorage.setItem('rabbit_total_reward_growth_time', now.toString());
+          
+          return growth;
+        }
+      } catch (error) {
+        console.warn('Failed to read stored growth:', error);
+      }
+      return 0;
+    };
+
+    setTotalRewardGrowth(getStoredGrowth());
+
+    // 每小时更新一次
+    const growthInterval = setInterval(() => {
+      setTotalRewardGrowth(prev => {
+        const newGrowth = prev + Math.floor(Math.random() * 900) + 100; // 100-999
+        localStorage.setItem('rabbit_total_reward_growth', newGrowth.toString());
+        localStorage.setItem('rabbit_total_reward_growth_time', Date.now().toString());
+        return newGrowth;
+      });
+    }, 60 * 60 * 1000); // 1小时
+
+    return () => clearInterval(growthInterval);
+  }, []);
+
   const usdtValuation = useMemo(() => {
     if (ratBalance === null) return null;
     // 使用更精确的计算方式，避免精度丢失
@@ -210,8 +257,30 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
       {/* Portfolio Overview */}
       <div className="relative glass rounded-[2rem] p-7 overflow-hidden">
-        <div className="absolute top-0 right-0 p-6 opacity-[0.03]">
-           <Wallet2 className="w-40 h-40" />
+        <div className="absolute top-0 right-0 p-6 opacity-[0.05]">
+          {/* 3D 金币装饰元素 */}
+          <div className="relative w-40 h-40">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#FCD535]/20 via-[#FCD535]/10 to-[#FCD535]/5 rounded-full blur-xl" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative w-32 h-32">
+                {/* 外圈光晕 */}
+                <div className="absolute inset-0 bg-gradient-to-br from-[#FCD535]/30 via-[#FCD535]/15 to-transparent rounded-full blur-2xl" />
+                {/* 金币主体 */}
+                <div className="absolute inset-2 bg-gradient-to-br from-[#FCD535]/40 via-[#FCD535]/20 to-[#FCD535]/10 rounded-full shadow-[0_8px_32px_rgba(252,213,53,0.15)]" />
+                {/* 金币内部纹理 */}
+                <div className="absolute inset-4 bg-gradient-to-br from-[#FCD535]/20 via-transparent to-[#FCD535]/10 rounded-full" />
+                <div className="absolute inset-6 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-full" />
+                {/* 高光效果 */}
+                <div className="absolute top-4 left-4 w-8 h-8 bg-white/10 rounded-full blur-sm" />
+                {/* 中心符号 */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#FCD535]/30 to-[#FCD535]/10 rounded-full flex items-center justify-center">
+                    <span className="text-[#FCD535]/40 text-2xl font-black">$</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div className="flex justify-between items-start mb-6">
            <div className="bg-[#FCD535]/10 border border-[#FCD535]/20 text-[#FCD535] px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
@@ -263,7 +332,17 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       <div className="bg-[#1e2329]/30 border border-white/5 rounded-2xl p-5 flex items-center justify-between backdrop-blur-sm">
         <div className="space-y-1">
           <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest">{t('asset.totalRewardPaid') || 'Total Reward Paid'}</p>
-          <p className="text-lg font-black text-white mono">${PROTOCOL_STATS.totalPaidOut.toLocaleString()}<span className="text-[10px] text-[#0ECB81] ml-1">USDT</span></p>
+          <p className="text-lg font-black text-white mono">
+            ${(() => {
+              const totalValue = PROTOCOL_STATS.totalPaidOut + totalRewardGrowth;
+              // 如果是整数，不显示小数；否则显示两位小数
+              const formatted = totalValue % 1 === 0 
+                ? totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                : totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              return formatted;
+            })()}
+            <span className="text-[10px] text-[#0ECB81] ml-1">USDT</span>
+          </p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
            <div className="flex gap-1">
@@ -323,7 +402,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
           <div className="flex justify-between items-end mb-3">
              <div className="flex items-center gap-2">
                 <Target className="w-3 h-3 text-[#848E9C]" />
-                <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest">{t('asset.protocolEvolution') || '协议进化'}</p>
+                <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest">{t('asset.vipUpgradeProgress') || 'VIP 升级进度'}</p>
              </div>
              <p className="text-[10px] text-white font-black mono">
                {progress === null ? (
@@ -462,24 +541,89 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             <div className="px-2 sm:px-5 space-y-1.5 sm:space-y-2.5 overflow-y-auto flex-1 pb-2 sm:pb-4 no-scrollbar">
               {VIP_TIERS.map((tier) => {
                 const isActive = currentTier?.level === tier.level;
+                const isReached = ratBalance !== null && ratBalance >= tier.min;
+                const isNextTarget = !currentTier && tier.level === 1 || (currentTier && tier.level === currentTier.level + 1);
+                
+                // 计算距离此等级还差多少RAT
+                let distanceToTier = 0;
+                let progressToTier = 0;
+                if (ratBalance !== null) {
+                  if (ratBalance < tier.min) {
+                    distanceToTier = tier.min - ratBalance;
+                    const prevTier = tier.level > 1 ? VIP_TIERS.find(t => t.level === tier.level - 1) : null;
+                    const rangeStart = prevTier ? prevTier.max + 1 : 0;
+                    const rangeEnd = tier.min;
+                    const range = rangeEnd - rangeStart;
+                    if (range > 0) {
+                      progressToTier = Math.min(Math.max(((ratBalance - rangeStart) / range) * 100, 0), 100);
+                    }
+                  } else if (ratBalance >= tier.min && ratBalance <= tier.max) {
+                    progressToTier = 100;
+                  } else {
+                    progressToTier = 100;
+                  }
+                }
+                
                 return (
                 <div 
                   key={tier.level} 
-                  className={`relative p-2.5 sm:p-4 rounded-xl border transition-all group ${isActive ? 'bg-white/5 border-[#FCD535]/50 shadow-[0_0_20px_rgba(252,213,53,0.05)]' : 'bg-[#1e2329]/40 border-white/5 opacity-60 grayscale-[0.5]'}`}
+                  className={`relative p-2.5 sm:p-4 rounded-xl border transition-all group ${
+                    isActive 
+                      ? 'bg-gradient-to-br from-[#FCD535]/20 to-[#FCD535]/5 border-[#FCD535]/50 shadow-[0_0_30px_rgba(252,213,53,0.15)] opacity-100' 
+                      : isReached
+                      ? 'bg-white/5 border-white/10 opacity-80'
+                      : isNextTarget
+                      ? 'bg-[#1e2329]/60 border-[#FCD535]/30 opacity-100'
+                      : 'bg-[#1e2329]/30 border-white/5 opacity-40 grayscale-[0.3]'
+                  }`}
                 >
                   {isActive && (
-                    <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1.5 bg-[#0ECB81] text-[#0B0E11] px-1 sm:px-2 py-0.5 rounded-full text-[5px] sm:text-[7px] font-black uppercase tracking-widest shadow-lg flex items-center gap-0.5 sm:gap-1">
+                    <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1.5 bg-[#0ECB81] text-[#0B0E11] px-1 sm:px-2 py-0.5 rounded-full text-[5px] sm:text-[7px] font-black uppercase tracking-widest shadow-lg flex items-center gap-0.5 sm:gap-1 z-10">
                       <CheckCircle2 className="w-1 h-1 sm:w-2 sm:h-2" /> Active
+                    </div>
+                  )}
+
+                  {/* 进度条 - 显示距离此等级还差多少 */}
+                  {!isReached && ratBalance !== null && (
+                    <div className="mb-2 sm:mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[7px] sm:text-[8px] text-[#848E9C] font-bold">
+                          {isNextTarget ? '距离此等级还差' : '距离此等级还差'}
+                        </span>
+                        <span className={`text-[8px] sm:text-[9px] font-black mono ${isNextTarget ? 'text-[#FCD535]' : 'text-[#848E9C]'}`}>
+                          {distanceToTier.toLocaleString()} RAT
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isNextTarget 
+                              ? 'bg-gradient-to-r from-[#FCD535] to-orange-400' 
+                              : 'bg-white/10'
+                          }`}
+                          style={{ width: `${progressToTier}%` }}
+                        />
+                      </div>
                     </div>
                   )}
 
                   <div className="flex justify-between items-center mb-1.5 sm:mb-3 gap-1.5 sm:gap-2">
                     <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
-                       <div className={`w-7 h-7 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-black text-xs sm:text-base flex-shrink-0 ${isActive ? 'bg-gradient-to-br from-[#FCD535] to-orange-400 text-[#0B0E11]' : 'bg-white/5 text-white/40'}`}>
+                       <div className={`w-7 h-7 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-black text-xs sm:text-base flex-shrink-0 transition-all ${
+                         isActive 
+                           ? 'bg-gradient-to-br from-[#FCD535] to-orange-400 text-[#0B0E11] shadow-lg shadow-[#FCD535]/30' 
+                           : isNextTarget
+                           ? 'bg-gradient-to-br from-[#FCD535]/30 to-[#FCD535]/10 text-[#FCD535] border border-[#FCD535]/30'
+                           : isReached
+                           ? 'bg-white/10 text-white/60'
+                           : 'bg-white/5 text-white/30'
+                       }`}>
                          V{tier.level}
                        </div>
                        <div className="min-w-0 flex-1">
-                         <p className="text-[9px] sm:text-xs font-black text-white uppercase tracking-tight truncate">
+                         <p className={`text-[9px] sm:text-xs font-black uppercase tracking-tight truncate ${
+                           isActive ? 'text-white' : isNextTarget ? 'text-[#FCD535]' : isReached ? 'text-white/80' : 'text-white/40'
+                         }`}>
                            {tier.level === 1 ? (t('asset.tier1Name') || '🌱 新手') :
                             tier.level === 2 ? (t('asset.tier2Name') || '🌿 进阶') :
                             tier.level === 3 ? (t('asset.tier3Name') || '🌳 资深') :
@@ -489,7 +633,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                        </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                       <p className={`text-base sm:text-xl font-black mono leading-none tracking-tighter ${currentTier?.level === tier.level ? 'text-[#FCD535]' : 'text-white/20'}`}>{tier.dailyRate}%</p>
+                       <p className={`text-base sm:text-xl font-black mono leading-none tracking-tighter ${
+                         isActive ? 'text-[#FCD535]' : isNextTarget ? 'text-[#FCD535]/80' : isReached ? 'text-white/60' : 'text-white/20'
+                       }`}>{tier.dailyRate}%</p>
                        <p className="text-[5px] sm:text-[7px] text-[#848E9C] font-bold uppercase tracking-widest mt-0.5">{t('asset.dailyRate') || '日利率'}</p>
                     </div>
                   </div>

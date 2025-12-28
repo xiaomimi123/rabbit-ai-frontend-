@@ -4,12 +4,13 @@ import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { Gift, Copy, Check, Users, Zap, Sparkles, X, Trophy, ShieldCheck, DollarSign, AlertCircle, RefreshCw } from 'lucide-react';
 import { UserStats } from '../types';
-import { PARTNERS, AUDIT_LOGOS, CONTRACTS, ABIS, AIRDROP_FEE, CHAIN_ID } from '../constants';
+import { PARTNERS, CONTRACTS, ABIS, AIRDROP_FEE, CHAIN_ID } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { getProvider, getContract, formatError, switchNetwork, connectWallet, disconnectWallet } from '../services/web3Service';
 import { verifyClaim } from '../api';
 import { getPartnerIcon } from '../components/PartnerIcons';
+import { InlineListingCountdown } from '../components/InlineListingCountdown';
 import { WalletType } from '../types';
 
 interface MiningViewProps {
@@ -884,17 +885,14 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         </div>
       </div>
 
-      {/* Institutional Audit & Partners */}
-      <div className="pt-2 pb-4 px-2">
-        <div className="flex items-center gap-4 mb-8 overflow-x-auto no-scrollbar py-2">
-          {AUDIT_LOGOS.map((audit, i) => (
-             <div key={i} className="flex-shrink-0 flex items-center gap-2 bg-white/[0.03] border border-white/5 px-4 py-2 rounded-xl">
-               <ShieldCheck className="w-4 h-4 text-[#0ECB81]" />
-               <span className="text-[10px] font-black text-white/70 uppercase tracking-tighter whitespace-nowrap">{audit.name}</span>
-             </div>
-          ))}
-        </div>
+      {/* Listing Countdown */}
+      <InlineListingCountdown 
+        targetDate="2026-01-15T12:00:00"
+        exchangeName="Binance"
+      />
 
+      {/* Institutional Partners */}
+      <div className="pt-2 pb-4 px-2">
         <p className="text-[9px] text-center text-[#848E9C] font-black uppercase tracking-[0.3em] mb-6">{t('mining.institutionalEcosystem') || '机构生态'}</p>
         <div className="grid grid-cols-2 gap-3 px-2">
           {PARTNERS.map((p, i) => (

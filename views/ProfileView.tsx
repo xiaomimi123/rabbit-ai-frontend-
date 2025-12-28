@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, Sparkles, TrendingUp, Info } from 'lucide-react';
+import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, Sparkles, TrendingUp, Info, Copy, Check } from 'lucide-react';
 import { UserStats, HistoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { fetchUserInfo, fetchTeamRewards, getWithdrawHistory, getClaimsHistory, getReferralHistory } from '../api';
@@ -20,6 +20,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
   const [inviteCount, setInviteCount] = useState(stats.teamSize);
   const [timelineHistory, setTimelineHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [addressCopied, setAddressCopied] = useState(false);
 
   // 加载用户额外数据
   const loadExtraData = async () => {
@@ -289,7 +290,43 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
           </div>
           <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="font-black text-white text-[10px] mono tracking-tighter break-all flex-1 min-w-0 leading-tight">{stats.address}</h2>
+              <h2 className="font-black text-white text-[10px] mono tracking-tighter flex-1 min-w-0 leading-tight">
+                {stats.address ? shortenAddress(stats.address) : '--'}
+              </h2>
+              <button
+                onClick={async () => {
+                  if (!stats.address) return;
+                  try {
+                    await navigator.clipboard.writeText(stats.address);
+                    setAddressCopied(true);
+                    setTimeout(() => setAddressCopied(false), 2000);
+                  } catch (error) {
+                    // 降级方案：使用传统方法
+                    const textArea = document.createElement('textarea');
+                    textArea.value = stats.address;
+                    textArea.style.position = 'fixed';
+                    textArea.style.opacity = '0';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                      document.execCommand('copy');
+                      setAddressCopied(true);
+                      setTimeout(() => setAddressCopied(false), 2000);
+                    } catch (err) {
+                      console.error('Failed to copy address:', err);
+                    }
+                    document.body.removeChild(textArea);
+                  }
+                }}
+                className="p-1 bg-[#FCD535]/10 hover:bg-[#FCD535]/20 rounded-md flex-shrink-0 transition-colors active:scale-95"
+                title="复制地址"
+              >
+                {addressCopied ? (
+                  <Check className="w-3 h-3 text-[#0ECB81]" />
+                ) : (
+                  <Copy className="w-3 h-3 text-[#FCD535]" />
+                )}
+              </button>
               <div className="p-1 bg-[#FCD535]/10 rounded-md flex-shrink-0">
                  <Shield className="w-3 h-3 text-[#FCD535]" />
               </div>
@@ -459,36 +496,77 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                   </h4>
                   
                   <div className="grid gap-1.5 sm:gap-2">
-                     <div className="flex items-center justify-between p-3 sm:p-4 bg-white/[0.03] border border-white/5 rounded-xl sm:rounded-2xl">
+                     <div className="flex items-center justify-between p-3 sm:p-4 bg-white/[0.03] border border-white/5 rounded-xl sm:rounded-2xl group hover:border-[#FCD535]/30 transition-all">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                            <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 flex-shrink-0" />
                            <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate">{t('profile.dailyAirdropClaim') || '每日空投领取'}</span>
                         </div>
-                        <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+1 ⚡</span>
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+1 ⚡</span>
+                           <button
+                              onClick={() => {
+                                setShowEnergyModal(false);
+                                window.dispatchEvent(new CustomEvent('switchToMining'));
+                              }}
+                              className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FCD535]/10 hover:bg-[#FCD535]/20 text-[#FCD535] text-[8px] sm:text-[9px] font-black uppercase rounded-lg border border-[#FCD535]/30 transition-all active:scale-95"
+                           >
+                              去完成
+                           </button>
+                        </div>
                      </div>
-                     <div className="flex items-center justify-between p-3 sm:p-4 bg-white/[0.03] border border-white/5 rounded-xl sm:rounded-2xl">
+                     <div className="flex items-center justify-between p-3 sm:p-4 bg-white/[0.03] border border-white/5 rounded-xl sm:rounded-2xl group hover:border-[#FCD535]/30 transition-all">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                            <Users2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 flex-shrink-0" />
                            <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate">{t('profile.inviteFriendSuccess') || '邀请好友成功'}</span>
                         </div>
-                        <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+5 ⚡</span>
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+2 ⚡</span>
+                           <button
+                              onClick={async () => {
+                                if (stats.address && stats.address.startsWith('0x')) {
+                                  const link = `${window.location.origin}${window.location.pathname}?ref=${stats.address}`;
+                                  try {
+                                    await navigator.clipboard.writeText(link);
+                                    setShowEnergyModal(false);
+                                  } catch (error) {
+                                    const textArea = document.createElement('textarea');
+                                    textArea.value = link;
+                                    textArea.style.position = 'fixed';
+                                    textArea.style.opacity = '0';
+                                    document.body.appendChild(textArea);
+                                    textArea.select();
+                                    try {
+                                      document.execCommand('copy');
+                                      setShowEnergyModal(false);
+                                    } catch (err) {
+                                      console.error('Failed to copy:', err);
+                                    }
+                                    document.body.removeChild(textArea);
+                                  }
+                                }
+                              }}
+                              className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FCD535]/10 hover:bg-[#FCD535]/20 text-[#FCD535] text-[8px] sm:text-[9px] font-black uppercase rounded-lg border border-[#FCD535]/30 transition-all active:scale-95"
+                           >
+                              去完成
+                           </button>
+                        </div>
                      </div>
                   </div>
                </div>
 
                {/* How to Use */}
                <div className="space-y-2 sm:space-y-3 pt-1 sm:pt-2">
-                  <h4 className="text-[9px] sm:text-[10px] font-black text-[#F6465D] uppercase tracking-[0.3em] flex items-center gap-1.5 sm:gap-2">
+                  <h4 className="text-[9px] sm:text-[10px] font-black text-[#848E9C] uppercase tracking-[0.3em] flex items-center gap-1.5 sm:gap-2">
                     <Activity className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {t('profile.consumptionRules') || '消耗规则'}
                   </h4>
                   
-                  <div className="p-3 sm:p-4 bg-red-500/5 border border-red-500/10 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3">
+                  <div className="p-3 sm:p-4 bg-[#1e2329]/60 border border-white/10 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3">
                      <div className="flex justify-between items-center">
                         <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate pr-2">{t('profile.usdtWithdrawRatio') || 'USDT 收益提现'}</span>
-                        <span className="text-[10px] sm:text-xs font-black text-[#F6465D] mono flex-shrink-0">{t('profile.ratio1to10') || '1:10 比例'}</span>
+                        <span className="text-[10px] sm:text-xs font-black text-[#848E9C] mono flex-shrink-0">{t('profile.ratio1to10') || '1:10 比例'}</span>
                      </div>
                      <p className="text-[8px] sm:text-[9px] text-[#848E9C] leading-normal font-bold uppercase tracking-tight">
-                       {t('profile.withdrawRule') || '* 每提现 1 USDT 需消耗 10 单位能量。最低提现水位线为 30 能量。'}
+                       {t('profile.withdrawRule') || '* 每提现 1 USDT 需消耗 10 单位能量。'}
                      </p>
                   </div>
                </div>

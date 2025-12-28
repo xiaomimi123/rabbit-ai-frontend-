@@ -14,8 +14,8 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     const saved = (localStorage.getItem('rabbit_lang') || '').trim() as Language;
     if (saved && translations[saved]) return saved;
 
-    // 默认使用中文
-    return 'zh';
+    // 默认使用英语
+    return 'en';
   }, []);
 
   const [language, _setLanguage] = useState<Language>(initialLang);
