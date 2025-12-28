@@ -619,29 +619,29 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                     <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-[#848E9C]">{t('asset.energySystem') || '能量系统'}</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                <div className="grid grid-cols-2 gap-1.5 sm:gap-3">
                   <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
                     <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-0.5 sm:mb-1">当前能量</p>
-                    <p className={`text-sm sm:text-lg font-black mono ${(modalEnergy !== null ? modalEnergy : stats.energy) >= ENERGY_WITHDRAW_THRESHOLD ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                    <p className={`text-sm sm:text-lg font-black mono ${(modalEnergy !== null ? modalEnergy : stats.energy) > 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
                       {modalEnergy !== null ? modalEnergy : stats.energy}
                     </p>
                   </div>
                   <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
-                    <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-0.5 sm:mb-1">能量阈值</p>
-                    <p className="text-sm sm:text-lg font-black mono text-[#FCD535]">{ENERGY_WITHDRAW_THRESHOLD}</p>
-                  </div>
-                  <div className="bg-black/20 p-1.5 sm:p-3 rounded-xl border border-white/5">
                     <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-widest mb-0.5 sm:mb-1">所需能量</p>
-                    <p className="text-sm sm:text-lg font-black mono text-[#F6465D]">
+                    <p className={`text-sm sm:text-lg font-black mono ${
+                      (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) 
+                        ? 'text-[#0ECB81]' 
+                        : 'text-[#F6465D]'
+                    }`}>
                       {Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) || '0'}
                     </p>
                   </div>
                 </div>
-                {(modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD && (
+                {(modalEnergy !== null ? modalEnergy : stats.energy) < Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) && parseFloat(withdrawAmount || '0') > 0 && (
                   <div className="mt-1.5 sm:mt-2 p-2 sm:p-3 bg-red-500/10 rounded-xl border border-red-500/20 flex items-start gap-1.5 sm:gap-2">
                     <Info className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
                     <p className="text-[7px] sm:text-[9px] text-red-400 font-bold uppercase tracking-tight leading-relaxed">
-                      {t('asset.energyInsufficient') || '能量值不足：最低需要'} {ENERGY_WITHDRAW_THRESHOLD} {t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}
+                      {t('asset.energyInsufficientForAmount') || '能量不足：提现'} {withdrawAmount} USDT {t('asset.requiresEnergy') || '需要'} {Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.energy') || '能量'}
                     </p>
                   </div>
                 )}
@@ -668,30 +668,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats, onNavigateToProf
                         setWithdrawAmount(val);
                       }
                     }}
-                    disabled={(modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD}
-                    className={`w-full bg-[#0b0e11] border rounded-2xl py-3 sm:py-5 px-3 sm:px-5 text-lg sm:text-2xl font-black mono text-white outline-none transition-colors touch-manipulation min-h-[48px] ${
-                      (modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD 
-                        ? 'border-red-500/20 opacity-50 cursor-not-allowed' 
-                        : 'border-white/5 focus:border-[#FCD535]'
-                    }`}
+                    className="w-full bg-[#0b0e11] border border-white/5 rounded-2xl py-3 sm:py-5 px-3 sm:px-5 text-lg sm:text-2xl font-black mono text-white outline-none transition-colors touch-manipulation min-h-[48px] focus:border-[#FCD535]"
                     placeholder="0.00"
                   />
                   <button 
                     onClick={() => {
-                      const currentEnergy = modalEnergy !== null ? modalEnergy : stats.energy;
-                      if (currentEnergy < ENERGY_WITHDRAW_THRESHOLD) {
-                        showWarning(`${t('asset.energyInsufficient') || '能量值不足：最低需要'} ${ENERGY_WITHDRAW_THRESHOLD} ${t('asset.energyRequired') || '能量才能提现。请先领取空投或邀请好友获取能量。'}`);
-                        return;
-                      }
                       const maxVal = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
                       setWithdrawAmount(maxVal.toFixed(2));
                     }} 
-                    disabled={(modalEnergy !== null ? modalEnergy : stats.energy) < ENERGY_WITHDRAW_THRESHOLD}
-                    className={`absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 text-[8px] sm:text-[10px] font-black px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border transition-colors touch-manipulation min-h-[32px] ${
-                      stats.energy < ENERGY_WITHDRAW_THRESHOLD
-                        ? 'text-[#848E9C] bg-white/5 border-white/5 opacity-50 cursor-not-allowed'
-                        : 'text-[#FCD535] bg-[#FCD535]/10 border-[#FCD535]/20 hover:bg-[#FCD535]/20 active:bg-[#FCD535]/30'
-                    }`}
+                    className="absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 text-[8px] sm:text-[10px] font-black px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border transition-colors touch-manipulation min-h-[32px] text-[#FCD535] bg-[#FCD535]/10 border-[#FCD535]/20 hover:bg-[#FCD535]/20 active:bg-[#FCD535]/30"
                   >
                     {t('common.max') || 'MAX'}
                   </button>

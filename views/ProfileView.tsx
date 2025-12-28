@@ -6,7 +6,7 @@ import { UserStats, HistoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { fetchUserInfo, fetchTeamRewards, getWithdrawHistory, getClaimsHistory, getReferralHistory } from '../api';
 import { shortenAddress } from '../services/web3Service';
-import { ENERGY_WITHDRAW_THRESHOLD, ENERGY_PER_USDT_WITHDRAW } from '../constants';
+import { ENERGY_PER_USDT_WITHDRAW } from '../constants';
 
 interface ProfileViewProps {
   stats: UserStats;
