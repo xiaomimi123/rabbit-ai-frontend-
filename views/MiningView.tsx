@@ -776,7 +776,115 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       
       refreshUserInfo();
       
-      // 刷新冷却时间
+      // ✅ 增强验证：等待几秒后从链上读取 lastClaimTime 验证，确保数据已同步
+      const verifyClaimOnChain = async (retries = 3) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            // 等待时间：第一次 3 秒，后续每次 2 秒
+            const waitTime = i === 0 ? 3000 : 2000;
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            
+            console.log(`[verifyClaimOnChain] 验证链上数据 (尝试 ${i + 1}/${retries})...`);
+            
+            // 从链上读取 lastClaimTime
+            const { callWithRetry } = await import('../services/web3Service');
+            const contract = await getContract(CONTRACTS.AIRDROP, ABIS.AIRDROP, undefined);
+            
+            const lastClaim = await callWithRetry(
+              () => contract.lastClaimTime(currentAddress),
+              {
+                maxRetries: 3,
+                baseDelay: 1000,
+                onRetry: (attempt, error) => {
+                  console.warn(`[verifyClaimOnChain] RPC 速率限制，重试 ${attempt}/3...`);
+                }
+              }
+            );
+            
+            const lastClaimNum = Number(lastClaim);
+            const receiptBlockTime = receipt?.blockNumber ? await (async () => {
+              try {
+                const provider = getProvider();
+                if (!provider) return null;
+                const block = await provider.getBlock(receipt.blockNumber);
+                return block ? block.timestamp : null;
+              } catch {
+                return null;
+              }
+            })() : null;
+            
+            // 验证：如果 lastClaimTime 已更新（大于 0），说明数据已同步
+            if (lastClaimNum > 0) {
+              const timeDiff = receiptBlockTime ? Math.abs(lastClaimNum - receiptBlockTime) : null;
+              
+              // 如果 lastClaimTime 大于 0，且（如果有区块时间）时间差小于 300 秒（5分钟），认为验证成功
+              // 允许 5 分钟的时间差，因为区块时间可能略有不同
+              const isValid = timeDiff === null || timeDiff < 300;
+              
+              if (isValid) {
+                console.log(`[verifyClaimOnChain] ✅ 链上验证成功:`, {
+                  lastClaimTime: lastClaimNum,
+                  receiptBlockTime,
+                  timeDiff,
+                  attempt: i + 1
+                });
+                
+                // 刷新冷却时间（确保 UI 显示最新状态）
+                fetchCooldown();
+                
+                // 再次刷新用户信息，确保数据已同步
+                try {
+                  const { fetchUserInfo } = await import('../api');
+                  const userInfo = await fetchUserInfo(currentAddress);
+                  if (userInfo) {
+                    setStats(p => ({
+                      ...p,
+                      address: currentAddress,
+                      energy: Number(userInfo.energy || 0),
+                      teamSize: Number(userInfo.inviteCount || 0),
+                    }));
+                    console.log('[verifyClaimOnChain] ✅ 用户信息已同步，能量值:', userInfo.energy);
+                  }
+                } catch (error) {
+                  console.warn('[verifyClaimOnChain] 刷新用户信息失败:', error);
+                }
+                
+                return true; // 验证成功
+              } else {
+                console.warn(`[verifyClaimOnChain] lastClaimTime 时间差过大 (${timeDiff}秒)，可能不是本次交易，继续重试...`);
+              }
+            } else {
+              // 如果 lastClaimTime 仍为 0，说明可能还未同步，继续重试
+              if (i < retries - 1) {
+                console.warn(`[verifyClaimOnChain] lastClaimTime 仍为 0，等待重试... (${i + 1}/${retries})`);
+              } else {
+                console.warn(`[verifyClaimOnChain] ⚠️ 链上验证失败：lastClaimTime 仍为 0，可能交易尚未完全确认或 RPC 延迟`);
+                // 最后一次重试失败，仍然刷新冷却时间（可能只是 RPC 延迟）
+                fetchCooldown();
+              }
+            }
+          } catch (error) {
+            console.warn(`[verifyClaimOnChain] 验证失败 (尝试 ${i + 1}/${retries}):`, error);
+            if (i === retries - 1) {
+              // 最后一次重试失败，仍然刷新冷却时间
+              fetchCooldown();
+              console.warn('[verifyClaimOnChain] 所有验证重试均失败，建议用户手动刷新页面');
+            }
+          }
+        }
+        return false;
+      };
+      
+      // 启动链上验证（异步执行，不阻塞 UI）
+      verifyClaimOnChain().then((verified) => {
+        if (verified) {
+          console.log('[handleClaim] ✅ 链上验证完成，数据已同步');
+        } else {
+          console.warn('[handleClaim] ⚠️ 链上验证未完全成功，但交易已确认，数据应已同步');
+        }
+      });
+      
+      // 立即刷新冷却时间（不等待验证）
       fetchCooldown();
       
     } catch (err: any) {
