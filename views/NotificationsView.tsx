@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Bell, ChevronLeft, CheckCircle2, AlertTriangle, Gift, Clock, X, Info, Inbox, Sparkles, ChevronRight, Share2 } from 'lucide-react';
+import { Bell, ChevronLeft, CheckCircle2, AlertTriangle, Gift, Clock, X, Inbox, Sparkles, ChevronRight } from 'lucide-react';
 import { Notification } from '../types';
 import { markNotificationAsRead } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
