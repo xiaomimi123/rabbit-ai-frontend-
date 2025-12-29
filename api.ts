@@ -171,8 +171,27 @@ export const verifyClaim = async (address: string, txHash: string, referrer: str
     throw new Error(errorMsg);
   }
   
+  // ✅ 修复：确保 referrer 总是有效值（处理 null/undefined）
+  // 如果 referrer 无效，使用默认的零地址
+  let validReferrer = '0x0000000000000000000000000000000000000000';
+  if (referrer && typeof referrer === 'string' && referrer.trim() !== '') {
+    // 验证是否为有效的以太坊地址
+    try {
+      const { ethers } = await import('ethers');
+      if (ethers.utils.isAddress(referrer)) {
+        validReferrer = referrer.toLowerCase();
+      } else {
+        logger.warn(`[verifyClaim] 无效的 referrer 地址: ${referrer}，使用默认值`);
+      }
+    } catch (e) {
+      logger.warn(`[verifyClaim] 验证 referrer 地址失败: ${e}，使用默认值`);
+    }
+  } else {
+    logger.debug(`[verifyClaim] referrer 为空或无效，使用默认值`);
+  }
+  
   // 构建请求 payload
-  const payload = { address, txHash, referrer };
+  const payload = { address, txHash, referrer: validReferrer };
   
   try {
     logger.debug('[verifyClaim] 调用后端 API');
