@@ -1,7 +1,7 @@
 ﻿
 import React, { useState, useRef, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Pickaxe, Wallet, User, ShieldCheck, Volume2, Bell, Menu, X, Globe, FileText, ExternalLink, ChevronRight, Twitter, Send, Headset, MessageSquareQuote, Check } from 'lucide-react';
+import { Pickaxe, Wallet, User, ShieldCheck, Bell, Menu, X, Globe, FileText, ExternalLink, ChevronRight, Twitter, Send, Headset, MessageSquareQuote, Check } from 'lucide-react';
 import MiningView from './views/MiningView';
 import AssetView from './views/AssetView';
 import ProfileView from './views/ProfileView';
@@ -10,7 +10,7 @@ import { TabType, UserStats, Notification } from './types';
 import { PROTOCOL_STATS } from './constants';
 import { useLanguage } from './contexts/LanguageContext';
 import { Language } from './translations';
-import { fetchSystemLinks, fetchUserNotifications, markAllNotificationsAsRead, fetchSystemAnnouncement } from './api';
+import { fetchSystemLinks, fetchUserNotifications, markAllNotificationsAsRead } from './api';
 import { shortenAddress } from './services/web3Service';
 
 interface SystemLinks {
@@ -58,7 +58,6 @@ const App: React.FC = () => {
   }, []);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [announcement, setAnnouncement] = useState<string>('');
   const hasUnread = notifications.some(n => !n.read);
 
   // Load user notifications
@@ -90,28 +89,6 @@ const App: React.FC = () => {
     }
   };
 
-  // 加载系统公告
-  const loadAnnouncement = async () => {
-    try {
-      const data = await fetchSystemAnnouncement();
-      if (data && data.content) {
-        setAnnouncement(data.content);
-      } else {
-        // 如果没有公告，使用默认值（纯文本，不包含HTML）
-        const defaultAnnouncement = `🎉 ${t('common.announcement') || '透明性公告'} ${t('common.announcementContent') || '过去24小时全网已累计结算'} <span class="text-[#FCD535] font-bold">14,290 USDT</span> ${t('common.profit') || '收益'}...`;
-        setAnnouncement(defaultAnnouncement);
-      }
-    } catch (error: any) {
-      // 404 错误是正常的（没有公告），不显示错误
-      const status = error?.response?.status || error?.status;
-      if (status !== 404 && !error?.message?.includes('404')) {
-        console.error('Failed to load announcement:', error);
-      }
-      // 使用默认公告
-      const defaultAnnouncement = `🎉 ${t('common.announcement') || '透明性公告'} ${t('common.announcementContent') || '过去24小时全网已累计结算'} <span class="text-[#FCD535] font-bold">14,290 USDT</span> ${t('common.profit') || '收益'}...`;
-      setAnnouncement(defaultAnnouncement);
-    }
-  };
 
   // 标记所有通知为已读
   const handleMarkAllAsRead = async () => {
@@ -149,15 +126,13 @@ const App: React.FC = () => {
     loadSystemLinks();
   }, []);
 
-  // Load user notifications and system announcement
+  // Load user notifications
   useEffect(() => {
     loadNotifications();
-    loadAnnouncement();
     
-    // Refresh notifications and announcement every 30 seconds
+    // Refresh notifications every 30 seconds
     const interval = setInterval(() => {
       loadNotifications();
-      loadAnnouncement();
     }, 30000);
     
     return () => clearInterval(interval);
@@ -517,30 +492,6 @@ const App: React.FC = () => {
         )}
       </header>
 
-      {/* Ticker */}
-      {announcement && (
-        <section className="px-6 py-2 z-20">
-          <div className="flex items-center gap-2 bg-white/[0.03] border border-white/5 px-3 py-2 rounded-xl backdrop-blur-sm overflow-hidden">
-            <Volume2 className="w-3.5 h-3.5 text-[#FCD535] flex-shrink-0" />
-            <div className="flex-1 overflow-hidden h-4 flex items-center justify-center">
-              {/* 如果内容较短，居中显示；如果较长，滚动显示 */}
-              {announcement.replace(/<[^>]*>/g, '').length > 50 ? (
-                <div className="w-full overflow-hidden">
-                  <div 
-                    className="animate-marquee inline-block text-[10px] font-medium text-[#848E9C] whitespace-nowrap"
-                    dangerouslySetInnerHTML={{ __html: announcement }}
-                  />
-                </div>
-              ) : (
-                <div 
-                  className="text-[10px] font-medium text-[#848E9C] whitespace-nowrap text-center w-full truncate"
-                  dangerouslySetInnerHTML={{ __html: announcement }}
-                />
-              )}
-            </div>
-          </div>
-        </section>
-      )}
 
       <main className="flex-1 overflow-y-auto pb-32 px-5 pt-2 relative z-10">
         {renderView()}

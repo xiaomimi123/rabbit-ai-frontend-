@@ -163,19 +163,6 @@ input[type="range"]::-moz-range-thumb:hover {
   animation-play-state: paused;
 }
 
-/* 公告栏居中显示（内容较短时） */
-.announcement-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  overflow: hidden;
-}
-
-.announcement-content {
-  text-align: center;
-  white-space: nowrap;
-}
 
 /* Animation utilities */
 .animate-in {

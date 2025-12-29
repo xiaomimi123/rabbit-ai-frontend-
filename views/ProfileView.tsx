@@ -586,7 +586,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                               }}
                               className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FCD535]/10 hover:bg-[#FCD535]/20 text-[#FCD535] text-[8px] sm:text-[9px] font-black uppercase rounded-lg border border-[#FCD535]/30 transition-all active:scale-95"
                            >
-                              去完成
+                              {t('profile.goComplete') || 'Go Complete'}
                            </button>
                         </div>
                      </div>

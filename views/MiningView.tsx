@@ -929,81 +929,127 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
 
       {/* REWARD ANIMATION MODAL - UPGRADED WITH BIG DOLLAR ICON */}
       {showRewardModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center px-6 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-500">
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center px-4 sm:px-6 bg-[#0b0e11]/95 backdrop-blur-2xl animate-in fade-in duration-500 overflow-y-auto"
+          onClick={() => setShowRewardModal(false)}
+        >
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
              {/* Dynamic Light Rays */}
              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#FCD535]/15 rounded-full blur-[120px] animate-pulse" />
              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-orange-500/10 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '1s' }} />
           </div>
 
-          <div className="relative w-full max-w-sm glass rounded-[3rem] p-10 border border-white/10 shadow-[0_0_100px_rgba(252,213,53,0.2)] text-center animate-in zoom-in-75 slide-in-from-bottom-20 duration-500 flex flex-col items-center">
+          <div 
+            className="relative w-full max-w-sm glass rounded-[3rem] p-6 sm:p-8 md:p-10 border border-white/10 shadow-[0_0_100px_rgba(252,213,53,0.2)] text-center animate-in zoom-in-75 slide-in-from-bottom-20 duration-500 flex flex-col items-center my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             
             {/* Massive Dollar Icon Interaction */}
-            <div className="relative mb-10 group">
+            <div className="relative mb-6 sm:mb-8 md:mb-10 group">
               <div className="absolute inset-0 bg-[#FCD535] blur-3xl opacity-30 group-hover:opacity-50 transition-opacity animate-pulse" />
               
               {/* Outer Spinning Ring */}
-              <div className="absolute -inset-6 border-2 border-dashed border-[#FCD535]/20 rounded-full animate-[spin_10s_linear_infinite]" />
-              <div className="absolute -inset-3 border border-[#FCD535]/40 rounded-full animate-[spin_6s_linear_infinite_reverse]" />
+              <div className="absolute -inset-4 sm:-inset-6 border-2 border-dashed border-[#FCD535]/20 rounded-full animate-[spin_10s_linear_infinite]" />
+              <div className="absolute -inset-2 sm:-inset-3 border border-[#FCD535]/40 rounded-full animate-[spin_6s_linear_infinite_reverse]" />
 
-              <div className="w-28 h-28 bg-gradient-to-br from-[#FCD535] via-[#f3ba2f] to-orange-500 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(252,213,53,0.4)] relative animate-bounce hover:scale-110 transition-transform cursor-pointer">
-                <DollarSign className="w-16 h-16 text-[#0B0E11] stroke-[3px]" />
+              <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 bg-gradient-to-br from-[#FCD535] via-[#f3ba2f] to-orange-500 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(252,213,53,0.4)] relative animate-bounce hover:scale-110 transition-transform cursor-pointer">
+                <DollarSign className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-[#0B0E11] stroke-[3px]" />
                 
                 {/* Floating mini sparks */}
-                <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-white animate-pulse" />
-                <Sparkles className="absolute -bottom-1 -left-3 w-5 h-5 text-white/50 animate-pulse" style={{ animationDelay: '0.5s' }} />
+                <Sparkles className="absolute -top-2 -right-2 w-5 h-5 sm:w-6 sm:h-6 text-white animate-pulse" />
+                <Sparkles className="absolute -bottom-1 -left-3 w-4 h-4 sm:w-5 sm:h-5 text-white/50 animate-pulse" style={{ animationDelay: '0.5s' }} />
               </div>
 
               {/* Success Badge */}
-              <div className="absolute -top-6 right-0 bg-white text-[#0B0E11] px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-tighter rotate-12 shadow-xl">
+              <div className="absolute -top-4 sm:-top-6 right-0 bg-white text-[#0B0E11] px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase tracking-tighter rotate-12 shadow-xl">
                 {t('mining.luckyDrop') || '幸运掉落！'}
               </div>
             </div>
 
-            <div className="space-y-2 mb-8">
-              <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">{t('mining.nodeRewardUnlocked') || '节点奖励已解锁'}</h2>
-              <p className="text-[#848E9C] text-[10px] font-black uppercase tracking-[0.3em]">{t('mining.blockConfirmed') || '区块已确认 • 资产已到账'}</p>
+            <div className="space-y-2 mb-6 sm:mb-8">
+              <h2 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tighter leading-none">{t('mining.nodeRewardUnlocked') || '节点奖励已解锁'}</h2>
+              <p className="text-[#848E9C] text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em]">{t('mining.blockConfirmed') || '区块已确认 • 资产已到账'}</p>
             </div>
 
-            <div className="w-full space-y-3 mb-10">
-              <div className="bg-white/[0.03] p-5 rounded-[1.5rem] border border-white/5 flex items-center justify-between group hover:bg-white/5 transition-colors">
-                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-[#FCD535]/10 rounded-2xl flex items-center justify-center border border-[#FCD535]/20">
-                      <DollarSign className="w-6 h-6 text-[#FCD535]" />
+            <div className="w-full space-y-3 mb-6 sm:mb-8 md:mb-10">
+              <div className="bg-white/[0.03] p-4 sm:p-5 rounded-[1.5rem] border border-white/5 flex items-center justify-between group hover:bg-white/5 transition-colors">
+                 <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#FCD535]/10 rounded-2xl flex items-center justify-center border border-[#FCD535]/20 flex-shrink-0">
+                      <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-[#FCD535]" />
                     </div>
-                    <div className="text-left">
-                      <p className="text-xs font-black text-white uppercase">{t('mining.ratTokens') || 'RAT 代币'}</p>
-                      <p className="text-[9px] text-[#848E9C] font-bold">{t('mining.networkIncentive') || '网络激励'}</p>
+                    <div className="text-left min-w-0">
+                      <p className="text-[10px] sm:text-xs font-black text-white uppercase truncate">{t('mining.ratTokens') || 'RAT 代币'}</p>
+                      <p className="text-[8px] sm:text-[9px] text-[#848E9C] font-bold truncate">{t('mining.networkIncentive') || '网络激励'}</p>
                     </div>
                  </div>
-                 <div className="text-right">
-                    <span className="text-2xl font-black mono text-[#0ECB81]">+{parseFloat(rewardAmount).toFixed(2)}</span>
+                 <div className="text-right flex-shrink-0">
+                    <span className="text-xl sm:text-2xl font-black mono text-[#0ECB81]">+{parseFloat(rewardAmount).toFixed(2)}</span>
                  </div>
               </div>
 
-              <div className="bg-white/[0.03] p-5 rounded-[1.5rem] border border-white/5 flex items-center justify-between group hover:bg-white/5 transition-colors">
-                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
-                      <Zap className="w-6 h-6 text-blue-400 fill-blue-400" />
+              <div className="bg-white/[0.03] p-4 sm:p-5 rounded-[1.5rem] border border-white/5 flex items-center justify-between group hover:bg-white/5 transition-colors">
+                 <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20 flex-shrink-0">
+                      <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 fill-blue-400" />
                     </div>
-                    <div className="text-left">
-                      <p className="text-xs font-black text-white uppercase">{t('mining.gridEnergy') || '网格能量'}</p>
-                      <p className="text-[9px] text-[#848E9C] font-bold">{t('mining.protocolCharge') || '协议费用'}</p>
+                    <div className="text-left min-w-0">
+                      <p className="text-[10px] sm:text-xs font-black text-white uppercase truncate">{t('mining.gridEnergy') || '网格能量'}</p>
+                      <p className="text-[8px] sm:text-[9px] text-[#848E9C] font-bold truncate">{t('mining.protocolCharge') || '协议费用'}</p>
                     </div>
                  </div>
-                 <div className="text-right">
-                    <span className="text-2xl font-black mono text-blue-400">+1.0</span>
+                 <div className="text-right flex-shrink-0">
+                    <span className="text-xl sm:text-2xl font-black mono text-blue-400">+1.0</span>
                  </div>
               </div>
             </div>
 
             <button 
               onClick={() => setShowRewardModal(false)} 
-              className="w-full relative overflow-hidden group/btn bg-[#FCD535] text-[#0B0E11] font-black py-5 rounded-[1.5rem] shadow-[0_15px_30px_rgba(252,213,53,0.2)] hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-[0.2em] text-sm"
+              className="w-full relative overflow-hidden group/btn bg-[#FCD535] text-[#0B0E11] font-black py-4 sm:py-5 rounded-[1.5rem] shadow-[0_15px_30px_rgba(252,213,53,0.2)] hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-[0.2em] text-xs sm:text-sm"
             >
               <div className="absolute inset-0 bg-white/30 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000" />
               <span className="relative z-10">{t('mining.backToMining') || '返回挖矿'}</span>
             </button>
+
+            {/* 邀请引导 - 增长黑客 */}
+            <div className="mt-4 sm:mt-6 text-center">
+              <p className="text-[9px] sm:text-[10px] text-[#848E9C] font-bold uppercase tracking-widest mb-2">{t('mining.wantMoreEnergy') || '想要更多能量？'}</p>
+              <button 
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (stats.address && stats.address.startsWith('0x')) {
+                    const link = `${window.location.origin}${window.location.pathname}?ref=${stats.address}`;
+                    try {
+                      await navigator.clipboard.writeText(link);
+                      showSuccess(t('profile.inviteLinkCopiedSuccess') || '邀请链接已复制！分享好友可获得 +2 能量值');
+                    } catch (error) {
+                      // 降级方案：使用传统方法
+                      const textArea = document.createElement('textarea');
+                      textArea.value = link;
+                      textArea.style.position = 'fixed';
+                      textArea.style.opacity = '0';
+                      document.body.appendChild(textArea);
+                      textArea.select();
+                      try {
+                        document.execCommand('copy');
+                        showSuccess(t('profile.inviteLinkCopiedSuccess') || '邀请链接已复制！分享好友可获得 +2 能量值');
+                      } catch (err) {
+                        showError(t('profile.copyFailed') || '复制失败，请手动复制链接');
+                      }
+                      document.body.removeChild(textArea);
+                    }
+                  } else {
+                    showError(t('profile.connectWalletFirst') || '请先连接钱包');
+                  }
+                }}
+                className="text-[#FCD535] text-[10px] sm:text-xs font-black uppercase hover:underline flex items-center justify-center gap-1.5 mx-auto transition-all active:scale-95"
+              >
+                <span className="bg-[#FCD535]/10 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-[#FCD535]/30 hover:bg-[#FCD535]/20 transition-colors">
+                  {t('mining.inviteFriendForEnergy') || '邀请好友 +2 能量'}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       )}
