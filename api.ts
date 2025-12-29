@@ -179,19 +179,65 @@ api.interceptors.response.use(
 export const fetchUserInfo = async (address: string) => {
   // 确保地址格式正确（后端会自动转换为小写，但前端也统一处理）
   const normalizedAddress = address?.toLowerCase() || address;
-  console.log('[fetchUserInfo] 请求用户信息:', { original: address, normalized: normalizedAddress, url: `/user/info?address=${normalizedAddress}` });
-  const { data } = await api.get(`/user/info?address=${normalizedAddress}`);
-  console.log('[fetchUserInfo] 返回数据:', data);
-  return data; // { energy: number, inviteCount: number, referrer: string, teamRewards?: string }
+  const fullUrl = `${apiBaseUrl}/user/info?address=${normalizedAddress}`;
+  console.log('[fetchUserInfo] 请求用户信息:', { 
+    original: address, 
+    normalized: normalizedAddress, 
+    url: fullUrl,
+    apiBaseUrl: apiBaseUrl
+  });
+  try {
+    const response = await api.get(`/user/info?address=${normalizedAddress}`);
+    console.log('[fetchUserInfo] 返回数据:', {
+      status: response.status,
+      data: response.data,
+      fullResponse: response
+    });
+    return response.data; // { energy: number, inviteCount: number, referrer: string, teamRewards?: string }
+  } catch (error: any) {
+    console.error('[fetchUserInfo] API 调用失败:', {
+      error,
+      message: error?.message,
+      response: error?.response,
+      status: error?.response?.status,
+      data: error?.response?.data,
+      address: normalizedAddress,
+      fullUrl
+    });
+    throw error;
+  }
 };
 
 export const fetchTeamRewards = async (address: string) => {
   // 确保地址格式正确
   const normalizedAddress = address?.toLowerCase() || address;
-  console.log('[fetchTeamRewards] 请求团队奖励:', { original: address, normalized: normalizedAddress });
-  const { data } = await api.get(`/user/team-rewards?address=${normalizedAddress}`);
-  console.log('[fetchTeamRewards] 返回数据:', data);
-  return data; // { totalRewards: string } - 团队代币奖励总额（RAT）
+  const fullUrl = `${apiBaseUrl}/user/team-rewards?address=${normalizedAddress}`;
+  console.log('[fetchTeamRewards] 请求团队奖励:', { 
+    original: address, 
+    normalized: normalizedAddress,
+    url: fullUrl,
+    apiBaseUrl: apiBaseUrl
+  });
+  try {
+    const response = await api.get(`/user/team-rewards?address=${normalizedAddress}`);
+    console.log('[fetchTeamRewards] 返回数据:', {
+      status: response.status,
+      data: response.data,
+      fullResponse: response
+    });
+    return response.data; // { totalRewards: string } - 团队代币奖励总额（RAT）
+  } catch (error: any) {
+    console.error('[fetchTeamRewards] API 调用失败:', {
+      error,
+      message: error?.message,
+      response: error?.response,
+      status: error?.response?.status,
+      data: error?.response?.data,
+      address: normalizedAddress,
+      fullUrl
+    });
+    throw error;
+  }
 };
 
 export const verifyClaim = async (address: string, txHash: string, referrer: string) => {

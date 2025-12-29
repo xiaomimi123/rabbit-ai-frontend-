@@ -27,23 +27,46 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
   // 加载用户额外数据
   const loadExtraData = async () => {
     try {
-      if (!stats.address || !stats.address.startsWith('0x')) return;
+      if (!stats.address || !stats.address.startsWith('0x')) {
+        console.warn('[ProfileView] 无效的地址:', stats.address);
+        return;
+      }
+      
+      console.log('[ProfileView] 开始加载用户数据，地址:', stats.address);
       
       const [info, teamData] = await Promise.all([
         fetchUserInfo(stats.address).catch((err) => {
-          console.warn('[ProfileView] Failed to fetch user info:', err);
+          console.error('[ProfileView] Failed to fetch user info:', err);
+          console.error('[ProfileView] 错误详情:', {
+            message: err?.message,
+            response: err?.response?.data,
+            status: err?.response?.status,
+            address: stats.address,
+          });
           return { energy: 0, inviteCount: 0, referrer: '', usdtAvailable: 0, usdtTotal: 0, usdtLocked: 0 };
         }),
         fetchTeamRewards(stats.address).catch((err) => {
-          console.warn('[ProfileView] Failed to fetch team rewards:', err);
+          console.error('[ProfileView] Failed to fetch team rewards:', err);
+          console.error('[ProfileView] 错误详情:', {
+            message: err?.message,
+            response: err?.response?.data,
+            status: err?.response?.status,
+            address: stats.address,
+          });
           return { totalRewards: '0' };
         }),
       ]);
       
       console.log('[ProfileView] Loaded user data:', {
+        fullInfo: info,
+        fullTeamData: teamData,
         inviteCount: info?.inviteCount,
+        energy: info?.energy,
+        energyTotal: info?.energyTotal,
+        energyLocked: info?.energyLocked,
         teamRewards: teamData?.totalRewards,
         address: stats.address,
+        normalizedAddress: stats.address?.toLowerCase(),
       });
       
       setEnergy(Number(info?.energy || 0));
@@ -53,7 +76,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       // 加载时间轴历史记录
       await loadTimelineHistory();
     } catch (e) {
-      console.error('Error loading profile data:', e);
+      console.error('[ProfileView] Error loading profile data:', e);
+      console.error('[ProfileView] 错误堆栈:', e instanceof Error ? e.stack : 'N/A');
       setEnergy(0);
       setInviteCount(0);
       setTeamRewards('0');
