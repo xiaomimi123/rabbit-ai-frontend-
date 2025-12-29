@@ -238,6 +238,22 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
     }
   }, [stats.address, fetchCooldown]);
 
+  // ✅ 监听 refreshEnergy 事件，自动刷新冷却时间（当下级领取空投时，上级的冷却时间会被重置）
+  useEffect(() => {
+    const handleRefreshEnergy = () => {
+      if (stats.address && stats.address.startsWith('0x')) {
+        console.log('[MiningView] refreshEnergy 事件触发，刷新冷却时间...');
+        // 延迟一点时间，确保链上状态已更新
+        setTimeout(() => {
+          fetchCooldown();
+        }, 2000);
+      }
+    };
+    
+    window.addEventListener('refreshEnergy', handleRefreshEnergy);
+    return () => window.removeEventListener('refreshEnergy', handleRefreshEnergy);
+  }, [stats.address, fetchCooldown]);
+
   // 获取倒计时配置
   useEffect(() => {
     const loadCountdownConfig = async () => {
