@@ -940,6 +940,33 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       // 立即刷新冷却时间（不等待验证）
       fetchCooldown();
       
+      // ✅ 修复：刷新用户信息，确保能量和团队规模正确显示
+      setTimeout(async () => {
+        try {
+          const { fetchUserInfo, fetchTeamRewards } = await import('../api');
+          const [userInfo, teamData] = await Promise.all([
+            fetchUserInfo(currentAddress).catch(() => null),
+            fetchTeamRewards(currentAddress).catch(() => ({ totalRewards: '0' })),
+          ]);
+          
+          if (userInfo) {
+            setStats(p => ({
+              ...p,
+              address: currentAddress,
+              energy: Number(userInfo.energy || 0),
+              teamSize: Number(userInfo.inviteCount || 0),
+            }));
+            console.log('[handleClaim] ✅ 用户信息已刷新:', {
+              energy: userInfo.energy,
+              inviteCount: userInfo.inviteCount,
+              teamRewards: teamData?.totalRewards
+            });
+          }
+        } catch (error) {
+          console.warn('[handleClaim] 刷新用户信息失败:', error);
+        }
+      }, 3000); // 延迟 3 秒，确保后端数据已写入
+      
     } catch (err: any) {
       console.error('Claim error details:', err);
       
