@@ -50,22 +50,55 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
         try {
           const provider = getProvider();
           if (provider) {
+            const { callWithRetry } = await import('../services/web3Service');
             const ratContract = await getContract(CONTRACTS.RAT_TOKEN, ABIS.ERC20);
-            const balanceWei = await ratContract.balanceOf(stats.address);
-            const decimals = await ratContract.decimals().catch(() => 18); // 默认18位小数
+            
+            // 使用 callWithRetry 包装 RPC 调用，自动处理 429 错误
+            const balanceWei = await callWithRetry(
+              () => ratContract.balanceOf(stats.address),
+              {
+                maxRetries: 3,
+                baseDelay: 1000,
+                onRetry: (attempt) => {
+                  console.warn(`[AssetView] RPC 速率限制，重试余额查询 ${attempt}/3...`);
+                }
+              }
+            );
+            
+            let decimals: number = 18; // 默认18位小数
+            try {
+              const decimalsResult = await callWithRetry(
+                () => ratContract.decimals(),
+                {
+                  maxRetries: 2,
+                  baseDelay: 500
+                }
+              );
+              decimals = typeof decimalsResult === 'number' ? decimalsResult : Number(decimalsResult);
+            } catch {
+              // 使用默认值
+            }
+            
             // 使用 formatUnits 保持精度，只在最后转换为 number
-            const balanceFormatted = ethers.utils.formatUnits(balanceWei, decimals);
+            const balanceFormatted = ethers.utils.formatUnits(balanceWei as any, decimals);
             ratBalanceFromChain = parseFloat(balanceFormatted);
             setRatBalance(ratBalanceFromChain);
             // 更新 stats 中的 ratBalance
             setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain || 0 }));
           }
         } catch (chainError: any) {
-          // 检测 429 错误（Too Many Requests）
           const errorMessage = chainError?.message || chainError?.toString() || '';
-          if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
-            console.warn('[AssetView] RPC 速率限制，跳过本次链上余额查询');
-            // 429 错误时，不尝试从 API 获取，直接跳过
+          const errorCode = chainError?.code;
+          
+          // 检测 429 错误（Too Many Requests）
+          const isRateLimitError = errorCode === -16429 ||
+                                   errorMessage.includes('429') || 
+                                   errorMessage.includes('Too Many Requests') ||
+                                   errorMessage.includes('Too many requests');
+          
+          if (isRateLimitError) {
+            console.warn('[AssetView] RPC 速率限制，所有重试均失败，跳过本次链上余额查询');
+            // 429 错误时，不尝试从 API 获取，直接跳过（避免增加服务器负担）
             setRatBalanceError(true);
           } else {
             console.warn('Failed to fetch RAT balance from chain:', chainError);

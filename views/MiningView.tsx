@@ -159,22 +159,35 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
   };
 
   const fetchCooldown = useCallback(async () => {
+    if (!stats.address || !stats.address.startsWith('0x')) {
+      setIsCooldown(false);
+      setNextClaimTime(0);
+      return;
+    }
+    
+    const provider = getProvider();
+    if (!provider) {
+      setIsCooldown(false);
+      setNextClaimTime(0);
+      return;
+    }
+    
     try {
-      if (!stats.address || !stats.address.startsWith('0x')) {
-        setIsCooldown(false);
-        setNextClaimTime(0);
-        return;
-      }
-      
-      const provider = getProvider();
-      if (!provider) {
-        setIsCooldown(false);
-        setNextClaimTime(0);
-        return;
-      }
-      
+      // 使用 callWithRetry 包装 RPC 调用，自动处理 429 错误
+      const { callWithRetry } = await import('../services/web3Service');
       const contract = await getContract(CONTRACTS.AIRDROP, ABIS.AIRDROP, undefined);
-      const lastClaim = await contract.lastClaimTime(stats.address);
+      
+      const lastClaim = await callWithRetry(
+        () => contract.lastClaimTime(stats.address),
+        {
+          maxRetries: 3,
+          baseDelay: 1000,
+          onRetry: (attempt, error) => {
+            console.warn(`[fetchCooldown] RPC 速率限制，重试 ${attempt}/3...`);
+          }
+        }
+      );
+      
       const lastClaimNum = Number(lastClaim);
       
       if (lastClaimNum === 0) {
@@ -196,10 +209,26 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         setIsCooldown(false);
         setNextClaimTime(0);
       }
-    } catch (err) {
-      console.error('Error fetching cooldown:', err);
-      setIsCooldown(false);
-      setNextClaimTime(0);
+    } catch (err: any) {
+      const errorMessage = err?.message || err?.toString() || '';
+      const errorCode = err?.code;
+      
+      // 检测 429 错误（RPC 速率限制）
+      const isRateLimitError = errorCode === -16429 || 
+                               errorMessage.includes('429') || 
+                               errorMessage.includes('Too many requests') ||
+                               errorMessage.includes('Too Many Requests');
+      
+      // 非 429 错误，记录错误
+      if (!isRateLimitError) {
+        console.error('Error fetching cooldown:', err);
+      } else {
+        console.warn('[fetchCooldown] RPC 速率限制，所有重试均失败，跳过本次查询');
+      }
+      
+      // 优雅降级：保持当前状态，不重置（避免闪烁）
+      // setIsCooldown(false);
+      // setNextClaimTime(0);
     }
   }, [stats.address]);
 

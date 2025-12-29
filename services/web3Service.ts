@@ -148,9 +148,16 @@ export const getCurrentRpc = () => {
 export const handleRpcError = (error: any): boolean => {
   const errorMessage = error?.message || error?.toString() || '';
   const status = error?.response?.status || error?.status;
+  const errorCode = error?.code;
   
-  // 检测 429 错误
-  if (status === 429 || errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
+  // 检测 429 错误（多种形式）
+  const isRateLimitError = status === 429 || 
+                           errorCode === -16429 ||
+                           errorMessage.includes('429') || 
+                           errorMessage.includes('Too Many Requests') ||
+                           errorMessage.includes('Too many requests');
+  
+  if (isRateLimitError) {
     console.warn('[RpcManager] 检测到 429 错误，切换到备用 RPC');
     const nextRpc = rpcManager.switchToNextRpc();
     if (nextRpc) {
@@ -159,6 +166,54 @@ export const handleRpcError = (error: any): boolean => {
     }
   }
   return false; // 未切换
+};
+
+// 通用的 RPC 调用包装函数，自动处理 429 错误和重试
+export const callWithRetry = async <T>(
+  fn: () => Promise<T>,
+  options: {
+    maxRetries?: number;
+    baseDelay?: number;
+    onRetry?: (attempt: number, error: any) => void;
+  } = {}
+): Promise<T> => {
+  const { maxRetries = 3, baseDelay = 1000, onRetry } = options;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.toString() || '';
+      const errorCode = error?.code;
+      const isRateLimitError = errorCode === -16429 ||
+                               errorMessage.includes('429') || 
+                               errorMessage.includes('Too Many Requests') ||
+                               errorMessage.includes('Too many requests');
+      
+      // 如果是最后一次尝试，直接抛出错误
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // 如果是 429 错误，使用指数退避重试
+      if (isRateLimitError) {
+        const delay = Math.min(baseDelay * Math.pow(2, attempt), 10000); // 最多 10 秒
+        if (onRetry) {
+          onRetry(attempt + 1, error);
+        } else {
+          console.warn(`[callWithRetry] RPC 速率限制，${delay}ms 后重试 (尝试 ${attempt + 1}/${maxRetries})...`);
+        }
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // 其他错误，直接抛出
+      throw error;
+    }
+  }
+  
+  // 理论上不会到达这里
+  throw new Error('Unexpected error in callWithRetry');
 };
 
 // 获取不同钱包的 provider
