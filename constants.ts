@@ -2,9 +2,10 @@
 export const CHAIN_ID = 56; // BNB Smart Chain Mainnet
 export const CHAIN_HEX = '0x38';
 export const CHAIN_NAME = 'BNB Smart Chain Mainnet';
-export const RPC_URL = 'https://bsc-dataseed1.binance.org/'; // BNB主网RPC
+export const RPC_URL = 'https://cesi-8be8c7d8.gateway.tatum.io/'; // Tatum Gateway RPC
 // 备用 RPC URLs
 export const RPC_URLS = [
+  'https://cesi-8be8c7d8.gateway.tatum.io/', // Tatum Gateway (主 RPC)
   'https://bsc-dataseed1.binance.org/',
   'https://bsc-dataseed2.binance.org/',
   'https://bsc-dataseed3.binance.org/',

@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { EthereumProvider } from '@walletconnect/ethereum-provider';
 import { WalletConnectModal } from '@walletconnect/modal';
-import { ABIS, CONTRACTS, CHAIN_ID, CHAIN_HEX, CHAIN_NAME, RPC_URL, WALLETCONNECT_PROJECT_ID } from '../constants';
+import { ABIS, CONTRACTS, CHAIN_ID, CHAIN_HEX, CHAIN_NAME, RPC_URL, RPC_URLS, WALLETCONNECT_PROJECT_ID } from '../constants';
 import { WalletType } from '../types';
 
 // Declare global ethereum on window
@@ -270,43 +270,88 @@ async function initWalletConnectProvider(): Promise<any> {
     throw new Error('请先配置 WalletConnect 项目 ID');
   }
 
-  // 在初始化前，彻底清理所有 WalletConnect session 数据
-  clearWalletConnectSessions();
-  
-  // 等待清理完成，确保数据已清除
-  await new Promise(resolve => setTimeout(resolve, 200));
+  // 【修改点 1】不要在每次 init 时都暴力清理 session，这会导致重连失败
+  // 只在明确失败的 catch 块或用户点击断开时清理
+  // clearWalletConnectSessions(); 
 
   const modal = getWalletConnectModal();
 
-  const provider = await EthereumProvider.init({
-    projectId: WALLETCONNECT_PROJECT_ID,
-    chains: [CHAIN_ID],
-    rpcMap: { [CHAIN_ID]: RPC_URL },
-    showQrModal: false, // IMPORTANT: use WalletConnectModal for mobile deep link + desktop QR
-    metadata: {
-      name: 'Rabbit AI',
-      description: 'Rabbit AI DApp',
-      url: window.location.origin,
-      icons: [`${window.location.origin}/favicon.ico`],
-    },
-  });
+  try {
+    // 【修改点 2】移除 fetch 测速逻辑，它会被 CORS 拦截导致误报
+    // 直接使用配置好的主 RPC，确保 constants 里的 RPC_URL 是高可用的
+    const rpcMap: Record<number, string> = {
+      [CHAIN_ID]: RPC_URL
+    };
 
-  // When WalletConnect emits a URI, open the modal (不再跳转到 walletconnect 网站)
-  provider.on('display_uri', (uri: string) => {
-    // 只打开 modal，不跳转页面，避免影响用户体验
-    modal.openModal({ uri });
-  });
+    console.log('[WalletConnect] 初始化，使用 RPC:', rpcMap[CHAIN_ID]);
 
-  provider.on('connect', () => {
-    modal.closeModal();
-  });
+    const provider = await EthereumProvider.init({
+      projectId: WALLETCONNECT_PROJECT_ID,
+      chains: [CHAIN_ID], // 必选链
+      rpcMap: rpcMap,
+      showQrModal: false, // IMPORTANT: use WalletConnectModal for mobile deep link + desktop QR
+      metadata: {
+        name: 'Rabbit AI',
+        description: 'Rabbit AI Quantitative Trading',
+        url: window.location.origin,
+        // 【修改点 3】建议使用绝对路径的 HTTPS 图片
+        icons: [`${window.location.origin}/favicon.ico`],
+      },
+      // 启用所有常用方法，提高兼容性
+      optionalMethods: [
+        'eth_sendTransaction',
+        'eth_signTransaction',
+        'eth_sign',
+        'personal_sign',
+        'eth_signTypedData',
+        'eth_signTypedData_v4'
+      ],
+    });
 
-  provider.on('disconnect', () => {
-    modal.closeModal();
-  });
+    // When WalletConnect emits a URI, open the modal (不再跳转到 walletconnect 网站)
+    provider.on('display_uri', (uri: string) => {
+      console.log('[WalletConnect] 显示二维码 URI');
+      // 只打开 modal，不跳转页面，避免影响用户体验
+      modal.openModal({ uri });
+    });
 
-  walletConnectProvider = provider;
-  return provider;
+    provider.on('connect', () => {
+      console.log('[WalletConnect] 连接成功');
+      modal.closeModal();
+    });
+
+    provider.on('disconnect', () => {
+      console.log('[WalletConnect] 断开连接');
+      modal.closeModal();
+    });
+
+    // 添加错误事件监听
+    provider.on('session_event', (event: any) => {
+      console.log('[WalletConnect] Session event:', event);
+    });
+
+    provider.on('session_delete', () => {
+      console.log('[WalletConnect] Session deleted');
+      walletConnectProvider = null;
+    });
+
+    walletConnectProvider = provider;
+    return provider;
+  } catch (initError: any) {
+    console.error('[WalletConnect] 初始化失败:', initError);
+    const errorMessage = initError?.message || initError?.toString() || '未知错误';
+    
+    // 提供更详细的错误信息
+    if (errorMessage.includes('network') || errorMessage.includes('Network') || errorMessage.includes('网络')) {
+      throw new Error(`网络连接失败：${errorMessage}。请检查网络连接或稍后重试。`);
+    } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+      throw new Error(`连接超时：${errorMessage}。请检查网络连接或稍后重试。`);
+    } else if (errorMessage.includes('RPC') || errorMessage.includes('rpc')) {
+      throw new Error(`RPC 连接失败：${errorMessage}。请稍后重试或联系管理员。`);
+    } else {
+      throw new Error(`WalletConnect 初始化失败：${errorMessage}`);
+    }
+  }
 }
 
 // 检测可用的浏览器扩展钱包（按优先级）
@@ -360,14 +405,36 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
       const wc = await initWalletConnectProvider();
       
       try {
+        console.log('[WalletConnect] 开始连接...');
         await wc.enable();
+        console.log('[WalletConnect] enable() 成功');
       } catch (enableError: any) {
+        console.error('[WalletConnect] enable() 失败:', enableError);
+        
         // 如果 enable 失败，可能是已有连接但状态不一致
         // 先尝试断开，然后重新连接
         const errorMessage = enableError?.message || enableError?.toString() || '';
         const errorCode = enableError?.code || enableError?.error?.code;
         
-        if (errorMessage.includes('Session already exists') || 
+        // 检查是否是网络相关错误
+        if (errorMessage.includes('network') || errorMessage.includes('Network') || 
+            errorMessage.includes('网络') || errorMessage.includes('connection') ||
+            errorMessage.includes('Connection') || errorMessage.includes('连接')) {
+          console.error('[WalletConnect] 网络连接错误:', errorMessage);
+          // 尝试重新初始化一次
+          try {
+            walletConnectProvider = null;
+            clearWalletConnectSessions();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const newWc = await initWalletConnectProvider();
+            await newWc.enable();
+            walletConnectProvider = newWc;
+            console.log('[WalletConnect] 重新连接成功');
+          } catch (retryError: any) {
+            console.error('[WalletConnect] 重试连接失败:', retryError);
+            throw new Error(`网络连接失败：${errorMessage}。请检查网络连接或稍后重试。`);
+          }
+        } else if (errorMessage.includes('Session already exists') || 
             errorMessage.includes('already connected') ||
             errorCode === -32002) {
           console.log('[WalletConnect] 检测到 session 冲突，彻底清理并重新连接...');
@@ -401,10 +468,16 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
             clearWalletConnectSessions();
             walletConnectProvider = null;
             
-            // 不抛出 "请先断开 DApp" 的错误，而是抛出通用错误，让调用方处理
-            throw new Error('连接失败，请刷新页面后重试');
+            // 提供更详细的错误信息
+            if (retryErrorMessage.includes('network') || retryErrorMessage.includes('Network')) {
+              throw new Error(`网络连接失败：${retryErrorMessage}。请检查网络连接或稍后重试。`);
+            } else {
+              throw new Error(`连接失败：${retryErrorMessage}。请刷新页面后重试。`);
+            }
           }
         } else {
+          // 其他错误，直接抛出
+          console.error('[WalletConnect] 未知错误:', enableError);
           throw enableError;
         }
       }
