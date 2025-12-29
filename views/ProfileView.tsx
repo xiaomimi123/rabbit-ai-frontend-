@@ -57,16 +57,22 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
         }),
       ]);
       
-      console.log('[ProfileView] Loaded user data:', {
-        fullInfo: info,
-        fullTeamData: teamData,
+      // 详细打印返回的数据，使用 JSON.stringify 确保能看到所有字段
+      console.log('[ProfileView] Loaded user data - fullInfo:', JSON.stringify(info, null, 2));
+      console.log('[ProfileView] Loaded user data - fullTeamData:', JSON.stringify(teamData, null, 2));
+      console.log('[ProfileView] Loaded user data - summary:', {
         inviteCount: info?.inviteCount,
         energy: info?.energy,
         energyTotal: info?.energyTotal,
         energyLocked: info?.energyLocked,
+        usdtAvailable: info?.usdtAvailable,
+        usdtTotal: info?.usdtTotal,
+        usdtLocked: info?.usdtLocked,
         teamRewards: teamData?.totalRewards,
         address: stats.address,
         normalizedAddress: stats.address?.toLowerCase(),
+        infoKeys: info ? Object.keys(info) : [],
+        teamDataKeys: teamData ? Object.keys(teamData) : [],
       });
       
       setEnergy(Number(info?.energy || 0));

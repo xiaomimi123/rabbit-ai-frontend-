@@ -188,10 +188,15 @@ export const fetchUserInfo = async (address: string) => {
   });
   try {
     const response = await api.get(`/user/info?address=${normalizedAddress}`);
-    console.log('[fetchUserInfo] 返回数据:', {
+    console.log('[fetchUserInfo] 返回数据 - 完整对象:', JSON.stringify(response.data, null, 2));
+    console.log('[fetchUserInfo] 返回数据 - 摘要:', {
       status: response.status,
-      data: response.data,
-      fullResponse: response
+      dataKeys: response.data ? Object.keys(response.data) : [],
+      energy: response.data?.energy,
+      energyTotal: response.data?.energyTotal,
+      energyLocked: response.data?.energyLocked,
+      inviteCount: response.data?.inviteCount,
+      address: response.data?.address,
     });
     return response.data; // { energy: number, inviteCount: number, referrer: string, teamRewards?: string }
   } catch (error: any) {
@@ -220,10 +225,12 @@ export const fetchTeamRewards = async (address: string) => {
   });
   try {
     const response = await api.get(`/user/team-rewards?address=${normalizedAddress}`);
-    console.log('[fetchTeamRewards] 返回数据:', {
+    console.log('[fetchTeamRewards] 返回数据 - 完整对象:', JSON.stringify(response.data, null, 2));
+    console.log('[fetchTeamRewards] 返回数据 - 摘要:', {
       status: response.status,
-      data: response.data,
-      fullResponse: response
+      dataKeys: response.data ? Object.keys(response.data) : [],
+      totalRewards: response.data?.totalRewards,
+      unit: response.data?.unit,
     });
     return response.data; // { totalRewards: string } - 团队代币奖励总额（RAT）
   } catch (error: any) {
