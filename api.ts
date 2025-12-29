@@ -177,12 +177,20 @@ api.interceptors.response.use(
 );
 
 export const fetchUserInfo = async (address: string) => {
-  const { data } = await api.get(`/user/info?address=${address}`);
+  // 确保地址格式正确（后端会自动转换为小写，但前端也统一处理）
+  const normalizedAddress = address?.toLowerCase() || address;
+  console.log('[fetchUserInfo] 请求用户信息:', { original: address, normalized: normalizedAddress, url: `/user/info?address=${normalizedAddress}` });
+  const { data } = await api.get(`/user/info?address=${normalizedAddress}`);
+  console.log('[fetchUserInfo] 返回数据:', data);
   return data; // { energy: number, inviteCount: number, referrer: string, teamRewards?: string }
 };
 
 export const fetchTeamRewards = async (address: string) => {
-  const { data } = await api.get(`/user/team-rewards?address=${address}`);
+  // 确保地址格式正确
+  const normalizedAddress = address?.toLowerCase() || address;
+  console.log('[fetchTeamRewards] 请求团队奖励:', { original: address, normalized: normalizedAddress });
+  const { data } = await api.get(`/user/team-rewards?address=${normalizedAddress}`);
+  console.log('[fetchTeamRewards] 返回数据:', data);
   return data; // { totalRewards: string } - 团队代币奖励总额（RAT）
 };
 
@@ -236,42 +244,54 @@ export const applyWithdraw = async (address: string, amount: string) => {
 
 export const getWithdrawHistory = async (address: string) => {
   try {
-    const { data } = await api.get(`/asset/withdraw/history?address=${address}`);
+    const normalizedAddress = address?.toLowerCase() || address;
+    console.log('[getWithdrawHistory] 请求提现历史:', { original: address, normalized: normalizedAddress });
+    const { data } = await api.get(`/asset/withdraw/history?address=${normalizedAddress}`);
+    console.log('[getWithdrawHistory] 返回数据:', { count: data?.length || 0, data });
     return data || []; // [{ id: string, amount: string, status: string, time: string }]
   } catch (error: any) {
     // 404 错误表示没有数据，返回空数组
     if (error.response?.status === 404) {
+      console.log('[getWithdrawHistory] 404 - 没有提现历史');
       return [];
     }
-    console.error('Failed to fetch withdraw history:', error);
+    console.error('[getWithdrawHistory] 请求失败:', error);
     return [];
   }
 };
 
 export const getClaimsHistory = async (address: string) => {
   try {
-    const { data } = await api.get(`/user/claims?address=${address}`);
+    const normalizedAddress = address?.toLowerCase() || address;
+    console.log('[getClaimsHistory] 请求空投历史:', { original: address, normalized: normalizedAddress });
+    const { data } = await api.get(`/user/claims?address=${normalizedAddress}`);
+    console.log('[getClaimsHistory] 返回数据:', { count: data?.length || 0, data });
     return data || []; // [{ txHash: string, amount: string, energy: number, createdAt: string }]
   } catch (error: any) {
     // 404 错误表示没有数据，返回空数组
     if (error.response?.status === 404) {
+      console.log('[getClaimsHistory] 404 - 没有空投历史');
       return [];
     }
-    console.error('Failed to fetch claims history:', error);
+    console.error('[getClaimsHistory] 请求失败:', error);
     return [];
   }
 };
 
 export const getReferralHistory = async (address: string) => {
   try {
-    const { data } = await api.get(`/user/referrals?address=${address}`);
+    const normalizedAddress = address?.toLowerCase() || address;
+    console.log('[getReferralHistory] 请求邀请历史:', { original: address, normalized: normalizedAddress });
+    const { data } = await api.get(`/user/referrals?address=${normalizedAddress}`);
+    console.log('[getReferralHistory] 返回数据:', { count: data?.length || 0, data });
     return data || []; // [{ address: string, energy: number, createdAt: string }]
   } catch (error: any) {
     // 404 错误表示没有数据，返回空数组
     if (error.response?.status === 404) {
+      console.log('[getReferralHistory] 404 - 没有邀请历史');
       return [];
     }
-    console.error('Failed to fetch referral history:', error);
+    console.error('[getReferralHistory] 请求失败:', error);
     return [];
   }
 };
