@@ -457,18 +457,18 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
               
               // 如果仍然包含"请先断开 DApp"，说明清理不彻底，建议刷新页面
               if (retryErrorMessage.includes('请先断开') || retryErrorMessage.includes('断开 DApp')) {
-                showWarning('连接失败，请刷新页面后重试');
+                showWarning('连接异常，请刷新页面后重试');
                 return;
               }
               
               // 其他错误，显示通用错误提示
-              showError('连接失败，请刷新页面后重试');
+              showError('连接异常，请刷新页面后重试');
               return;
             }
           } catch (cleanError) {
             // 清理失败，显示通用错误提示
             console.error('[MiningView] 自动清理失败:', cleanError);
-            showError('连接失败，请刷新页面后重试');
+            showError('连接异常，请刷新页面后重试');
             return;
           }
         } else {
@@ -674,7 +674,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         
         // CALL_EXCEPTION (合约报错)
         if (code === 'CALL_EXCEPTION' || errorMsg.includes('Cooldown') || errorMsg.includes('cooldown')) {
-          showWarning('领取失败，可能处于冷却期或空投池已空');
+          showWarning('领取失败，请稍后chong');
           setClaiming(false);
           fetchCooldown();
           return;
@@ -682,7 +682,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         
         // NETWORK_ERROR (网络错误)
         if (code === 'NETWORK_ERROR' || errorMsg.includes('network')) {
-          showError('网络错误，请检查网络连接');
+          showError('网络连接异常，请检查网络设置后重试');
           setClaiming(false);
           return;
         }
@@ -971,7 +971,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       console.error('Claim error details:', err);
       
       if (err?.code === 'NETWORK_ERROR' || err?.message?.includes('network changed')) {
-        showError(`检测到网络不匹配，请切换到 BNB Smart Chain Mainnet (Chain ID: ${CHAIN_ID})`);
+        showError(`网络不匹配，请在钱包中切换到 BNB Smart Chain 主网 (Chain ID: ${CHAIN_ID})`);
       } else if (err?.code === -32603 || err?.code === 'SERVER_ERROR' || err?.code === 'UNPREDICTABLE_GAS_LIMIT') {
         const errorData = err?.data || err?.error || {};
         const errorMessage = errorData?.message || err?.message || err?.reason || 'Internal RPC error';

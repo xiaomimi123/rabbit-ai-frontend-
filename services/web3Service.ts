@@ -507,13 +507,13 @@ async function initWalletConnectProvider(): Promise<any> {
     
     // 提供更详细的错误信息
     if (errorMessage.includes('network') || errorMessage.includes('Network') || errorMessage.includes('网络')) {
-      throw new Error(`网络连接失败：${errorMessage}。请检查网络连接或稍后重试。`);
+      throw new Error(`网络连接异常，请检查网络设置后重试`);
     } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
-      throw new Error(`连接超时：${errorMessage}。请检查网络连接或稍后重试。`);
+      throw new Error(`连接超时，请检查网络后重试`);
     } else if (errorMessage.includes('RPC') || errorMessage.includes('rpc')) {
-      throw new Error(`RPC 连接失败：${errorMessage}。请稍后重试或联系管理员。`);
+      throw new Error(`服务连接异常，请稍后重试`);
     } else {
-      throw new Error(`WalletConnect 初始化失败：${errorMessage}`);
+      throw new Error(`钱包连接失败，请重试`);
     }
   }
 }
@@ -623,7 +623,7 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
             console.log('[WalletConnect] 重新连接成功');
           } catch (retryError: any) {
             console.error('[WalletConnect] 重试连接失败:', retryError);
-            throw new Error(`网络连接失败：${errorMessage}。请检查网络连接或稍后重试。`);
+            throw new Error(`网络连接异常，请检查网络设置后重试`);
           }
         } else if (errorMessage.includes('Session already exists') || 
             errorMessage.includes('already connected') ||
