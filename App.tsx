@@ -358,9 +358,10 @@ const App: React.FC = () => {
   // Handle link navigation
   const handleLinkClick = (url: string | undefined, type: 'whitepaper' | 'audits' | 'support') => {
     if (!url || url.trim() === '') {
-      console.warn(`${type} link is not configured`);
+      console.warn(`[App] ${type} link is not configured`);
       return;
     }
+    console.log(`[App] 打开链接 (${type}):`, url);
     // 在新标签页打开链接
     window.open(url, '_blank', 'noopener,noreferrer');
   };
