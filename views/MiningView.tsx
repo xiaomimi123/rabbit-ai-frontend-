@@ -254,6 +254,21 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
     return () => window.removeEventListener('refreshEnergy', handleRefreshEnergy);
   }, [stats.address, fetchCooldown]);
 
+  // ✅ 定期刷新冷却时间（每 30 秒），确保能及时检测到下级领取后的冷却时间重置
+  useEffect(() => {
+    if (!stats.address || !stats.address.startsWith('0x')) return;
+    
+    // 初始加载
+    fetchCooldown();
+    
+    // 每 30 秒刷新一次（避免 RPC 速率限制）
+    const interval = setInterval(() => {
+      fetchCooldown();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [stats.address, fetchCooldown]);
+
   // 获取倒计时配置
   useEffect(() => {
     const loadCountdownConfig = async () => {
