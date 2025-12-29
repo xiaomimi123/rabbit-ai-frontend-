@@ -2,16 +2,16 @@
 export const CHAIN_ID = 56; // BNB Smart Chain Mainnet
 export const CHAIN_HEX = '0x38';
 export const CHAIN_NAME = 'BNB Smart Chain Mainnet';
-export const RPC_URL = 'https://cesi-8be8c7d8.gateway.tatum.io/'; // Tatum Gateway RPC
+export const RPC_URL = 'https://bsc-dataseed1.binance.org/'; // Binance 官方 RPC
 // 备用 RPC URLs
 export const RPC_URLS = [
-  'https://cesi-8be8c7d8.gateway.tatum.io/', // Tatum Gateway (主 RPC)
-  'https://bsc-dataseed1.binance.org/',
+  'https://bsc-dataseed1.binance.org/', // Binance 官方 RPC (主 RPC)
   'https://bsc-dataseed2.binance.org/',
   'https://bsc-dataseed3.binance.org/',
   'https://bsc-dataseed4.binance.org/',
   'https://bsc-dataseed1.defibit.io/',
   'https://bsc-dataseed1.nodereal.io/',
+  'https://cesi-8be8c7d8.gateway.tatum.io/', // Tatum Gateway (备用，最后使用)
 ];
 
 // WalletConnect 项目 ID (需要到 https://cloud.walletconnect.com 注册获取)
