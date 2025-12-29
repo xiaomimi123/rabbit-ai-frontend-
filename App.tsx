@@ -1,6 +1,7 @@
 ﻿
 import React, { useState, useRef, useEffect } from 'react';
 import { ethers } from 'ethers';
+import { logger } from './utils/logger';
 import { Pickaxe, Wallet, User, ShieldCheck, Bell, Menu, X, Globe, FileText, ExternalLink, ChevronRight, Twitter, Send, Headset, MessageSquareQuote, Check } from 'lucide-react';
 import MiningView from './views/MiningView';
 import AssetView from './views/AssetView';
@@ -50,7 +51,7 @@ const App: React.FC = () => {
           setStats(prev => ({ ...prev, address }));
         }
       } catch (error) {
-        console.warn('Failed to restore wallet connection:', error);
+        logger.warn('Failed to restore wallet connection');
       }
     };
     
@@ -83,7 +84,7 @@ const App: React.FC = () => {
       // 404 错误是正常的（没有通知），不显示错误
       const status = error?.response?.status || error?.status;
       if (status !== 404 && !error?.message?.includes('404')) {
-        console.error('Failed to load notifications:', error);
+        logger.error('Failed to load notifications', error);
       }
       setNotifications([]);
     }
@@ -97,7 +98,7 @@ const App: React.FC = () => {
       await markAllNotificationsAsRead(stats.address);
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
-      console.error('Failed to mark all as read:', error);
+      logger.error('Failed to mark all as read', error);
       // 即使 API 失败，也更新本地状态
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     }
@@ -108,13 +109,13 @@ const App: React.FC = () => {
     const loadSystemLinks = async () => {
       try {
         const links = await fetchSystemLinks();
-        console.log('[App] 加载系统链接配置:', links);
+        logger.debug('[App] 加载系统链接配置');
         setSystemLinks(links || {});
       } catch (error: any) {
         // 404 错误是正常的（没有配置），不显示错误
         const status = error?.response?.status || error?.status;
         if (status !== 404 && !error?.message?.includes('404')) {
-          console.error('Failed to load system links:', error);
+          logger.error('Failed to load system links', error);
         }
         // 设置默认值（可选）
         setSystemLinks({
@@ -166,9 +167,9 @@ const App: React.FC = () => {
         // 检测 429 错误（Too Many Requests）
         const errorMessage = error?.message || error?.toString() || '';
         if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
-          console.warn('[App] RPC 速率限制，跳过本次 BNB 余额更新');
+          logger.warn('[App] RPC 速率限制，跳过本次 BNB 余额更新');
         } else {
-          console.error('Failed to update BNB balance:', error);
+          logger.error('Failed to update BNB balance', error);
         }
       }
     };
@@ -209,7 +210,7 @@ const App: React.FC = () => {
           }));
         }
       } catch (error) {
-        console.warn('Failed to refresh user info on refreshEnergy event:', error);
+        logger.warn('Failed to refresh user info on refreshEnergy event');
       }
     };
     
@@ -248,11 +249,11 @@ const App: React.FC = () => {
         const status = error?.response?.status;
         // 检测 429 错误（Too Many Requests）
         if (status === 429) {
-          console.warn('[App] RPC 速率限制，增加刷新间隔');
+          logger.warn('[App] RPC 速率限制，增加刷新间隔');
           // 指数退避：429 错误时增加间隔
           currentInterval = Math.min(currentInterval * 2, 600000); // 最多 10 分钟
         } else {
-          console.warn('[App] Auto-refresh failed:', error);
+          logger.warn('[App] Auto-refresh failed');
         }
       }
     };
@@ -260,7 +261,7 @@ const App: React.FC = () => {
     // 使用动态间隔
     const scheduleRefresh = () => {
       const timeoutId = setTimeout(() => {
-        console.log(`[App] Auto-refreshing user info (${currentInterval / 1000}s interval)...`);
+        logger.debug(`[App] Auto-refreshing user info (${currentInterval / 1000}s interval)`);
         refreshUserInfo().finally(() => {
           scheduleRefresh(); // 递归调用，使用动态间隔
         });
@@ -279,7 +280,7 @@ const App: React.FC = () => {
     
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log('[App] Page became visible, refreshing user info...');
+        logger.debug('[App] Page became visible, refreshing user info');
         try {
           const { fetchUserInfo, fetchTeamRewards } = await import('./api');
           const [userInfo, teamData] = await Promise.all([
@@ -296,7 +297,7 @@ const App: React.FC = () => {
             }));
           }
         } catch (error) {
-          console.warn('[App] Visibility refresh failed:', error);
+          logger.warn('[App] Visibility refresh failed');
         }
       }
     };
@@ -326,7 +327,7 @@ const App: React.FC = () => {
           }));
         }
       } catch (error) {
-        console.warn('Failed to load user info on mount:', error);
+        logger.warn('Failed to load user info on mount');
       }
     };
     
@@ -358,10 +359,10 @@ const App: React.FC = () => {
   // Handle link navigation
   const handleLinkClick = (url: string | undefined, type: 'whitepaper' | 'audits' | 'support') => {
     if (!url || url.trim() === '') {
-      console.warn(`[App] ${type} link is not configured`);
+      logger.warn(`[App] ${type} link is not configured`);
       return;
     }
-    console.log(`[App] 打开链接 (${type}):`, url);
+    logger.debug(`[App] 打开链接 (${type})`);
     // 在新标签页打开链接
     window.open(url, '_blank', 'noopener,noreferrer');
   };

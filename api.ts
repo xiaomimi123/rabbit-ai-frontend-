@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logger } from './utils/logger';
 
 // 系统配置相关类型
 export interface SystemConfigItem {
@@ -39,35 +40,14 @@ if (typeof window !== 'undefined') {
   const isPointingToWrongService = isPointingToFrontend || isPointingToAdmin;
   
   if (isPointingToWrongService) {
-    console.error(
-      '%c🚨 严重错误：API Base URL 配置错误！',
-      'color: white; font-size: 18px; font-weight: bold; background: red; padding: 8px; border-radius: 4px;'
-    );
-    console.error(
-      '%cAPI Base URL 指向了错误的服务！',
-      'color: red; font-size: 14px; font-weight: bold;'
-    );
-    console.error(
-      '当前配置:', apiBaseUrl,
-      '\n前端域名:', currentOrigin,
-      '\n错误类型:', isPointingToFrontend ? '指向前端自身' : isPointingToAdmin ? '指向管理员后台' : '未知错误',
-      '\n\n❌ 这会导致所有 API 请求失败（CORS 错误或 404）！',
-      '\n\n✅ 解决方案：',
-      '\n1. 前往 Vercel Dashboard -> Settings -> Environment Variables',
-      '\n2. 找到 VITE_API_BASE_URL 环境变量',
-      '\n3. 将其值设置为后端 Render 地址（例如: https://rabbit-ai-backend.onrender.com）',
-      '\n4. ⚠️ 注意：不要设置为管理员后台地址（rabbit-ai-admin.vercel.app）',
-      '\n5. ⚠️ 注意：不要带末尾的斜杠',
-      '\n6. 重新部署前端（Redeploy）使环境变量生效'
-    );
-    
-    // 在页面上显示错误提示（可选，但可能会影响用户体验）
-    // 可以考虑在开发环境显示，生产环境只记录日志
+    // 只在开发环境显示详细错误信息
     if (import.meta.env.DEV) {
-      console.warn(
-        '%c💡 提示：在开发环境，如果未配置 VITE_API_BASE_URL，将使用相对路径 /api/（由 Vite 代理）',
-        'color: blue; font-size: 12px;'
-      );
+      logger.error('🚨 严重错误：API Base URL 配置错误！');
+      logger.error('API Base URL 指向了错误的服务！');
+      logger.error('请检查 VITE_API_BASE_URL 环境变量配置');
+    } else {
+      // 生产环境只记录简化错误
+      logger.error('API Base URL 配置错误');
     }
   }
 }
@@ -90,13 +70,7 @@ api.interceptors.request.use(
       const isPointingToFrontend = fullUrl.startsWith(currentOrigin);
       
       if (isPointingToAdmin || isPointingToFrontend) {
-        console.error(
-          `%c🚨 API 请求配置错误！`,
-          'color: red; font-weight: bold;',
-          '\n请求 URL:', fullUrl,
-          '\n这会导致 CORS 错误或 404！',
-          '\n请检查 Vercel 环境变量 VITE_API_BASE_URL 是否正确配置为后端 Render 地址。'
-        );
+        logger.error('🚨 API 请求配置错误！请检查 VITE_API_BASE_URL 环境变量');
       }
     }
     return config;
@@ -114,11 +88,11 @@ api.interceptors.response.use(
   (error) => {
     // 处理网络错误
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      console.error('[API Interceptor] 请求超时:', error.config?.url);
+      logger.error('[API Interceptor] 请求超时');
       throw new Error('请求超时，请检查网络连接');
     }
     if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-      console.error('[API Interceptor] 网络错误:', error.config?.url);
+      logger.error('[API Interceptor] 网络错误');
       throw new Error('网络错误，请检查后端服务是否运行');
     }
     if (error.response) {
@@ -150,28 +124,13 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
       
-      // 对于 verify-claim API，始终记录详细错误
-      if (url.includes('/mining/verify-claim')) {
-        console.error(`[API Interceptor] verify-claim API 错误 ${status}:`, {
-          url,
-          status,
-          statusText: error.response.statusText,
-          data: error.response.data,
-          requestData: error.config?.data
-        });
-      } else {
-        // 其他错误才记录日志
-        console.error(`[API Interceptor] API 错误 ${status} (${url}): ${message}`);
-      }
+      // 记录错误（不泄露敏感信息）
+      logger.error(`[API Interceptor] API 错误 ${status}: ${message}`);
       
       throw new Error(message || `服务器错误 (${status})`);
     }
     // 其他错误
-    console.error('[API Interceptor] 请求失败:', {
-      message: error.message,
-      url: error.config?.url,
-      error
-    });
+    logger.error('[API Interceptor] 请求失败', error);
     throw error;
   }
 );
@@ -179,36 +138,13 @@ api.interceptors.response.use(
 export const fetchUserInfo = async (address: string) => {
   // 确保地址格式正确（后端会自动转换为小写，但前端也统一处理）
   const normalizedAddress = address?.toLowerCase() || address;
-  const fullUrl = `${apiBaseUrl}/user/info?address=${normalizedAddress}`;
-  console.log('[fetchUserInfo] 请求用户信息:', { 
-    original: address, 
-    normalized: normalizedAddress, 
-    url: fullUrl,
-    apiBaseUrl: apiBaseUrl
-  });
+  logger.debug('[fetchUserInfo] 请求用户信息');
   try {
     const response = await api.get(`/user/info?address=${normalizedAddress}`);
-    console.log('[fetchUserInfo] 返回数据 - 完整对象:', JSON.stringify(response.data, null, 2));
-    console.log('[fetchUserInfo] 返回数据 - 摘要:', {
-      status: response.status,
-      dataKeys: response.data ? Object.keys(response.data) : [],
-      energy: response.data?.energy,
-      energyTotal: response.data?.energyTotal,
-      energyLocked: response.data?.energyLocked,
-      inviteCount: response.data?.inviteCount,
-      address: response.data?.address,
-    });
+    logger.debug('[fetchUserInfo] 请求成功');
     return response.data; // { energy: number, inviteCount: number, referrer: string, teamRewards?: string }
   } catch (error: any) {
-    console.error('[fetchUserInfo] API 调用失败:', {
-      error,
-      message: error?.message,
-      response: error?.response,
-      status: error?.response?.status,
-      data: error?.response?.data,
-      address: normalizedAddress,
-      fullUrl
-    });
+    logger.error('[fetchUserInfo] API 调用失败', error);
     throw error;
   }
 };
@@ -216,33 +152,13 @@ export const fetchUserInfo = async (address: string) => {
 export const fetchTeamRewards = async (address: string) => {
   // 确保地址格式正确
   const normalizedAddress = address?.toLowerCase() || address;
-  const fullUrl = `${apiBaseUrl}/user/team-rewards?address=${normalizedAddress}`;
-  console.log('[fetchTeamRewards] 请求团队奖励:', { 
-    original: address, 
-    normalized: normalizedAddress,
-    url: fullUrl,
-    apiBaseUrl: apiBaseUrl
-  });
+  logger.debug('[fetchTeamRewards] 请求团队奖励');
   try {
     const response = await api.get(`/user/team-rewards?address=${normalizedAddress}`);
-    console.log('[fetchTeamRewards] 返回数据 - 完整对象:', JSON.stringify(response.data, null, 2));
-    console.log('[fetchTeamRewards] 返回数据 - 摘要:', {
-      status: response.status,
-      dataKeys: response.data ? Object.keys(response.data) : [],
-      totalRewards: response.data?.totalRewards,
-      unit: response.data?.unit,
-    });
+    logger.debug('[fetchTeamRewards] 请求成功');
     return response.data; // { totalRewards: string } - 团队代币奖励总额（RAT）
   } catch (error: any) {
-    console.error('[fetchTeamRewards] API 调用失败:', {
-      error,
-      message: error?.message,
-      response: error?.response,
-      status: error?.response?.status,
-      data: error?.response?.data,
-      address: normalizedAddress,
-      fullUrl
-    });
+    logger.error('[fetchTeamRewards] API 调用失败', error);
     throw error;
   }
 };
@@ -250,8 +166,8 @@ export const fetchTeamRewards = async (address: string) => {
 export const verifyClaim = async (address: string, txHash: string, referrer: string) => {
   // ⚠️ 参数验证：确保 txHash 不为空
   if (!txHash || txHash === 'undefined' || txHash.trim() === '') {
-    const errorMsg = `[verifyClaim] 错误：txHash 参数无效 (${txHash})`;
-    console.error(errorMsg, { address, txHash, referrer });
+    const errorMsg = `[verifyClaim] 错误：txHash 参数无效`;
+    logger.error(errorMsg);
     throw new Error(errorMsg);
   }
   
@@ -259,33 +175,12 @@ export const verifyClaim = async (address: string, txHash: string, referrer: str
   const payload = { address, txHash, referrer };
   
   try {
-    // ⚠️ 优化日志：在调用前打印完整 payload
-    console.log('[verifyClaim] 调用后端 API，完整 payload:', {
-      address,
-      txHash,
-      referrer,
-      payload,
-      apiBaseUrl: apiBaseUrl,
-      fullUrl: `${apiBaseUrl}/mining/verify-claim`
-    });
-    
+    logger.debug('[verifyClaim] 调用后端 API');
     const { data } = await api.post('/mining/verify-claim', payload);
-    console.log('[verifyClaim] API 调用成功，返回数据:', data);
+    logger.debug('[verifyClaim] API 调用成功');
     return data;
   } catch (error: any) {
-    console.error('[verifyClaim] API 调用失败:', {
-      status: error?.response?.status,
-      statusText: error?.response?.statusText,
-      data: error?.response?.data,
-      message: error?.message,
-      requestPayload: payload,
-      config: {
-        url: error?.config?.url,
-        method: error?.config?.method,
-        data: error?.config?.data,
-        baseURL: error?.config?.baseURL,
-      }
-    });
+    logger.error('[verifyClaim] API 调用失败', error);
     throw error;
   }
 };
@@ -298,17 +193,17 @@ export const applyWithdraw = async (address: string, amount: string) => {
 export const getWithdrawHistory = async (address: string) => {
   try {
     const normalizedAddress = address?.toLowerCase() || address;
-    console.log('[getWithdrawHistory] 请求提现历史:', { original: address, normalized: normalizedAddress });
+    logger.debug('[getWithdrawHistory] 请求提现历史');
     const { data } = await api.get(`/asset/withdraw/history?address=${normalizedAddress}`);
-    console.log('[getWithdrawHistory] 返回数据:', { count: data?.length || 0, data });
+    logger.debug('[getWithdrawHistory] 请求成功');
     return data || []; // [{ id: string, amount: string, status: string, time: string }]
   } catch (error: any) {
     // 404 错误表示没有数据，返回空数组
     if (error.response?.status === 404) {
-      console.log('[getWithdrawHistory] 404 - 没有提现历史');
+      logger.debug('[getWithdrawHistory] 没有提现历史');
       return [];
     }
-    console.error('[getWithdrawHistory] 请求失败:', error);
+    logger.error('[getWithdrawHistory] 请求失败', error);
     return [];
   }
 };
@@ -316,17 +211,17 @@ export const getWithdrawHistory = async (address: string) => {
 export const getClaimsHistory = async (address: string) => {
   try {
     const normalizedAddress = address?.toLowerCase() || address;
-    console.log('[getClaimsHistory] 请求空投历史:', { original: address, normalized: normalizedAddress });
+    logger.debug('[getClaimsHistory] 请求空投历史');
     const { data } = await api.get(`/user/claims?address=${normalizedAddress}`);
-    console.log('[getClaimsHistory] 返回数据:', { count: data?.length || 0, data });
+    logger.debug('[getClaimsHistory] 请求成功');
     return data || []; // [{ txHash: string, amount: string, energy: number, createdAt: string }]
   } catch (error: any) {
     // 404 错误表示没有数据，返回空数组
     if (error.response?.status === 404) {
-      console.log('[getClaimsHistory] 404 - 没有空投历史');
+      logger.debug('[getClaimsHistory] 没有空投历史');
       return [];
     }
-    console.error('[getClaimsHistory] 请求失败:', error);
+    logger.error('[getClaimsHistory] 请求失败', error);
     return [];
   }
 };
@@ -334,17 +229,17 @@ export const getClaimsHistory = async (address: string) => {
 export const getReferralHistory = async (address: string) => {
   try {
     const normalizedAddress = address?.toLowerCase() || address;
-    console.log('[getReferralHistory] 请求邀请历史:', { original: address, normalized: normalizedAddress });
+    logger.debug('[getReferralHistory] 请求邀请历史');
     const { data } = await api.get(`/user/referrals?address=${normalizedAddress}`);
-    console.log('[getReferralHistory] 返回数据:', { count: data?.length || 0, data });
+    logger.debug('[getReferralHistory] 请求成功');
     return data || []; // [{ address: string, energy: number, createdAt: string }]
   } catch (error: any) {
     // 404 错误表示没有数据，返回空数组
     if (error.response?.status === 404) {
-      console.log('[getReferralHistory] 404 - 没有邀请历史');
+      logger.debug('[getReferralHistory] 没有邀请历史');
       return [];
     }
-    console.error('[getReferralHistory] 请求失败:', error);
+    logger.error('[getReferralHistory] 请求失败', error);
     return [];
   }
 };
@@ -358,11 +253,11 @@ export const fetchRatBalance = async (address: string) => {
     // 任何错误都返回默认值，不抛出错误
     const status = error.response?.status;
     if (status === 404 || status === 400 || status === 503) {
-      console.warn('Failed to fetch RAT balance from API, returning 0:', error.message);
+      logger.warn('Failed to fetch RAT balance from API, returning 0');
       return { balance: '0' };
     }
     // 其他错误也返回默认值
-    console.error('Unexpected error fetching RAT balance:', error);
+    logger.error('Unexpected error fetching RAT balance', error);
     return { balance: '0' };
   }
 };
@@ -451,7 +346,7 @@ export const fetchCountdownConfig = async () => {
     };
   } catch (error: any) {
     // 如果 API 不存在或出错，返回默认值
-    console.warn('Failed to fetch countdown config, using defaults:', error);
+    logger.warn('Failed to fetch countdown config, using defaults');
     return {
       targetDate: '2026-01-15T12:00:00',
       exchangeName: 'Binance',

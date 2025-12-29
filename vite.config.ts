@@ -57,6 +57,13 @@ export default defineConfig(({ mode }) => {
             },
           },
         },
+        // 生产环境移除 console 调用（保留 console.error）
+        minify: 'esbuild',
+      },
+      esbuild: {
+        // 生产环境移除 console.log, console.warn, console.info, console.debug, console.trace
+        // 但保留 console.error（用于关键错误日志）
+        drop: mode === 'production' ? ['console', 'debugger'] : [],
       },
     };
 });

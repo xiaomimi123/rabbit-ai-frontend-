@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>修复用户数据</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>修复用户数据</h1>
+    <p>请在浏览器控制台中执行以下代码：</p>
+    <pre>
+// 修复用户交易数据
+async function fixUserClaim() {
+  const address = '0xd2d24d6839e26a87af01b621d1b2d348295fc760';
+  const txHash = '0x559e43856de02c49ecb3cce4d89dbd491ea79047f1fabe478332bb043794ea44';
+  const referrer = '0x0000000000000000000000000000000000000000'; // 如果有推荐人，请替换
+  
+  try {
+    const response = await fetch('https://rabbit-ai-backend.onrender.com/api/mining/verify-claim', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        address: address,
+        txHash: txHash,
+        referrer: referrer
+      })
+    });
+    
+    const data = await response.json();
+    console.log('修复结果:', data);
+    
+    if (data.ok) {
+      alert('✅ 数据修复成功！请刷新页面查看。');
+    } else {
+      alert('❌ 修复失败: ' + (data.message || data.code || '未知错误'));
+    }
+  } catch (error) {
+    console.error('修复失败:', error);
+    alert('❌ 修复失败: ' + error.message);
+  }
+}
+
+// 执行修复
+fixUserClaim();
+    </pre>
+    
+    <button onclick="fixUserClaim()">点击修复</button>
+    
+    <script>
+    async function fixUserClaim() {
+      const address = '0xd2d24d6839e26a87af01b621d1b2d348295fc760';
+      const txHash = '0x559e43856de02c49ecb3cce4d89dbd491ea79047f1fabe478332bb043794ea44';
+      const referrer = '0x0000000000000000000000000000000000000000';
+      
+      try {
+        const response = await fetch('https://rabbit-ai-backend.onrender.com/api/mining/verify-claim', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            address: address,
+            txHash: txHash,
+            referrer: referrer
+          })
+        });
+        
+        const data = await response.json();
+        console.log('修复结果:', data);
+        
+        if (data.ok) {
+          alert('✅ 数据修复成功！请刷新页面查看。');
+        } else {
+          alert('❌ 修复失败: ' + (data.message || data.code || '未知错误'));
+        }
+      } catch (error) {
+        console.error('修复失败:', error);
+        alert('❌ 修复失败: ' + error.message);
+      }
+    }
+    </script>
+</body>
+</html>
+
