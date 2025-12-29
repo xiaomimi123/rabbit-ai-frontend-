@@ -844,6 +844,28 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
                       teamSize: Number(userInfo.inviteCount || 0),
                     }));
                     console.log('[verifyClaimOnChain] ✅ 用户信息已同步，能量值:', userInfo.energy);
+                  } else if (Number(userInfo?.energy || 0) === 0) {
+                    // ✅ 自动修复：如果链上验证成功但数据库仍为 0，自动调用 verifyClaim
+                    console.warn('[verifyClaimOnChain] ⚠️ 链上验证成功但数据库仍为 0，自动调用 verifyClaim 修复...');
+                    try {
+                      const { verifyClaim } = await import('../api');
+                      const result = await verifyClaim(currentAddress, finalTxHash, refAddr);
+                      if (result?.ok) {
+                        console.log('[verifyClaimOnChain] ✅ 自动修复成功，重新获取用户信息...');
+                        // 重新获取用户信息
+                        const updatedUserInfo = await fetchUserInfo(currentAddress);
+                        if (updatedUserInfo) {
+                          setStats(p => ({
+                            ...p,
+                            address: currentAddress,
+                            energy: Number(updatedUserInfo.energy || 0),
+                            teamSize: Number(updatedUserInfo.inviteCount || 0),
+                          }));
+                        }
+                      }
+                    } catch (fixError) {
+                      console.error('[verifyClaimOnChain] 自动修复失败:', fixError);
+                    }
                   }
                 } catch (error) {
                   console.warn('[verifyClaimOnChain] 刷新用户信息失败:', error);

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { ethers } from 'ethers';
 import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, TrendingUp, Info, Copy, Check, LogOut } from 'lucide-react';
 import { UserStats, HistoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -23,6 +24,125 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
   const [timelineHistory, setTimelineHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
+
+  // ✅ 自动修复缺失数据：检查链上状态，如果链上有数据但数据库没有，自动同步
+  const autoFixMissingData = async (address: string) => {
+    try {
+      console.log('[ProfileView] [autoFixMissingData] 开始检查链上状态...');
+      
+      // 从链上读取 lastClaimTime
+      const { getProvider, getContract } = await import('../services/web3Service');
+      const { CONTRACTS, ABIS } = await import('../constants');
+      const { callWithRetry } = await import('../services/web3Service');
+      
+      const provider = getProvider();
+      if (!provider) {
+        console.warn('[ProfileView] [autoFixMissingData] 无法获取 provider，跳过自动修复');
+        return;
+      }
+      
+      const contract = await getContract(CONTRACTS.AIRDROP, ABIS.AIRDROP, undefined);
+      
+      // 读取链上的 lastClaimTime
+      const lastClaim = await callWithRetry(
+        () => contract.lastClaimTime(address),
+        {
+          maxRetries: 3,
+          baseDelay: 1000,
+          onRetry: (attempt, error) => {
+            console.warn(`[ProfileView] [autoFixMissingData] RPC 重试 ${attempt}/3...`);
+          }
+        }
+      );
+      
+      const lastClaimNum = Number(lastClaim);
+      console.log('[ProfileView] [autoFixMissingData] 链上 lastClaimTime:', lastClaimNum);
+      
+      // 如果链上有 lastClaimTime > 0，说明用户已经领取过，但数据库没有记录
+      if (lastClaimNum > 0) {
+        console.log('[ProfileView] [autoFixMissingData] ⚠️ 检测到链上有数据但数据库没有，开始自动修复...');
+        
+        // 查找最近的 Claimed 事件来获取交易哈希
+        try {
+          const iface = new ethers.utils.Interface(ABIS.AIRDROP);
+          const currentBlock = await provider.getBlockNumber();
+          const fromBlock = Math.max(0, currentBlock - 10000); // 最近 10000 个区块
+          
+          console.log('[ProfileView] [autoFixMissingData] 搜索 Claimed 事件，区块范围:', fromBlock, 'to', currentBlock);
+          
+          const logs = await callWithRetry(
+            () => provider.getLogs({
+              address: CONTRACTS.AIRDROP,
+              fromBlock: fromBlock,
+              toBlock: currentBlock,
+              topics: [iface.getEventTopic('Claimed')],
+            }),
+            {
+              maxRetries: 3,
+              baseDelay: 1000,
+            }
+          );
+          
+          // 查找该用户的 Claimed 事件
+          let userTxHash: string | null = null;
+          for (const log of logs) {
+            try {
+              const parsed = iface.parseLog(log);
+              if (parsed.name === 'Claimed') {
+                const user = String(parsed.args.user).toLowerCase();
+                if (user === address.toLowerCase()) {
+                  userTxHash = log.transactionHash;
+                  console.log('[ProfileView] [autoFixMissingData] 找到用户的 Claimed 事件，交易哈希:', userTxHash);
+                  break;
+                }
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+          
+          if (userTxHash) {
+            // 调用 verifyClaim API 自动修复
+            console.log('[ProfileView] [autoFixMissingData] 调用 verifyClaim API 修复数据...');
+            const { verifyClaim } = await import('../api');
+            
+            // 尝试从 localStorage 获取推荐人
+            let referrer = '0x0000000000000000000000000000000000000000';
+            try {
+              const stored = localStorage.getItem('rabbit_referrer');
+              if (stored && ethers.utils.isAddress(stored)) {
+                referrer = stored;
+              }
+            } catch (e) {
+              // 忽略
+            }
+            
+            const result = await verifyClaim(address, userTxHash, referrer);
+            
+            if (result?.ok) {
+              console.log('[ProfileView] [autoFixMissingData] ✅ 自动修复成功！', result);
+              
+              // 重新加载数据
+              setTimeout(() => {
+                loadExtraData();
+              }, 1000);
+            } else {
+              console.warn('[ProfileView] [autoFixMissingData] ⚠️ 自动修复失败:', result);
+            }
+          } else {
+            console.warn('[ProfileView] [autoFixMissingData] ⚠️ 未找到用户的 Claimed 事件，无法自动修复');
+          }
+        } catch (error) {
+          console.error('[ProfileView] [autoFixMissingData] 查找交易失败:', error);
+        }
+      } else {
+        console.log('[ProfileView] [autoFixMissingData] 链上也没有数据，用户确实未领取过');
+      }
+    } catch (error) {
+      console.error('[ProfileView] [autoFixMissingData] 自动修复检查失败:', error);
+      // 不抛出错误，避免影响正常流程
+    }
+  };
 
   // 加载用户额外数据
   const loadExtraData = async () => {
@@ -81,6 +201,16 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       
       // 加载时间轴历史记录
       await loadTimelineHistory();
+      
+      // ✅ 自动修复：如果数据为 0，检查链上状态并自动同步（在加载历史记录后）
+      // 只在能量和邀请数都为 0 时触发，避免频繁检查
+      if (Number(info?.energy || 0) === 0 && Number(info?.inviteCount || 0) === 0) {
+        console.log('[ProfileView] 检测到数据为 0，开始自动修复检查...');
+        // 异步执行，不阻塞 UI
+        autoFixMissingData(stats.address).catch(err => {
+          console.error('[ProfileView] 自动修复失败:', err);
+        });
+      }
     } catch (e) {
       console.error('[ProfileView] Error loading profile data:', e);
       console.error('[ProfileView] 错误堆栈:', e instanceof Error ? e.stack : 'N/A');
