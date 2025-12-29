@@ -130,10 +130,10 @@ const App: React.FC = () => {
   useEffect(() => {
     loadNotifications();
     
-    // Refresh notifications every 30 seconds
+    // Refresh notifications every 60 seconds (降低请求频率，避免 RPC 速率限制)
     const interval = setInterval(() => {
       loadNotifications();
-    }, 30000);
+    }, 60000);
     
     return () => clearInterval(interval);
   }, [stats.address]);
@@ -154,14 +154,20 @@ const App: React.FC = () => {
         const balance = await provider.getBalance(stats.address);
         const bnbBalance = parseFloat(ethers.utils.formatEther(balance));
         setStats(prev => ({ ...prev, bnbBalance }));
-      } catch (error) {
-        console.error('Failed to update BNB balance:', error);
+      } catch (error: any) {
+        // 检测 429 错误（Too Many Requests）
+        const errorMessage = error?.message || error?.toString() || '';
+        if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
+          console.warn('[App] RPC 速率限制，跳过本次 BNB 余额更新');
+        } else {
+          console.error('Failed to update BNB balance:', error);
+        }
       }
     };
     
     updateBnbBalance();
-    // 每10秒更新一次BNB余额
-    const interval = setInterval(updateBnbBalance, 10000);
+    // 每30秒更新一次BNB余额（降低请求频率，避免 RPC 速率限制）
+    const interval = setInterval(updateBnbBalance, 30000);
     return () => clearInterval(interval);
   }, [stats.address]);
 
@@ -203,9 +209,12 @@ const App: React.FC = () => {
     return () => window.removeEventListener('refreshEnergy', handleRefreshEnergy);
   }, [stats.address]);
 
-  // 自动轮询：每60秒刷新一次用户信息（确保 Indexer 同步的新数据能及时显示）
+  // 自动轮询：每120秒刷新一次用户信息（降低请求频率，避免 RPC 速率限制）
   useEffect(() => {
     if (!stats.address || !stats.address.startsWith('0x')) return;
+    
+    let retryCount = 0;
+    let currentInterval = 120000; // 初始 120 秒
     
     const refreshUserInfo = async () => {
       try {
@@ -223,18 +232,37 @@ const App: React.FC = () => {
             teamRewards: parseFloat(teamData?.totalRewards || '0'),
           }));
         }
-      } catch (error) {
-        console.warn('[App] Auto-refresh failed:', error);
+        // 成功时重置重试计数和间隔
+        retryCount = 0;
+        currentInterval = 120000;
+      } catch (error: any) {
+        retryCount++;
+        const status = error?.response?.status;
+        // 检测 429 错误（Too Many Requests）
+        if (status === 429) {
+          console.warn('[App] RPC 速率限制，增加刷新间隔');
+          // 指数退避：429 错误时增加间隔
+          currentInterval = Math.min(currentInterval * 2, 600000); // 最多 10 分钟
+        } else {
+          console.warn('[App] Auto-refresh failed:', error);
+        }
       }
     };
     
-    // 设置定时器，每60秒刷新一次
-    const interval = setInterval(() => {
-      console.log('[App] Auto-refreshing user info (60s interval)...');
-      refreshUserInfo();
-    }, 60000); // 60秒
+    // 使用动态间隔
+    const scheduleRefresh = () => {
+      const timeoutId = setTimeout(() => {
+        console.log(`[App] Auto-refreshing user info (${currentInterval / 1000}s interval)...`);
+        refreshUserInfo().finally(() => {
+          scheduleRefresh(); // 递归调用，使用动态间隔
+        });
+      }, currentInterval);
+      return timeoutId;
+    };
     
-    return () => clearInterval(interval);
+    const timeoutId = scheduleRefresh();
+    
+    return () => clearTimeout(timeoutId);
   }, [stats.address]);
 
   // 页面可见性检测：当用户切换回页面时自动刷新

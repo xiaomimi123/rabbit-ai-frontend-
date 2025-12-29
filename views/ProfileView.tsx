@@ -250,17 +250,40 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
     return () => window.removeEventListener('refreshEnergy', handleRefresh);
   }, [stats.address]);
 
-  // 自动轮询：每30秒刷新一次数据（确保 Indexer 同步的新数据能及时显示）
+  // 自动轮询：每120秒刷新一次数据（降低请求频率，避免 RPC 速率限制）
   useEffect(() => {
     if (!stats.address || !stats.address.startsWith('0x')) return;
     
-    // 设置定时器，每30秒刷新一次
-    const interval = setInterval(() => {
-      console.log('[ProfileView] Auto-refreshing data (30s interval)...');
-      loadExtraData();
-    }, 30000); // 30秒
+    let retryCount = 0;
+    let currentInterval = 120000; // 初始 120 秒
     
-    return () => clearInterval(interval);
+    const scheduleRefresh = () => {
+      const timeoutId = setTimeout(async () => {
+        try {
+          console.log(`[ProfileView] Auto-refreshing data (${currentInterval / 1000}s interval)...`);
+          await loadExtraData();
+          // 成功时重置
+          retryCount = 0;
+          currentInterval = 120000;
+        } catch (error: any) {
+          retryCount++;
+          const status = error?.response?.status;
+          // 检测 429 错误（Too Many Requests）
+          if (status === 429) {
+            console.warn('[ProfileView] RPC 速率限制，增加刷新间隔');
+            // 指数退避：429 错误时增加间隔
+            currentInterval = Math.min(currentInterval * 2, 600000); // 最多 10 分钟
+          }
+        } finally {
+          scheduleRefresh(); // 递归调用，使用动态间隔
+        }
+      }, currentInterval);
+      return timeoutId;
+    };
+    
+    const timeoutId = scheduleRefresh();
+    
+    return () => clearTimeout(timeoutId);
   }, [stats.address]);
 
   // 页面可见性检测：当用户切换回页面时自动刷新

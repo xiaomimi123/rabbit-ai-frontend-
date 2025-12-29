@@ -19,6 +19,80 @@ let walletConnectProvider: any = null;
 let walletConnectModal: WalletConnectModal | null = null;
 let currentWalletType: WalletType | null = null;
 
+// RPC 管理器：自动切换备用 RPC
+class RpcManager {
+  private currentRpcIndex = 0;
+  private rpcUrls: string[];
+  private failedRpcs = new Set<number>(); // 记录失败的 RPC 索引
+  private lastSwitchTime = 0;
+  private readonly SWITCH_COOLDOWN = 60000; // 1 分钟内不重复切换
+
+  constructor(rpcUrls: string[]) {
+    this.rpcUrls = [...new Set(rpcUrls)]; // 去重
+  }
+
+  getCurrentRpc(): string {
+    return this.rpcUrls[this.currentRpcIndex];
+  }
+
+  getAllRpcs(): string[] {
+    return this.rpcUrls;
+  }
+
+  // 检测到 429 错误时切换到下一个可用的 RPC
+  switchToNextRpc(): string | null {
+    const now = Date.now();
+    // 如果距离上次切换不到 1 分钟，不切换（避免频繁切换）
+    if (now - this.lastSwitchTime < this.SWITCH_COOLDOWN) {
+      console.log('[RpcManager] 切换冷却中，跳过本次切换');
+      return this.getCurrentRpc();
+    }
+
+    // 尝试切换到下一个 RPC
+    const startIndex = this.currentRpcIndex;
+    let attempts = 0;
+    
+    while (attempts < this.rpcUrls.length) {
+      this.currentRpcIndex = (this.currentRpcIndex + 1) % this.rpcUrls.length;
+      attempts++;
+      
+      // 如果这个 RPC 之前失败过，跳过
+      if (this.failedRpcs.has(this.currentRpcIndex)) {
+        continue;
+      }
+      
+      // 找到可用的 RPC
+      this.lastSwitchTime = now;
+      const newRpc = this.getCurrentRpc();
+      console.log(`[RpcManager] 切换到备用 RPC: ${newRpc} (索引: ${this.currentRpcIndex})`);
+      return newRpc;
+    }
+    
+    // 所有 RPC 都失败过，重置失败记录并返回第一个
+    console.warn('[RpcManager] 所有 RPC 都失败过，重置失败记录');
+    this.failedRpcs.clear();
+    this.currentRpcIndex = 0;
+    this.lastSwitchTime = now;
+    return this.getCurrentRpc();
+  }
+
+  // 标记某个 RPC 为失败
+  markRpcAsFailed(index?: number): void {
+    const idx = index !== undefined ? index : this.currentRpcIndex;
+    this.failedRpcs.add(idx);
+    console.log(`[RpcManager] 标记 RPC 为失败: ${this.rpcUrls[idx]} (索引: ${idx})`);
+  }
+
+  // 重置失败记录（成功时调用）
+  resetFailedRpc(index?: number): void {
+    const idx = index !== undefined ? index : this.currentRpcIndex;
+    this.failedRpcs.delete(idx);
+  }
+}
+
+// 创建全局 RPC 管理器
+const rpcManager = new RpcManager(RPC_URLS);
+
 // localStorage 键名
 const STORAGE_KEYS = {
   WALLET_TYPE: 'rabbit_wallet_type',
@@ -63,6 +137,28 @@ export const getProvider = () => {
 
 export const getWalletType = () => {
   return currentWalletType;
+};
+
+// 导出 RPC 管理器函数，供其他模块使用
+export const getCurrentRpc = () => {
+  return rpcManager.getCurrentRpc();
+};
+
+// 检测并处理 429 错误，自动切换到备用 RPC
+export const handleRpcError = (error: any): boolean => {
+  const errorMessage = error?.message || error?.toString() || '';
+  const status = error?.response?.status || error?.status;
+  
+  // 检测 429 错误
+  if (status === 429 || errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
+    console.warn('[RpcManager] 检测到 429 错误，切换到备用 RPC');
+    const nextRpc = rpcManager.switchToNextRpc();
+    if (nextRpc) {
+      console.log(`[RpcManager] 已切换到: ${nextRpc}`);
+      return true; // 表示已切换
+    }
+  }
+  return false; // 未切换
 };
 
 // 获取不同钱包的 provider
@@ -276,11 +372,12 @@ async function initWalletConnectProvider(): Promise<any> {
 
   const modal = getWalletConnectModal();
 
+  // 使用 RPC 管理器获取当前 RPC（支持自动切换）
+  const currentRpc = rpcManager.getCurrentRpc();
+  
   try {
-    // 【修改点 2】移除 fetch 测速逻辑，它会被 CORS 拦截导致误报
-    // 直接使用配置好的主 RPC，确保 constants 里的 RPC_URL 是高可用的
     const rpcMap: Record<number, string> = {
-      [CHAIN_ID]: RPC_URL
+      [CHAIN_ID]: currentRpc
     };
 
     console.log('[WalletConnect] 初始化，使用 RPC:', rpcMap[CHAIN_ID]);
@@ -340,6 +437,18 @@ async function initWalletConnectProvider(): Promise<any> {
   } catch (initError: any) {
     console.error('[WalletConnect] 初始化失败:', initError);
     const errorMessage = initError?.message || initError?.toString() || '未知错误';
+    
+    // 检测 429 错误，自动切换到备用 RPC
+    if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
+      console.warn('[WalletConnect] 检测到 429 错误，尝试切换到备用 RPC...');
+      const nextRpc = rpcManager.switchToNextRpc();
+      if (nextRpc && nextRpc !== currentRpc) {
+        // 标记当前 RPC 为失败
+        rpcManager.markRpcAsFailed();
+        // 递归重试，使用新的 RPC
+        return await initWalletConnectProvider();
+      }
+    }
     
     // 提供更详细的错误信息
     if (errorMessage.includes('network') || errorMessage.includes('Network') || errorMessage.includes('网络')) {
@@ -416,8 +525,35 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
         const errorMessage = enableError?.message || enableError?.toString() || '';
         const errorCode = enableError?.code || enableError?.error?.code;
         
-        // 检查是否是网络相关错误
-        if (errorMessage.includes('network') || errorMessage.includes('Network') || 
+        // 检查是否是 429 错误（RPC 速率限制）
+        if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
+          console.warn('[WalletConnect] 检测到 429 错误，切换到备用 RPC 并重试...');
+          try {
+            // 切换到备用 RPC
+            const nextRpc = rpcManager.switchToNextRpc();
+            if (nextRpc) {
+              // 标记当前 RPC 为失败
+              rpcManager.markRpcAsFailed();
+              // 断开当前连接
+              try {
+                await wc.disconnect();
+              } catch {}
+              walletConnectProvider = null;
+              clearWalletConnectSessions();
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              // 使用新的 RPC 重新初始化
+              const newWc = await initWalletConnectProvider();
+              await newWc.enable();
+              walletConnectProvider = newWc;
+              console.log('[WalletConnect] 使用备用 RPC 重新连接成功');
+            } else {
+              throw new Error('所有 RPC 都不可用，请稍后重试');
+            }
+          } catch (retryError: any) {
+            console.error('[WalletConnect] 切换 RPC 后重试失败:', retryError);
+            throw new Error(`RPC 速率限制，已尝试切换备用 RPC 但仍失败。请稍后重试。`);
+          }
+        } else if (errorMessage.includes('network') || errorMessage.includes('Network') || 
             errorMessage.includes('网络') || errorMessage.includes('connection') ||
             errorMessage.includes('Connection') || errorMessage.includes('连接')) {
           console.error('[WalletConnect] 网络连接错误:', errorMessage);

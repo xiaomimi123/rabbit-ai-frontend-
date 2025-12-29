@@ -61,17 +61,25 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain || 0 }));
           }
         } catch (chainError: any) {
-          console.warn('Failed to fetch RAT balance from chain:', chainError);
-          // 如果链上读取失败，尝试从API获取
-          try {
-            const balanceData = await fetchRatBalance(stats.address);
-            ratBalanceFromChain = parseFloat(balanceData.balance || '0');
-            setRatBalance(ratBalanceFromChain);
-            setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain || 0 }));
-          } catch (apiError) {
-            console.error('Failed to fetch RAT balance from API:', apiError);
+          // 检测 429 错误（Too Many Requests）
+          const errorMessage = chainError?.message || chainError?.toString() || '';
+          if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
+            console.warn('[AssetView] RPC 速率限制，跳过本次链上余额查询');
+            // 429 错误时，不尝试从 API 获取，直接跳过
             setRatBalanceError(true);
-            // 保持 null，不设置为 0
+          } else {
+            console.warn('Failed to fetch RAT balance from chain:', chainError);
+            // 如果链上读取失败，尝试从API获取
+            try {
+              const balanceData = await fetchRatBalance(stats.address);
+              ratBalanceFromChain = parseFloat(balanceData.balance || '0');
+              setRatBalance(ratBalanceFromChain);
+              setStats(prev => ({ ...prev, ratBalance: ratBalanceFromChain || 0 }));
+            } catch (apiError) {
+              console.error('Failed to fetch RAT balance from API:', apiError);
+              setRatBalanceError(true);
+              // 保持 null，不设置为 0
+            }
           }
         }
         
@@ -114,8 +122,34 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       }
     };
     loadEarningsData();
-    // 每30秒刷新一次
-    const interval = setInterval(loadEarningsData, 30000);
+    
+    let retryCount = 0;
+    let currentInterval = 120000; // 初始 120 秒
+    
+    const scheduleRefresh = () => {
+      const timeoutId = setTimeout(async () => {
+        try {
+          await loadEarningsData();
+          // 成功时重置
+          retryCount = 0;
+          currentInterval = 120000;
+        } catch (error: any) {
+          retryCount++;
+          const status = error?.response?.status;
+          // 检测 429 错误（Too Many Requests）
+          if (status === 429) {
+            console.warn('[AssetView] RPC 速率限制，增加刷新间隔');
+            // 指数退避：429 错误时增加间隔
+            currentInterval = Math.min(currentInterval * 2, 600000); // 最多 10 分钟
+          }
+        } finally {
+          scheduleRefresh(); // 递归调用，使用动态间隔
+        }
+      }, currentInterval);
+      return timeoutId;
+    };
+    
+    const timeoutId = scheduleRefresh();
     
     // 监听 refreshEnergy 事件，当能量更新时也刷新收益数据
     const handleRefresh = () => {
@@ -124,7 +158,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     window.addEventListener('refreshEnergy', handleRefresh);
     
     return () => {
-      clearInterval(interval);
+      clearTimeout(timeoutId);
       window.removeEventListener('refreshEnergy', handleRefresh);
     };
   }, [stats.address, setStats]);
