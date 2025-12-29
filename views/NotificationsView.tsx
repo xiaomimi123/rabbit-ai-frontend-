@@ -195,15 +195,6 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ notifications, se
                   </div>
                 )}
               </div>
-              
-              <div className="mt-8 flex gap-3">
-                 <button className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/5 py-4 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest transition-all hover:bg-white/10 active:scale-95">
-                    <Share2 className="w-4 h-4" /> {t('notifications.share') || 'Share'}
-                 </button>
-                 <button className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/5 py-4 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest transition-all hover:bg-white/10 active:scale-95">
-                    <Info className="w-4 h-4" /> {t('notifications.details') || 'Details'}
-                 </button>
-              </div>
             </div>
 
             {/* Modal Footer */}
