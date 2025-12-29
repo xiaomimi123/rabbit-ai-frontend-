@@ -108,6 +108,7 @@ const App: React.FC = () => {
     const loadSystemLinks = async () => {
       try {
         const links = await fetchSystemLinks();
+        console.log('[App] 加载系统链接配置:', links);
         setSystemLinks(links || {});
       } catch (error: any) {
         // 404 错误是正常的（没有配置），不显示错误
@@ -124,6 +125,13 @@ const App: React.FC = () => {
       }
     };
     loadSystemLinks();
+    
+    // 每 5 分钟刷新一次系统链接配置（确保管理后台更新后能及时生效）
+    const interval = setInterval(() => {
+      loadSystemLinks();
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Load user notifications
