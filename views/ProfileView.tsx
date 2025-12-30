@@ -622,13 +622,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white">{t('profile.activityLedger') || '活动记录'}</h3>
           </div>
           <button 
+            type="button"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('[ProfileView] 点击查看全部按钮');
+              console.log('[ProfileView] 点击查看全部按钮, showActivityHistory:', showActivityHistory);
               setShowActivityHistory(true);
             }}
-            className="text-[10px] text-[#FCD535] font-black uppercase tracking-widest hover:underline decoration-2 underline-offset-4 cursor-pointer active:opacity-80 transition-opacity"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+            }}
+            className="text-[10px] text-[#FCD535] font-black uppercase tracking-widest hover:underline decoration-2 underline-offset-4 cursor-pointer active:opacity-80 transition-opacity relative z-10 px-2 py-1 -mx-2 -my-1 touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             {t('profile.browseAll') || '查看全部'}
           </button>
