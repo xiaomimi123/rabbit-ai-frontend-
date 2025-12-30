@@ -178,7 +178,7 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
               : 'text-[#848E9C] hover:text-white'
           }`}
         >
-          全部 ({counts.all})
+          {t('profile.allRecords') || '全部'} ({counts.all})
         </button>
         <button
           onClick={() => setActiveFilter('airdrop')}
@@ -263,12 +263,12 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
                         {item.type === 'airdrop' || item.type === 'invite' ? (
                           item.energyChange > 0 && (
                             <span className="text-[8px] text-[#FCD535]/80 font-medium">
-                              获得 {item.energyChange} 点能量值
+                              {(t('profile.earnedEnergy') || '获得 {amount} 点能量值').replace('{amount}', String(item.energyChange))}
                             </span>
                           )
                         ) : item.type === 'withdraw' && (
                           <span className="text-[8px] text-[#848E9C]/60 font-medium">
-                            消耗 {item.energy.replace('-', '')}
+                            {(t('profile.consumedEnergy') || '消耗 {amount}').replace('{amount}', item.energy.replace('-', ''))}
                           </span>
                         )}
                       </div>
@@ -316,7 +316,11 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
             <div className="text-center py-10 text-xs text-[#848E9C] italic">
               {activeFilter === 'all' 
                 ? (t('profile.noHistory') || '暂无记录')
-                : `暂无${activeFilter === 'airdrop' ? '空投领取' : activeFilter === 'invite' ? '网络奖励' : '提现'}记录`
+                : activeFilter === 'airdrop'
+                ? (t('profile.noAirdropRecords') || '暂无空投领取记录')
+                : activeFilter === 'invite'
+                ? (t('profile.noInviteRecords') || '暂无网络奖励记录')
+                : (t('profile.noWithdrawRecords') || '暂无提现记录')
               }
             </div>
           )}
