@@ -63,7 +63,11 @@ const App: React.FC = () => {
 
   // Load user notifications
   const loadNotifications = async () => {
-    if (!stats.address || !stats.address.startsWith('0x')) return;
+    // ✅ 修复：如果没有地址，清空通知列表
+    if (!stats.address || !stats.address.startsWith('0x')) {
+      setNotifications([]);
+      return;
+    }
     try {
       const data = await fetchUserNotifications(stats.address);
       if (Array.isArray(data)) {

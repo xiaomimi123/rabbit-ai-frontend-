@@ -339,6 +339,13 @@ export const markAllNotificationsAsRead = async (address: string) => {
   return data;
 };
 
+// 删除通知
+export const deleteNotification = async (address: string, notificationId: string) => {
+  // ✅ 使用 POST 方法，因为 Fastify 的 DELETE 请求 body 处理可能有问题
+  const { data } = await api.post(`/user/notifications/delete`, { address, notificationId });
+  return data;
+};
+
 // 获取系统公告
 export const fetchSystemAnnouncement = async () => {
   try {

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Bell, ChevronLeft, CheckCircle2, AlertTriangle, Gift, Clock, X, Inbox, Sparkles, ChevronRight } from 'lucide-react';
 import { Notification } from '../types';
-import { markNotificationAsRead } from '../api';
+import { markNotificationAsRead, deleteNotification } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface NotificationsViewProps {
@@ -37,6 +37,23 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ notifications, se
         // 即使 API 失败，也更新本地状态
         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
       }
+    }
+  };
+
+  const handleDeleteNotif = async (notif: Notification, e: React.MouseEvent) => {
+    e.stopPropagation(); // 阻止触发点击事件
+    if (!address) return;
+    
+    try {
+      await deleteNotification(address, notif.id);
+      // 从列表中移除
+      setNotifications(prev => prev.filter(n => n.id !== notif.id));
+      // 如果删除的是当前打开的通知，关闭详情
+      if (selectedNotif?.id === notif.id) {
+        setSelectedNotif(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
     }
   };
 
@@ -124,7 +141,14 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ notifications, se
                   </p>
                 </div>
                 
-                <div className="self-center">
+                <div className="self-center flex items-center gap-2">
+                  <button
+                    onClick={(e) => handleDeleteNotif(notif, e)}
+                    className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all opacity-0 group-hover:opacity-100"
+                    title="删除通知"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                   <ChevronRight className="w-4 h-4 text-[#848E9C]/30 group-hover:text-[#FCD535] transition-colors" />
                 </div>
               </div>
