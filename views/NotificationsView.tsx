@@ -182,12 +182,31 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ notifications, se
                     </div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setSelectedNotif(null)}
-                  className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
-                >
-                  <X className="w-5 h-5 text-[#848E9C]" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      if (address && selectedNotif) {
+                        try {
+                          await deleteNotification(address, selectedNotif.id);
+                          setNotifications(prev => prev.filter(n => n.id !== selectedNotif.id));
+                          setSelectedNotif(null);
+                        } catch (error) {
+                          console.error('Failed to delete notification:', error);
+                        }
+                      }
+                    }}
+                    className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-2xl transition-all"
+                    title="删除通知"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={() => setSelectedNotif(null)}
+                    className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
+                  >
+                    <X className="w-5 h-5 text-[#848E9C]" />
+                  </button>
+                </div>
               </div>
 
               <h3 className="text-xl font-black text-white leading-tight mb-2 uppercase tracking-tight">
