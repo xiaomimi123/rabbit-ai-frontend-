@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
-import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, TrendingUp, Info, Copy, Check, LogOut } from 'lucide-react';
+import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, CreditCard, Clock, Activity, Zap, X, TrendingUp, Info, Copy, Check, LogOut, ArrowUpRight, CheckCircle2, Wallet } from 'lucide-react';
 import { UserStats, HistoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
@@ -320,12 +320,16 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
           const energyCost = Math.ceil(amount * ENERGY_PER_USDT_WITHDRAW);
           const createdAt = withdraw.time || withdraw.createdAt || new Date().toISOString();
           
+          // ✅ 优化：根据状态决定标题和显示方式
+          const isCompleted = withdraw.status === 'Completed' || withdraw.status === 'Approved';
           timeline.push({
             type: 'withdraw',
             icon: '💸',
-            title: t('profile.liquidityWithdraw') || '提取收益',
+            title: isCompleted 
+              ? (t('profile.withdrawSuccess') || '提现到账') 
+              : (t('profile.liquidityWithdraw') || '提取收益'),
             description: `${amount.toFixed(2)} USDT`,
-            energy: `-${energyCost} ${t('profile.energy') || '能量'}`,
+            energy: `${energyCost} ${t('profile.energy') || '能量'}`, // ✅ 移除负号，稍后在显示时弱化
             time: createdAt,
             timestamp: new Date(createdAt).getTime(),
             status: withdraw.status || 'Pending',
@@ -333,6 +337,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
             amount: amount.toFixed(2),
             currency: 'USDT',
             energyChange: -energyCost,
+            isCompleted, // ✅ 新增：标记是否已完成
           });
         });
       }
@@ -612,25 +617,51 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
           {isLoading ? (
             <div className="text-center py-6 text-xs text-[#848E9C] italic">{t('common.loading') || '加载中...'}</div>
           ) : timelineHistory.length > 0 ? (
-            timelineHistory.map((item: any, index: number) => (
+            timelineHistory.map((item: any, index: number) => {
+              // ✅ 优化：判断提现是否成功
+              const isWithdrawCompleted = item.type === 'withdraw' && (item.isCompleted || item.status === 'Completed' || item.status === 'Approved');
+              const isWithdrawRejected = item.type === 'withdraw' && item.status === 'Rejected';
+              
+              return (
               <div key={`${item.type}-${item.timestamp}-${index}`} className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-all group">
                 <div className="flex items-center gap-4">
-                  <div className="bg-[#0b0e11] p-3 rounded-xl border border-white/5 group-hover:border-[#FCD535]/30 transition-colors">
+                  {/* ✅ 优化：成功的提现使用绿色背景和成功图标 */}
+                  <div className={`p-3 rounded-xl border transition-colors ${
+                    item.type === 'airdrop' 
+                      ? 'bg-[#0b0e11] border-white/5 group-hover:border-[#FCD535]/30' 
+                      : item.type === 'invite'
+                      ? 'bg-[#0b0e11] border-white/5 group-hover:border-[#0ECB81]/30'
+                      : isWithdrawCompleted
+                      ? 'bg-[#0ECB81]/10 border-[#0ECB81]/30 group-hover:border-[#0ECB81]/50' // ✅ 成功提现：绿色背景
+                      : isWithdrawRejected
+                      ? 'bg-red-500/10 border-red-500/30 group-hover:border-red-500/50' // 拒绝：红色背景
+                      : 'bg-[#0b0e11] border-white/5 group-hover:border-[#848E9C]/30'
+                  }`}>
                     {item.type === 'airdrop' ? <Gift className="w-4 h-4 text-[#FCD535]" /> : 
                      item.type === 'invite' ? <Handshake className="w-4 h-4 text-[#0ECB81]" /> : 
+                     isWithdrawCompleted ? <CheckCircle2 className="w-4 h-4 text-[#0ECB81]" /> : // ✅ 成功：打勾图标
+                     isWithdrawRejected ? <X className="w-4 h-4 text-red-400" /> : // 拒绝：X图标
                      <CreditCard className="w-4 h-4 text-[#848E9C]" />}
                   </div>
                   <div>
                     <p className="text-xs font-black text-white uppercase tracking-tight">
                       {item.title}
                     </p>
-                    <p className="text-[9px] text-[#848E9C] font-bold flex items-center gap-1.5 uppercase mt-0.5">
-                      <Clock className="w-2.5 h-2.5" /> {new Date(item.time).toLocaleDateString('zh-CN', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })} • {t('profile.verified') || '已验证'}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[9px] text-[#848E9C] font-bold flex items-center gap-1.5 uppercase">
+                        <Clock className="w-2.5 h-2.5" /> {new Date(item.time).toLocaleDateString('zh-CN', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit'
+                        })} • {t('profile.verified') || '已验证'}
+                      </p>
+                      {/* ✅ 优化：能量值移到左侧，弱化显示 */}
+                      {item.type === 'withdraw' && (
+                        <span className="text-[8px] text-[#848E9C]/60 font-medium">
+                          消耗 {item.energy.replace('-', '')}
+                        </span>
+                      )}
+                    </div>
                     {item.status && (
                       <span className={`inline-block mt-1 text-[8px] px-2 py-0.5 rounded-full font-bold ${
                         item.status === 'Approved' || item.status === 'Completed'
@@ -645,15 +676,32 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-black mono ${item.type === 'withdraw' ? 'text-[#F6465D]' : 'text-[#0ECB81]'}`}>
-                    {item.type === 'withdraw' ? '-' : '+'}{item.amount} <span className="text-[10px] font-medium opacity-70">{item.currency}</span>
+                  {/* ✅ 优化：成功的提现使用白色或金色，用箭头代替负号 */}
+                  <p className={`text-sm font-black mono ${
+                    item.type === 'withdraw' 
+                      ? isWithdrawCompleted 
+                        ? 'text-[#FCD535]' // ✅ 成功：金色（丰收金）
+                        : isWithdrawRejected
+                        ? 'text-red-400' // 拒绝：红色
+                        : 'text-white' // 待处理：白色
+                      : 'text-[#0ECB81]'
+                  }`}>
+                    {item.type === 'withdraw' 
+                      ? isWithdrawCompleted 
+                        ? <span className="flex items-center gap-1 justify-end">
+                            {item.amount} <ArrowUpRight className="w-3 h-3" /> {/* ✅ 用箭头代替负号 */}
+                          </span>
+                        : isWithdrawRejected
+                        ? `-${item.amount}` // 拒绝：保留负号
+                        : item.amount // 待处理：无符号
+                      : `+${item.amount}`
+                    } <span className="text-[10px] font-medium opacity-70">{item.currency}</span>
                   </p>
-                  <p className={`text-[9px] font-black uppercase ${item.energyChange > 0 ? 'text-[#FCD535]' : 'text-red-400'}`}>
-                    {item.energy}
-                  </p>
+                  {/* ✅ 优化：移除右侧的能量值显示（已移到左侧弱化显示） */}
                 </div>
               </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-center py-6 text-xs text-[#848E9C] italic">{t('profile.noHistory') || '暂无记录'}</div>
           )}
