@@ -468,6 +468,15 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [stats.address]);
 
+  // 如果显示活动记录页面，直接返回该页面
+  if (showActivityHistory) {
+    console.log('[ProfileView] 显示活动记录页面');
+    return <ActivityHistoryView stats={stats} onBack={() => {
+      console.log('[ProfileView] 返回按钮被点击');
+      setShowActivityHistory(false);
+    }} />;
+  }
+
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
       {/* Identity Header */}
@@ -613,8 +622,13 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white">{t('profile.activityLedger') || '活动记录'}</h3>
           </div>
           <button 
-            onClick={() => setShowActivityHistory(true)}
-            className="text-[10px] text-[#FCD535] font-black uppercase tracking-widest hover:underline decoration-2 underline-offset-4"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('[ProfileView] 点击查看全部按钮');
+              setShowActivityHistory(true);
+            }}
+            className="text-[10px] text-[#FCD535] font-black uppercase tracking-widest hover:underline decoration-2 underline-offset-4 cursor-pointer active:opacity-80 transition-opacity"
           >
             {t('profile.browseAll') || '查看全部'}
           </button>
