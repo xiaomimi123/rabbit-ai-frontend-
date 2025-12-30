@@ -679,14 +679,14 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                       {/* ✅ 优化：显示能量值 - 领取奖励显示"获得"，提现显示"消耗" */}
                       {item.type === 'airdrop' || item.type === 'invite' ? (
                         item.energyChange > 0 && (
-                          <span className="text-[8px] text-[#FCD535]/80 font-medium">
-                            获得 {item.energyChange} 点能量值
-                          </span>
+                            <span className="text-[8px] text-[#FCD535]/80 font-medium">
+                              {(t('profile.earnedEnergy') || '获得 {amount} 点能量值').replace('{amount}', String(item.energyChange))}
+                            </span>
                         )
                       ) : item.type === 'withdraw' && (
-                        <span className="text-[8px] text-[#848E9C]/60 font-medium">
-                          消耗 {item.energy.replace('-', '')}
-                        </span>
+                          <span className="text-[8px] text-[#848E9C]/60 font-medium">
+                            {(t('profile.consumedEnergy') || '消耗 {amount}').replace('{amount}', item.energy.replace('-', ''))}
+                          </span>
                       )}
                     </div>
                     {item.status && (
