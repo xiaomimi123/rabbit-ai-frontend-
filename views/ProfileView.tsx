@@ -9,6 +9,7 @@ import { useToast } from '../contexts/ToastContext';
 import { fetchUserInfo, fetchTeamRewards, getWithdrawHistory, getClaimsHistory, getReferralHistory } from '../api';
 import { shortenAddress, disconnectWallet } from '../services/web3Service';
 import { ENERGY_PER_USDT_WITHDRAW } from '../constants';
+import ActivityHistoryView from './ActivityHistoryView';
 
 interface ProfileViewProps {
   stats: UserStats;
@@ -18,6 +19,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
   const { t } = useLanguage();
   const { showSuccess, showError } = useToast();
   const [showEnergyModal, setShowEnergyModal] = useState(false);
+  const [showActivityHistory, setShowActivityHistory] = useState(false);
   const [energy, setEnergy] = useState(stats.energy);
   const [teamRewards, setTeamRewards] = useState<string>('0');
   const [inviteCount, setInviteCount] = useState(stats.teamSize);
@@ -610,7 +612,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
              <Activity className="w-4 h-4 text-[#FCD535]" />
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white">{t('profile.activityLedger') || '活动记录'}</h3>
           </div>
-          <button className="text-[10px] text-[#FCD535] font-black uppercase tracking-widest hover:underline decoration-2 underline-offset-4">{t('profile.browseAll') || '查看全部'}</button>
+          <button 
+            onClick={() => setShowActivityHistory(true)}
+            className="text-[10px] text-[#FCD535] font-black uppercase tracking-widest hover:underline decoration-2 underline-offset-4"
+          >
+            {t('profile.browseAll') || '查看全部'}
+          </button>
         </div>
         
         <div className="divide-y divide-white/5">
