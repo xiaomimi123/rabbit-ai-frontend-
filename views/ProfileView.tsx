@@ -655,8 +655,14 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                           day: '2-digit'
                         })} • {t('profile.verified') || '已验证'}
                       </p>
-                      {/* ✅ 优化：能量值移到左侧，弱化显示 */}
-                      {item.type === 'withdraw' && (
+                      {/* ✅ 优化：显示能量值 - 领取奖励显示"获得"，提现显示"消耗" */}
+                      {item.type === 'airdrop' || item.type === 'invite' ? (
+                        item.energyChange > 0 && (
+                          <span className="text-[8px] text-[#FCD535]/80 font-medium">
+                            获得 {item.energyChange} 点能量值
+                          </span>
+                        )
+                      ) : item.type === 'withdraw' && (
                         <span className="text-[8px] text-[#848E9C]/60 font-medium">
                           消耗 {item.energy.replace('-', '')}
                         </span>
