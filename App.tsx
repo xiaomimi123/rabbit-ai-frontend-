@@ -401,8 +401,8 @@ const App: React.FC = () => {
       {/* Top Status Bar */}
       <header className="px-6 pt-6 pb-2 flex justify-between items-center z-[60]">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#FCD535] rounded-lg flex items-center justify-center glow-yellow cursor-pointer overflow-hidden" onClick={() => setActiveTab('mining')}>
-             <img src="/logo.svg" alt="Rabbit AI Logo" className="w-6 h-6 object-contain" />
+          <div className="w-8 h-8 bg-[#FCD535] rounded-full flex items-center justify-center glow-yellow cursor-pointer overflow-hidden" onClick={() => setActiveTab('mining')}>
+             <img src="/logo.svg" alt="Rabbit AI Logo" className="w-full h-full object-cover" />
           </div>
           <div>
             <span className="font-black text-lg tracking-tighter uppercase italic block leading-none">Rabbit AI</span>
