@@ -470,11 +470,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
 
   // 如果显示活动记录页面，直接返回该页面
   if (showActivityHistory) {
-    console.log('[ProfileView] 显示活动记录页面');
-    return <ActivityHistoryView stats={stats} onBack={() => {
-      console.log('[ProfileView] 返回按钮被点击');
-      setShowActivityHistory(false);
-    }} />;
+    return <ActivityHistoryView stats={stats} onBack={() => setShowActivityHistory(false)} />;
   }
 
   return (
@@ -626,7 +622,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('[ProfileView] 点击查看全部按钮, showActivityHistory:', showActivityHistory);
               setShowActivityHistory(true);
             }}
             onTouchStart={(e) => {
