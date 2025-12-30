@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { logger } from './utils/logger';
-import { Pickaxe, Wallet, User, ShieldCheck, Bell, Menu, X, Globe, FileText, ExternalLink, ChevronRight, Twitter, Send, Headset, MessageSquareQuote, Check } from 'lucide-react';
+import { Gift, Wallet, User, ShieldCheck, Bell, Menu, X, Globe, FileText, ExternalLink, ChevronRight, Twitter, Send, Headset, MessageSquareQuote, Check } from 'lucide-react';
 import MiningView from './views/MiningView';
 import AssetView from './views/AssetView';
 import ProfileView from './views/ProfileView';
@@ -401,8 +401,8 @@ const App: React.FC = () => {
       {/* Top Status Bar */}
       <header className="px-6 pt-6 pb-2 flex justify-between items-center z-[60]">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#FCD535] rounded-lg flex items-center justify-center glow-yellow cursor-pointer" onClick={() => setActiveTab('mining')}>
-             <span className="text-[#0B0E11] font-black text-xl leading-none">R</span>
+          <div className="w-8 h-8 bg-[#FCD535] rounded-lg flex items-center justify-center glow-yellow cursor-pointer overflow-hidden" onClick={() => setActiveTab('mining')}>
+             <img src="/logo.svg" alt="Rabbit AI Logo" className="w-6 h-6 object-contain" />
           </div>
           <div>
             <span className="font-black text-lg tracking-tighter uppercase italic block leading-none">Rabbit AI</span>
@@ -542,7 +542,7 @@ const App: React.FC = () => {
       {/* Bottom Nav */}
       <div className="fixed bottom-6 left-0 right-0 px-6 z-50">
         <nav className="max-w-[340px] mx-auto glass rounded-2xl p-2 flex justify-between items-center shadow-2xl border border-white/10">
-          <NavButton active={activeTab === 'mining'} onClick={() => setActiveTab('mining')} icon={<Pickaxe className="w-5 h-5" />} label={t('nav.mining') || 'Mining'} />
+          <NavButton active={activeTab === 'mining'} onClick={() => setActiveTab('mining')} icon={<Gift className="w-5 h-5" />} label={t('nav.mining') || 'Airdrop'} />
           <NavButton active={activeTab === 'asset'} onClick={() => setActiveTab('asset')} icon={<Wallet className="w-5 h-5" />} label={t('nav.asset') || 'Assets'} />
           <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User className="w-5 h-5" />} label={t('nav.profile') || 'Me'} />
         </nav>
