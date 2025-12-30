@@ -1134,11 +1134,11 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         <p className="text-[9px] text-center text-[#848E9C] font-black uppercase tracking-[0.3em] mb-6">{t('mining.institutionalEcosystem') || '机构生态'}</p>
         <div className="grid grid-cols-2 gap-3 px-2">
           {PARTNERS.map((p, i) => (
-            <div key={i} className="flex items-center justify-center gap-2 py-3 grayscale opacity-30 hover:grayscale-0 hover:opacity-100 transition-all duration-500 border-b border-white/5">
-              <div className="text-[#848E9C] hover:text-white transition-colors">
+            <div key={i} className="flex items-center justify-center gap-2 py-3 opacity-100 transition-all duration-300 border-b border-white/10 hover:border-[#FCD535]/30 group">
+              <div className="text-white transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(252,213,53,0.6)]">
                 {getPartnerIcon(p.name, "w-4 h-4")}
               </div>
-              <span className="text-[10px] font-bold text-[#848E9C] tracking-tighter uppercase">{p.name}</span>
+              <span className="text-[10px] font-bold text-white tracking-tighter uppercase transition-all duration-300 group-hover:text-[#FCD535]">{p.name}</span>
             </div>
           ))}
         </div>
