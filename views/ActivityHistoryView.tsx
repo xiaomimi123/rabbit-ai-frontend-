@@ -24,13 +24,19 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
   }, [stats.address]);
 
   const loadTimelineHistory = async () => {
+    // ✅ 优化：延迟设置加载状态，避免快速加载时的闪烁
+    let loadingTimeout: NodeJS.Timeout | null = null;
+    
     try {
       if (!stats.address || !stats.address.startsWith('0x')) {
         setTimelineHistory([]);
+        setIsLoading(false);
         return;
       }
 
-      setIsLoading(true);
+      loadingTimeout = setTimeout(() => {
+        setIsLoading(true);
+      }, 300); // 300ms 后才显示加载状态
 
       // 并行获取所有历史记录
       const [withdrawals, claims, referrals] = await Promise.all([
@@ -131,11 +137,15 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
       // 按时间倒序排序（最新的在前）
       timeline.sort((a, b) => b.timestamp - a.timestamp);
 
+      // ✅ 优化：直接更新数据，不清空旧数据，避免闪烁
       setTimelineHistory(timeline);
+      if (loadingTimeout) clearTimeout(loadingTimeout);
+      setIsLoading(false);
     } catch (e) {
       console.error('Error loading timeline history:', e);
-      setTimelineHistory([]);
-    } finally {
+      // ✅ 优化：错误时不清空数据，保留旧数据
+      // setTimelineHistory([]);
+      if (loadingTimeout) clearTimeout(loadingTimeout);
       setIsLoading(false);
     }
   };
@@ -214,13 +224,25 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
 
       {/* Activity List */}
       <div className="bg-[#1e2329]/40 border border-white/5 rounded-[2rem] overflow-hidden">
-        <div className="divide-y divide-white/5 max-h-[calc(100vh-280px)] overflow-y-auto">
-          {isLoading ? (
+        <div className="divide-y divide-white/5 max-h-[calc(100vh-280px)] overflow-y-auto relative">
+          {/* ✅ 优化：叠加加载指示器，而不是替换整个列表 */}
+          {isLoading && filteredHistory.length > 0 && (
+            <div className="absolute top-0 left-0 right-0 bg-[#1e2329]/80 backdrop-blur-sm z-10 flex items-center justify-center py-2 rounded-t-[2rem]">
+              <div className="text-[10px] text-[#848E9C] font-medium flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-[#FCD535]/30 border-t-[#FCD535] rounded-full animate-spin"></div>
+                {t('common.loading') || '刷新中...'}
+              </div>
+            </div>
+          )}
+          
+          {/* ✅ 优化：保留旧数据，只在首次加载或真正无数据时显示加载/空状态 */}
+          {isLoading && filteredHistory.length === 0 ? (
             <div className="text-center py-10 text-xs text-[#848E9C] italic">
               {t('common.loading') || '加载中...'}
             </div>
           ) : filteredHistory.length > 0 ? (
-            filteredHistory.map((item: any, index: number) => {
+            <div className="transition-opacity duration-300">
+              {filteredHistory.map((item: any, index: number) => {
               const isWithdrawCompleted = item.type === 'withdraw' && (item.isCompleted || item.status === 'Completed' || item.status === 'Approved');
               const isWithdrawRejected = item.type === 'withdraw' && item.status === 'Rejected';
               
@@ -311,7 +333,8 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
                   </div>
                 </div>
               );
-            })
+              })}
+            </div>
           ) : (
             <div className="text-center py-10 text-xs text-[#848E9C] italic">
               {activeFilter === 'all' 
