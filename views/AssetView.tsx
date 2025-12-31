@@ -700,7 +700,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                 value={realTimeEarnings} 
                 decimals={6} // 6 位小数，让滚动更疯狂
                 prefix="$"
-                className="text-5xl font-black text-white mono tracking-tighter"
+                className="text-5xl font-black text-white font-mono tracking-tighter"
               />
             ) : (
               /* 未达到标准时，显示静态数字 */
