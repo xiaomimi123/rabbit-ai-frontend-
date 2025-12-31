@@ -696,9 +696,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
               <span className="text-[#848E9C]">--</span>
             ) : earnings.currentTier > 0 && realTimeEarnings !== null ? (
               /* ✨ 使用滚动组件 ✨ */
-              /* 🟢 修复：如果后端已结算（pendingUsdt > 0），限制显示不超过可提现金额；否则显示预计收益 */
+              /* 🟢 修复：直接显示实时计算的收益，让数字持续跳动（提现时会验证实际可提现金额） */
               <RollingNumber 
-                value={earnings.pendingUsdt > 0 ? Math.min(realTimeEarnings, earnings.pendingUsdt) : realTimeEarnings} 
+                value={realTimeEarnings} 
                 decimals={6} // 6 位小数，让滚动更疯狂
                 prefix="$"
                 className="text-5xl font-black text-white font-mono tracking-tighter"
