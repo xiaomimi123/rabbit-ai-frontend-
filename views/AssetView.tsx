@@ -1307,7 +1307,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                   loading
                 }
                 className={`w-full font-black py-4 sm:py-6 rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all touch-manipulation flex-shrink-0 min-h-[56px] ${
-                  withdrawAmount && parseFloat(withdrawAmount) > 0 && (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)
+                  !withdrawAmount || parseFloat(withdrawAmount) < MIN_WITHDRAW_AMOUNT
+                    ? 'bg-[#848E9C]/20 text-[#848E9C] border-2 border-[#848E9C]/30'
+                    : withdrawAmount && parseFloat(withdrawAmount) > 0 && (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)
                     ? 'bg-[#FCD535] text-[#0B0E11] shadow-[#FCD535]/20'
                     : withdrawAmount && parseFloat(withdrawAmount) > 0
                     ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 shadow-red-500/10'
@@ -1317,7 +1319,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                 {loading ? (
                   t('asset.processing') || '处理中...'
                 ) : !withdrawAmount || parseFloat(withdrawAmount) < MIN_WITHDRAW_AMOUNT ? (
-                  (t('asset.minWithdrawAmount') || '最低提现 {amount} USDT').replace('{amount}', MIN_WITHDRAW_AMOUNT.toFixed(1))
+                  (t('asset.minWithdrawAmount') || '最低提现 {amount} USDT (需要 {energy} 能量)')
+                    .replace('{amount}', MIN_WITHDRAW_AMOUNT.toFixed(1))
+                    .replace('{energy}', String(Math.ceil(MIN_WITHDRAW_AMOUNT * ENERGY_PER_USDT_WITHDRAW)))
                 ) : (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) ? (
                   t('asset.confirmWithdraw') || '确认提现'
                 ) : (
