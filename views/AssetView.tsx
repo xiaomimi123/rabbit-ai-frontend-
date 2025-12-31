@@ -1079,6 +1079,10 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                     {t('common.max') || 'MAX'}
                   </button>
                 </div>
+                {/* 最低提现金额提示 */}
+                <p className="text-[9px] sm:text-[10px] text-[#848E9C]/70 font-medium text-center mt-2">
+                  {t('asset.minWithdrawAmountHint') || '最低提现 0.1 USDT'}
+                </p>
               </div>
 
               {/* 能量信息：只在用户输入金额后显示 */}
