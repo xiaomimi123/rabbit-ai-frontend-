@@ -5,10 +5,11 @@ import { ethers } from 'ethers';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2 } from 'lucide-react';
 import { UserStats } from '../types';
 import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_PER_USDT_WITHDRAW, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
-import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo } from '../api';
+import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { getProvider, getContract } from '../services/web3Service';
+import WithdrawalSuccessModal from '../components/WithdrawalSuccessModal';
 
 interface AssetViewProps {
   stats: UserStats;
@@ -36,6 +37,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   const [modalEnergy, setModalEnergy] = useState<number | null>(null);
   // 总奖励动态增长值（每小时随机增加3位数字）
   const [totalRewardGrowth, setTotalRewardGrowth] = useState(0);
+  // 提现到账庆祝弹窗
+  const [newSuccessWithdrawal, setNewSuccessWithdrawal] = useState<{amount: string, id: string} | null>(null);
 
   // 加载持币余额和收益信息
   useEffect(() => {
@@ -240,6 +243,59 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
 
     return () => clearInterval(growthInterval);
   }, []);
+
+  // 检测新的提现到账（轮询检测 Completed 状态的提现）
+  useEffect(() => {
+    if (!stats.address || !stats.address.startsWith('0x')) return;
+
+    const checkNewWithdrawals = async () => {
+      try {
+        // 获取提现记录
+        const history = await getWithdrawHistory(stats.address);
+        
+        // 筛选出状态为 "Completed" 的记录
+        const completed = history.filter((item: any) => item.status === 'Completed' || item.status === 'completed');
+        
+        if (completed.length === 0) return;
+
+        // 从本地缓存读取"已展示过"的ID列表
+        const seenIds = JSON.parse(localStorage.getItem('seen_withdrawal_ids') || '[]');
+
+        // 找到最新的一个、且从未展示过的提现记录
+        // 按时间倒序排列，找到第一个不在 seenIds 里的记录
+        const sortedCompleted = completed.sort((a: any, b: any) => {
+          const timeA = new Date(a.time || a.created_at || 0).getTime();
+          const timeB = new Date(b.time || b.created_at || 0).getTime();
+          return timeB - timeA;
+        });
+
+        const newRecord = sortedCompleted.find((item: any) => !seenIds.includes(item.id));
+
+        if (newRecord) {
+          // 触发弹窗
+          setNewSuccessWithdrawal({
+            amount: newRecord.amount || '0',
+            id: newRecord.id
+          });
+
+          // 立刻将这个ID加入缓存，防止重复弹窗
+          seenIds.push(newRecord.id);
+          localStorage.setItem('seen_withdrawal_ids', JSON.stringify(seenIds));
+        }
+      } catch (error) {
+        // 静默失败，不影响主流程
+        console.warn('[AssetView] Check withdrawal status failed', error);
+      }
+    };
+
+    // 页面加载时查一次
+    checkNewWithdrawals();
+
+    // 之后每 10 秒查一次 (轮询)
+    const intervalId = setInterval(checkNewWithdrawals, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [stats.address]);
 
   const usdtValuation = useMemo(() => {
     if (ratBalance === null) return null;
@@ -1064,6 +1120,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* 提现到账庆祝弹窗 */}
+      {newSuccessWithdrawal && stats.address && (
+        <WithdrawalSuccessModal 
+          amount={newSuccessWithdrawal.amount}
+          userAddress={stats.address}
+          onClose={() => setNewSuccessWithdrawal(null)}
+        />
       )}
     </div>
   );
