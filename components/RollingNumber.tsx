@@ -5,18 +5,21 @@ import { motion } from 'framer-motion';
 const Digit = ({ value }: { value: number }) => {
   return (
     <div 
-      // 🟢 修复 1: 移除 w-[0.6em]，改用 min-w 配合 flex 布局，防止数字重叠或间距过大
-      // 添加 tabular-nums 确保等宽显示，避免数字跳动时宽度忽大忽小
       className="relative h-[1em] min-w-[0.6em] overflow-hidden flex justify-center tabular-nums"
     >
       <motion.div
         initial={false}
-        animate={{ y: `-${value * 10}0%` }} // 移动到目标数字的位置
+        // 🟢 修复核心 Bug: 把原来的 `-${value * 10}0%` 改为 `-${value * 10}%`
+        // 解释: 共有10个数字，每个占10%高度。显示数字5就要上移50%。
+        animate={{ y: `-${value * 10}%` }} 
         transition={{ 
+          // 🟢 优化动画参数: 
+          // 原来的 stiffness: 60 太软了，跟不上 100ms 的刷新速度
+          // 改为 120 让它反应更快，更有"机械计数器"的干脆感
           type: "spring", 
-          stiffness: 60,  // 🟢 调低刚度，让滚动更柔和，减少鬼畜感
-          damping: 15,    // 🟢 调整阻尼，防止回弹过猛
-          mass: 0.5       // 🟢 减轻质量，反应更灵敏
+          stiffness: 120,  
+          damping: 20,    
+          mass: 0.8       
         }}
         className="absolute top-0 left-0 w-full flex flex-col items-center"
       >
@@ -45,13 +48,8 @@ export const RollingNumber: React.FC<RollingNumberProps> = ({
   prefix = "",
   className = "" 
 }) => {
-  // 确保 value 是有效数字
   const safeValue = isNaN(value) ? 0 : value;
-  
-  // 格式化数字 (保持小数位固定)
   const formatted = safeValue.toFixed(decimals);
-  
-  // 拆分成字符数组
   const chars = formatted.split('');
 
   return (
@@ -61,13 +59,12 @@ export const RollingNumber: React.FC<RollingNumberProps> = ({
       {chars.map((char, index) => {
         const isNumber = !isNaN(parseInt(char));
         
-        // 🟢 修复 2: key 仅绑定 index。
-        // 这样当数字变化时，React 认为是同一个组件在更新 props，从而触发 smooth 动画
         if (isNumber) {
+          // key={index} 确保了 React 不会销毁重建组件，只是更新 value
+          // 从而触发上面 motion.div 的 animate 动画
           return <Digit key={index} value={parseInt(char)} />;
         }
         
-        // 如果是小数点，直接显示
         return (
           <span key={index} className="inline-block mx-[1px] leading-none">
             {char}
