@@ -235,10 +235,20 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
               currentTier: 0,
               holdingDays: 0,
             });
+            // 🟢 修复：即使404错误，也要设置 earningsBaseTime，避免数字不跳动
+            setEarningsBaseTime(Date.now());
+            setEarningsBaseValue(0);
+            setCalculatedEarningsBase(0);
+            setRealTimeEarnings(0);
           } else {
             // 其他错误，保持 null，不设置为 0
             console.error('Failed to load earnings data:', earningsError);
             setEarningsError(true);
+            // 🟢 修复：即使错误，也要尝试设置 earningsBaseTime（如果之前有值）
+            // 这样可以避免刷新后数字不跳动
+            if (earningsBaseTime === null) {
+              setEarningsBaseTime(Date.now());
+            }
           }
         }
       } catch (error: any) {
@@ -469,11 +479,33 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     }
   }, [ratBalance, currentTier, earnings]);
 
-  // 实时累计收益计算 - 每2秒更新一次（实现滚动效果，但不会太快）
+  // 实时累计收益计算 - 每5秒更新一次（实现滚动效果，但不会太快）
   useEffect(() => {
-    if (!earnings || earnings.currentTier === 0 || estimatedDailyEarnings === null || earningsBaseTime === null) {
+    // 🟢 调试：检查条件
+    if (!earnings) {
+      console.log('[AssetView] useEffect skipped: earnings is null');
       return;
     }
+    if (earnings.currentTier === 0) {
+      console.log('[AssetView] useEffect skipped: currentTier is 0');
+      return;
+    }
+    if (estimatedDailyEarnings === null) {
+      console.log('[AssetView] useEffect skipped: estimatedDailyEarnings is null', { ratBalance, currentTier: earnings.currentTier });
+      return;
+    }
+    if (earningsBaseTime === null) {
+      console.log('[AssetView] useEffect skipped: earningsBaseTime is null');
+      return;
+    }
+    
+    console.log('[AssetView] ✅ Starting real-time earnings update', {
+      currentTier: earnings.currentTier,
+      estimatedDailyEarnings,
+      earningsBaseTime,
+      earningsBaseValue,
+      calculatedEarningsBase
+    });
 
     // 计算每日收益上限（基准收益 + 预计每日收益 + 赠送的USDT）
     const giftedUsdt = earningsBaseValue - calculatedEarningsBase;
