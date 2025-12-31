@@ -19,7 +19,7 @@ interface AssetViewProps {
 
 const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   const { t } = useLanguage();
-  const { showError, showWarning, showInfo } = useToast();
+  const { showError, showWarning, showInfo, showSuccess } = useToast();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -696,8 +696,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
               <span className="text-[#848E9C]">--</span>
             ) : earnings.currentTier > 0 && realTimeEarnings !== null ? (
               /* ✨ 使用滚动组件 ✨ */
+              /* 🟢 修复：如果后端已结算（pendingUsdt > 0），限制显示不超过可提现金额；否则显示预计收益 */
               <RollingNumber 
-                value={realTimeEarnings} 
+                value={earnings.pendingUsdt > 0 ? Math.min(realTimeEarnings, earnings.pendingUsdt) : realTimeEarnings} 
                 decimals={6} // 6 位小数，让滚动更疯狂
                 prefix="$"
                 className="text-5xl font-black text-white font-mono tracking-tighter"
@@ -1021,7 +1022,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                   <div className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 text-2xl sm:text-4xl font-black text-[#848E9C] pointer-events-none">$</div>
                   <input 
                     type="number" 
-                    step="0.01"
+                    step="0.01" // 🟢 精度控制：2位小数
                     min="0"
                     max={earnings ? earnings.pendingUsdt : stats.pendingUsdt}
                     value={withdrawAmount}
@@ -1029,9 +1030,25 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                       const val = e.target.value;
                       const numVal = parseFloat(val);
                       const maxVal = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
-                      // 限制输入不超过可提现余额
+                      // 🟢 精度控制：限制输入不超过可提现余额，并保留2位小数
                       if (val === '' || (!isNaN(numVal) && numVal >= 0 && numVal <= maxVal)) {
+                        // 如果输入了超过2位小数，自动截断
+                        if (val.includes('.')) {
+                          const parts = val.split('.');
+                          if (parts[1] && parts[1].length > 2) {
+                            setWithdrawAmount(parts[0] + '.' + parts[1].substring(0, 2));
+                            return;
+                          }
+                        }
                         setWithdrawAmount(val);
+                      }
+                    }}
+                    onBlur={e => {
+                      // 🟢 精度控制：失焦时自动格式化为2位小数
+                      const val = e.target.value;
+                      if (val && !isNaN(parseFloat(val))) {
+                        const formatted = parseFloat(val).toFixed(2);
+                        setWithdrawAmount(formatted);
                       }
                     }}
                     className="w-full bg-[#0b0e11] border-2 border-white/10 rounded-3xl py-6 sm:py-8 px-12 sm:px-16 text-3xl sm:text-5xl font-black mono text-white outline-none transition-all touch-manipulation min-h-[80px] sm:min-h-[100px] focus:border-[#FCD535] focus:bg-[#0b0e11]/80 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -1199,10 +1216,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                     await applyWithdraw(stats.address, withdrawAmount);
                     setShowWithdrawModal(false);
                     setWithdrawAmount('');
-                    // 刷新数据
-                    const earningsData = await fetchEarnings(stats.address);
-                    // 重新获取最新的能量值
+                    // 🟢 错误处理：自动刷新数据（处理多端不同步问题）
                     try {
+                      const earningsData = await fetchEarnings(stats.address);
                       const userInfo = await fetchUserInfo(stats.address);
                       const updatedEnergy = Number(userInfo?.energy || 0);
                       setModalEnergy(updatedEnergy);
@@ -1211,20 +1227,51 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                         pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
                         energy: updatedEnergy
                       }));
-                    } catch (error) {
-                      // 如果获取失败，使用计算值
-                      setStats(prev => ({ 
-                        ...prev, 
+                      // 刷新收益数据
+                      setEarnings({
                         pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
-                        energy: prev.energy - requiredEnergy
-                      }));
+                        dailyRate: earningsData.dailyRate || 0,
+                        currentTier: earningsData.currentTier || 0,
+                        holdingDays: earningsData.holdingDays || 0,
+                      });
+                      // 触发能量刷新事件
+                      window.dispatchEvent(new CustomEvent('refreshEnergy'));
+                      showSuccess(t('asset.withdrawSuccess') || '提现申请已提交，等待审核');
+                    } catch (refreshError) {
+                      console.warn('[AssetView] Failed to refresh data after withdraw:', refreshError);
+                      showSuccess(t('asset.withdrawSuccess') || '提现申请已提交，等待审核');
                     }
-                    // 触发能量刷新事件
-                    window.dispatchEvent(new CustomEvent('refreshEnergy'));
                   } catch (error: any) {
                     console.error('Withdraw failed:', error);
                     const errorMsg = error?.response?.data?.message || error?.message || (t('asset.withdrawFailed') || '提现失败');
-                    showError(errorMsg);
+                    
+                    // 🟢 错误处理：检测多端不同步或余额不足，自动刷新数据
+                    if (errorMsg.includes('USDT_NOT_ENOUGH') || 
+                        errorMsg.includes('not enough') || 
+                        errorMsg.includes('concurrent') ||
+                        errorMsg.includes('余额不足')) {
+                      // 自动刷新数据
+                      try {
+                        const earningsData = await fetchEarnings(stats.address);
+                        const userInfo = await fetchUserInfo(stats.address);
+                        setStats(prev => ({
+                          ...prev,
+                          pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
+                          energy: userInfo.energy,
+                        }));
+                        setEarnings({
+                          pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
+                          dailyRate: earningsData.dailyRate || 0,
+                          currentTier: earningsData.currentTier || 0,
+                          holdingDays: earningsData.holdingDays || 0,
+                        });
+                        showError((t('asset.dataRefreshed') || '数据已更新，请重新尝试提现') + ` (${errorMsg})`);
+                      } catch (refreshError) {
+                        showError(errorMsg);
+                      }
+                    } else {
+                      showError(errorMsg);
+                    }
                   } finally {
                     setLoading(false);
                   }
