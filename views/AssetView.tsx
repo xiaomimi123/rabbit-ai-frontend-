@@ -146,13 +146,77 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             calculatedBase = ratBalanceFromChain * 0.01 * (dailyRate / 100) * holdingDays;
           }
           
+          // === 🟢 修复开始：智能锚定时间戳逻辑 ===
           // 更新实时收益的基准值和基准时间
           // earningsBaseValue 用于显示（包含赠送的USDT）
           // calculatedEarningsBase 用于计算增量（仅持币收益，不含赠送）
           setEarningsBaseValue(pendingUsdtValue);
           setCalculatedEarningsBase(calculatedBase);
-          setEarningsBaseTime(Date.now());
-          setRealTimeEarnings(pendingUsdtValue);
+
+          // 读取本地缓存，智能锚定时间戳
+          const STORE_KEY = `rabbit_earnings_anchor_${stats.address.toLowerCase()}`;
+          let anchorTime = Date.now();
+
+          try {
+            const stored = localStorage.getItem(STORE_KEY);
+            if (stored) {
+              const { baseValue, timestamp } = JSON.parse(stored);
+              
+              // 逻辑核心：
+              // 如果 API 返回的金额(pendingUsdtValue) 和缓存里的基准值(baseValue) 一样
+              // 说明后台还没结算新利息，我们应该"沿用"旧的时间戳，让前端动画继续累加
+              // 允许微小的浮动误差 (0.0001)
+              if (Math.abs(pendingUsdtValue - baseValue) < 0.0001) {
+                anchorTime = timestamp; // 保持旧时间，让收益曲线连续！
+              } else {
+                // 如果金额变了（后台发钱了或结算了），就重置时间戳为现在，并更新缓存
+                anchorTime = Date.now();
+                localStorage.setItem(STORE_KEY, JSON.stringify({
+                  baseValue: pendingUsdtValue,
+                  timestamp: anchorTime
+                }));
+              }
+            } else {
+              // 第一次存，初始化
+              anchorTime = Date.now();
+              localStorage.setItem(STORE_KEY, JSON.stringify({
+                baseValue: pendingUsdtValue,
+                timestamp: anchorTime
+              }));
+            }
+          } catch (e) {
+            console.warn('[AssetView] Failed to parse earnings anchor', e);
+            // 如果解析失败，使用当前时间
+            anchorTime = Date.now();
+            try {
+              localStorage.setItem(STORE_KEY, JSON.stringify({
+                baseValue: pendingUsdtValue,
+                timestamp: anchorTime
+              }));
+            } catch (storageError) {
+              console.warn('[AssetView] Failed to save earnings anchor', storageError);
+            }
+          }
+
+          setEarningsBaseTime(anchorTime); // 使用计算出的锚定时间
+          // === 🔴 修复结束 ===
+
+          // 计算初始实时收益值（如果已经有时间差，立即计算增量）
+          // 这样可以避免闪烁，让数字从刷新前的值平滑过渡
+          let initialRealTimeEarnings = pendingUsdtValue;
+          if (earningsData.currentTier > 0 && ratBalanceFromChain !== null) {
+            // 直接计算预计每日收益（不依赖 useMemo，因为此时 state 可能还没更新）
+            const dailyRate = earningsData.dailyRate || 0;
+            const estimatedDaily = ratBalanceFromChain * 0.01 * (dailyRate / 100);
+            
+            const timeElapsed = (Date.now() - anchorTime) / (1000 * 60); // 已经跑了多少分钟
+            const minutesPerDay = 24 * 60;
+            const incrementalEarnings = estimatedDaily * (timeElapsed / minutesPerDay);
+            const giftedUsdt = pendingUsdtValue - calculatedBase;
+            initialRealTimeEarnings = calculatedBase + incrementalEarnings + giftedUsdt;
+          }
+          
+          setRealTimeEarnings(initialRealTimeEarnings);
           // 更新 stats 中的 pendingUsdt
           setStats(prev => ({ ...prev, pendingUsdt: pendingUsdtValue }));
         } catch (earningsError: any) {
