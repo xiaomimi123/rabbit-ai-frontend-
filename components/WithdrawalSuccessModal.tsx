@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { X, CheckCircle2, Copy, Check } from 'lucide-react';
+import { X, Copy, Check } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface WithdrawalSuccessModalProps {
@@ -82,13 +82,28 @@ const WithdrawalSuccessModal: React.FC<WithdrawalSuccessModalProps> = ({ amount,
               <X className="w-5 h-5" />
             </button>
 
-            {/* 成功图标 - 增强光效 */}
+            {/* 跳动的美金符号 - 增强光效 */}
             <div className="relative z-10 mb-6 flex justify-center">
               <div className="relative">
                 {/* 图标光晕 */}
                 <div className="absolute inset-0 bg-[#FCD535]/30 blur-2xl rounded-full animate-pulse" />
-                <div className="relative w-24 h-24 bg-gradient-to-br from-[#FCD535] via-[#FFD700] to-[#FFA500] rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(252,213,53,0.6),inset_0_2px_10px_rgba(255,255,255,0.3)] animate-bounce">
-                  <CheckCircle2 className="w-12 h-12 text-[#0B0E11] drop-shadow-lg" />
+                <div className="relative w-24 h-24 bg-gradient-to-br from-[#FCD535] via-[#FFD700] to-[#FFA500] rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(252,213,53,0.6),inset_0_2px_10px_rgba(255,255,255,0.3)]">
+                  {/* 跳动的美金符号 */}
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      rotate: [0, 5, -5, 0],
+                      y: [0, -8, 0]
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                    className="text-5xl font-black text-[#0B0E11] drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+                  >
+                    $
+                  </motion.div>
                 </div>
               </div>
             </div>

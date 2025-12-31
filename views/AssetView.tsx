@@ -39,6 +39,11 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   const [totalRewardGrowth, setTotalRewardGrowth] = useState(0);
   // 提现到账庆祝弹窗
   const [newSuccessWithdrawal, setNewSuccessWithdrawal] = useState<{amount: string, id: string} | null>(null);
+  // 实时累计收益相关状态
+  const [realTimeEarnings, setRealTimeEarnings] = useState<number | null>(null);
+  const [earningsBaseTime, setEarningsBaseTime] = useState<number | null>(null); // 记录上次获取收益的时间戳
+  const [earningsBaseValue, setEarningsBaseValue] = useState<number>(0); // 记录上次获取的收益值（仅持币计算的收益，不含赠送）
+  const [calculatedEarningsBase, setCalculatedEarningsBase] = useState<number>(0); // 记录持币计算的收益基准值（不含赠送）
 
   // 加载持币余额和收益信息
   useEffect(() => {
@@ -123,14 +128,33 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
         setEarningsError(false);
         try {
           const earningsData = await fetchEarnings(stats.address);
+          const pendingUsdtValue = parseFloat(earningsData.pendingUsdt || '0');
           setEarnings({
-            pendingUsdt: parseFloat(earningsData.pendingUsdt || '0'),
+            pendingUsdt: pendingUsdtValue,
             dailyRate: earningsData.dailyRate || 0,
             currentTier: earningsData.currentTier || 0,
             holdingDays: earningsData.holdingDays || 0,
           });
+          
+          // 计算持币产生的收益基准值（不含赠送）
+          // 如果用户达到持币标准，计算持币收益 = 预计每日收益 * 持币天数
+          let calculatedBase = 0;
+          if (earningsData.currentTier > 0 && ratBalanceFromChain !== null) {
+            const dailyRate = earningsData.dailyRate || 0;
+            const holdingDays = earningsData.holdingDays || 0;
+            // 计算持币收益：持币量 × $0.01 × 日利率 × 持币天数
+            calculatedBase = ratBalanceFromChain * 0.01 * (dailyRate / 100) * holdingDays;
+          }
+          
+          // 更新实时收益的基准值和基准时间
+          // earningsBaseValue 用于显示（包含赠送的USDT）
+          // calculatedEarningsBase 用于计算增量（仅持币收益，不含赠送）
+          setEarningsBaseValue(pendingUsdtValue);
+          setCalculatedEarningsBase(calculatedBase);
+          setEarningsBaseTime(Date.now());
+          setRealTimeEarnings(pendingUsdtValue);
           // 更新 stats 中的 pendingUsdt
-          setStats(prev => ({ ...prev, pendingUsdt: parseFloat(earningsData.pendingUsdt || '0') }));
+          setStats(prev => ({ ...prev, pendingUsdt: pendingUsdtValue }));
         } catch (earningsError: any) {
           // 404 错误是正常的（没有数据），设置为 0
           const status = earningsError?.response?.status || earningsError?.status;
@@ -376,6 +400,39 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     }
   }, [ratBalance, currentTier, earnings]);
 
+  // 实时累计收益计算 - 每1分钟更新一次
+  useEffect(() => {
+    if (!earnings || earnings.currentTier === 0 || estimatedDailyEarnings === null || earningsBaseTime === null) {
+      return;
+    }
+
+    // 计算实时收益的更新函数
+    const updateRealTimeEarnings = () => {
+      const now = Date.now();
+      const timeElapsed = (now - earningsBaseTime) / (1000 * 60); // 经过的分钟数
+      const minutesPerDay = 24 * 60; // 一天有多少分钟
+      
+      // 计算增量收益：预计每日收益 * (经过的分钟数 / 一天的分钟数)
+      // 注意：增量收益只基于持币计算，不包含赠送的USDT
+      const incrementalEarnings = estimatedDailyEarnings * (timeElapsed / minutesPerDay);
+      
+      // 实时收益 = 持币计算的基准收益 + 增量收益 + 赠送的USDT
+      // 赠送的USDT = 总基准收益 - 持币计算的基准收益
+      const giftedUsdt = earningsBaseValue - calculatedEarningsBase;
+      const newRealTimeEarnings = calculatedEarningsBase + incrementalEarnings + giftedUsdt;
+      
+      setRealTimeEarnings(newRealTimeEarnings);
+    };
+
+    // 立即更新一次
+    updateRealTimeEarnings();
+
+    // 每1分钟更新一次
+    const intervalId = setInterval(updateRealTimeEarnings, 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [earnings, estimatedDailyEarnings, earningsBaseTime, earningsBaseValue, calculatedEarningsBase]);
+
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
       {/* Portfolio Overview */}
@@ -569,7 +626,11 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
               <span className="inline-block w-32 h-12 bg-white/5 rounded animate-pulse" />
             ) : earningsError ? (
               <span className="text-[#848E9C]">--</span>
+            ) : earnings.currentTier > 0 && realTimeEarnings !== null ? (
+              // 如果达到持币标准，显示实时累计收益（每1分钟跳动增长）
+              realTimeEarnings.toFixed(4)
             ) : (
+              // 未达到标准，显示后端返回的收益
               earnings.pendingUsdt.toFixed(4)
             )}
           </div>
