@@ -44,6 +44,7 @@ export const ABIS = {
 export const RAT_PRICE_USDT = 0.01;
 export const ENERGY_WITHDRAW_THRESHOLD = 30;
 export const ENERGY_PER_USDT_WITHDRAW = 10;
+export const MIN_WITHDRAW_AMOUNT = 0.1; // 最低提现金额：0.1 USDT = 1 点能量
 
 // 持币生息 VIP 等级配置（根据钱包 RAT 余额）
 export const VIP_TIERS = [

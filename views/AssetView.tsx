@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2 } from 'lucide-react';
 import { UserStats } from '../types';
-import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_PER_USDT_WITHDRAW, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
+import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_PER_USDT_WITHDRAW, MIN_WITHDRAW_AMOUNT, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
 import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
@@ -1037,15 +1037,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                   <input 
                     type="number" 
                     step="0.01" // 🟢 精度控制：2位小数
-                    min="0"
+                    min={MIN_WITHDRAW_AMOUNT}
                     max={earnings ? earnings.pendingUsdt : stats.pendingUsdt}
                     value={withdrawAmount}
                     onChange={e => {
                       const val = e.target.value;
                       const numVal = parseFloat(val);
                       const maxVal = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
-                      // 🟢 精度控制：限制输入不超过可提现余额，并保留2位小数
-                      if (val === '' || (!isNaN(numVal) && numVal >= 0 && numVal <= maxVal)) {
+                      // 🟢 精度控制：限制输入不超过可提现余额，不低于最低提现金额，并保留2位小数
+                      if (val === '' || (!isNaN(numVal) && numVal >= MIN_WITHDRAW_AMOUNT && numVal <= maxVal)) {
                         // 如果输入了超过2位小数，自动截断
                         if (val.includes('.')) {
                           const parts = val.split('.');
@@ -1186,6 +1186,12 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                     return;
                   }
                   
+                  // 🟢 验证最低提现金额：0.1 USDT = 1 点能量
+                  if (amount < MIN_WITHDRAW_AMOUNT) {
+                    showError((t('asset.minWithdrawAmount') || 'Minimum withdrawal amount is {amount} USDT (requires {energy} energy)').replace('{amount}', MIN_WITHDRAW_AMOUNT.toFixed(1)).replace('{energy}', String(Math.ceil(MIN_WITHDRAW_AMOUNT * ENERGY_PER_USDT_WITHDRAW))));
+                    return;
+                  }
+                  
                   const availableUsdt = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
                   if (amount > availableUsdt) {
                     showError(t('asset.withdrawAmountExceeded') || 'Withdrawal amount cannot exceed available balance');
@@ -1292,7 +1298,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                 }}
                 disabled={
                   !withdrawAmount || 
-                  parseFloat(withdrawAmount) <= 0 || 
+                  parseFloat(withdrawAmount) < MIN_WITHDRAW_AMOUNT || 
                   parseFloat(withdrawAmount) > (earnings ? earnings.pendingUsdt : stats.pendingUsdt) ||
                   loading
                 }
@@ -1306,8 +1312,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
               >
                 {loading ? (
                   t('asset.processing') || '处理中...'
-                ) : !withdrawAmount || parseFloat(withdrawAmount) <= 0 ? (
-                  t('asset.enterAmount') || '请输入提现金额'
+                ) : !withdrawAmount || parseFloat(withdrawAmount) < MIN_WITHDRAW_AMOUNT ? (
+                  (t('asset.minWithdrawAmount') || '最低提现 {amount} USDT').replace('{amount}', MIN_WITHDRAW_AMOUNT.toFixed(1))
                 ) : (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) ? (
                   t('asset.confirmWithdraw') || '确认提现'
                 ) : (

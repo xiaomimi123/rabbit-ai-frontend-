@@ -62,14 +62,13 @@ const WithdrawalSuccessModal: React.FC<WithdrawalSuccessModalProps> = ({ amount,
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ type: "spring", bounce: 0.4, duration: 0.6 }}
-          className="relative w-full max-w-sm overflow-hidden"
+          className="relative w-full max-w-sm"
         >
-          {/* 多层环境光效果 - 营造宝箱开启的感觉 */}
-          <div className="absolute -inset-20 bg-gradient-to-br from-[#FCD535]/30 via-[#FCD535]/10 to-transparent blur-3xl rounded-full animate-pulse" />
-          <div className="absolute -inset-10 bg-gradient-to-tr from-[#FCD535]/20 to-transparent blur-2xl rounded-full" />
-          
           {/* 玻璃拟态卡片主体 */}
           <div className="relative bg-gradient-to-b from-[#1e2329]/95 via-[#1a1f25]/95 to-[#161920]/95 backdrop-blur-xl border border-[#FCD535]/40 rounded-[2.5rem] p-8 shadow-[0_0_80px_rgba(252,213,53,0.4),0_20px_60px_rgba(0,0,0,0.5)] overflow-hidden">
+            {/* 多层环境光效果 - 营造宝箱开启的感觉（移到卡片内部，确保被 overflow-hidden 裁剪） */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[60%] bg-gradient-to-br from-[#FCD535]/30 via-[#FCD535]/10 to-transparent blur-3xl rounded-full animate-pulse pointer-events-none" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[70%] h-[50%] bg-gradient-to-tr from-[#FCD535]/20 to-transparent blur-2xl rounded-full pointer-events-none" />
             {/* 内部光效装饰 */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#FCD535]/10 blur-[100px] rounded-full pointer-events-none" />
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-[#FCD535]/5 blur-[80px] rounded-full pointer-events-none" />
