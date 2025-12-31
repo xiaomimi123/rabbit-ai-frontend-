@@ -214,7 +214,11 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             const minutesPerDay = 24 * 60;
             const incrementalEarnings = estimatedDaily * (timeElapsed / minutesPerDay);
             const giftedUsdt = pendingUsdtValue - calculatedBase;
-            initialRealTimeEarnings = calculatedBase + incrementalEarnings + giftedUsdt;
+            const calculatedEarnings = calculatedBase + incrementalEarnings + giftedUsdt;
+            
+            // 🟢 限制：不超过每日收益上限（基准收益 + 预计每日收益 + 赠送的USDT）
+            const maxDailyEarnings = calculatedBase + estimatedDaily + giftedUsdt;
+            initialRealTimeEarnings = Math.min(calculatedEarnings, maxDailyEarnings);
           }
           
           setRealTimeEarnings(initialRealTimeEarnings);
@@ -465,11 +469,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     }
   }, [ratBalance, currentTier, earnings]);
 
-  // 实时累计收益计算 - 每100ms更新一次（实现滚动效果）
+  // 实时累计收益计算 - 每2秒更新一次（实现滚动效果，但不会太快）
   useEffect(() => {
     if (!earnings || earnings.currentTier === 0 || estimatedDailyEarnings === null || earningsBaseTime === null) {
       return;
     }
+
+    // 计算每日收益上限（基准收益 + 预计每日收益 + 赠送的USDT）
+    const giftedUsdt = earningsBaseValue - calculatedEarningsBase;
+    const maxDailyEarnings = calculatedEarningsBase + estimatedDailyEarnings + giftedUsdt;
 
     // 计算实时收益的更新函数
     const updateRealTimeEarnings = () => {
@@ -483,18 +491,24 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       
       // 实时收益 = 持币计算的基准收益 + 增量收益 + 赠送的USDT
       // 赠送的USDT = 总基准收益 - 持币计算的基准收益
-      const giftedUsdt = earningsBaseValue - calculatedEarningsBase;
       const newRealTimeEarnings = calculatedEarningsBase + incrementalEarnings + giftedUsdt;
       
-      setRealTimeEarnings(newRealTimeEarnings);
+      // 🟢 限制：不超过每日收益上限
+      const cappedEarnings = Math.min(newRealTimeEarnings, maxDailyEarnings);
+      
+      setRealTimeEarnings(cappedEarnings);
     };
 
     // 立即更新一次
     updateRealTimeEarnings();
 
-    // 🚀 优化点：改为 100ms (0.1秒) 刷新一次
-    // 这样数字的最后一位小数会疯狂滚动，产生极强的"赚钱感"
-    const intervalId = setInterval(updateRealTimeEarnings, 100);
+    // 🚀 优化点：改为 5秒 (5000ms) 刷新一次
+    // 计算依据：
+    // - 假设每日收益 2.6 USDT，24小时 = 86400秒
+    // - 每5秒更新：增量 = 2.6 * 5 / 86400 ≈ 0.000150 USDT
+    // - 这样最后一位小数（0.000001）会明显变化，既平滑又不会太快
+    // - 24小时内总共更新 17280 次，平滑达到每日收益上限
+    const intervalId = setInterval(updateRealTimeEarnings, 5000);
 
     return () => clearInterval(intervalId);
   }, [earnings, estimatedDailyEarnings, earningsBaseTime, earningsBaseValue, calculatedEarningsBase]);
