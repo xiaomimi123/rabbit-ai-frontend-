@@ -10,6 +10,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { getProvider, getContract } from '../services/web3Service';
 import WithdrawalSuccessModal from '../components/WithdrawalSuccessModal';
+import { RollingNumber } from '../components/RollingNumber';
 
 interface AssetViewProps {
   stats: UserStats;
@@ -464,7 +465,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     }
   }, [ratBalance, currentTier, earnings]);
 
-  // 实时累计收益计算 - 每1分钟更新一次
+  // 实时累计收益计算 - 每100ms更新一次（实现滚动效果）
   useEffect(() => {
     if (!earnings || earnings.currentTier === 0 || estimatedDailyEarnings === null || earningsBaseTime === null) {
       return;
@@ -491,8 +492,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     // 立即更新一次
     updateRealTimeEarnings();
 
-    // 每1分钟更新一次
-    const intervalId = setInterval(updateRealTimeEarnings, 60 * 1000);
+    // 🚀 优化点：改为 100ms (0.1秒) 刷新一次
+    // 这样数字的最后一位小数会疯狂滚动，产生极强的"赚钱感"
+    const intervalId = setInterval(updateRealTimeEarnings, 100);
 
     return () => clearInterval(intervalId);
   }, [earnings, estimatedDailyEarnings, earningsBaseTime, earningsBaseValue, calculatedEarningsBase]);
@@ -683,19 +685,29 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
         
         <div className="space-y-4 mb-6">
           <div className="text-5xl font-black text-white mono tracking-tighter flex items-baseline">
-            <span className="text-xl font-normal text-[#848E9C] mr-3">$</span>
             {!stats.address || !stats.address.startsWith('0x') ? (
-              '0.0000'
+              <span className="flex items-baseline">
+                <span className="text-xl font-normal text-[#848E9C] mr-3">$</span>
+                0.0000
+              </span>
             ) : earnings === null ? (
               <span className="inline-block w-32 h-12 bg-white/5 rounded animate-pulse" />
             ) : earningsError ? (
               <span className="text-[#848E9C]">--</span>
             ) : earnings.currentTier > 0 && realTimeEarnings !== null ? (
-              // 如果达到持币标准，显示实时累计收益（每1分钟跳动增长）
-              realTimeEarnings.toFixed(4)
+              /* ✨ 使用滚动组件 ✨ */
+              <RollingNumber 
+                value={realTimeEarnings} 
+                decimals={6} // 6 位小数，让滚动更疯狂
+                prefix="$"
+                className="text-5xl font-black text-white mono tracking-tighter"
+              />
             ) : (
-              // 未达到标准，显示后端返回的收益
-              earnings.pendingUsdt.toFixed(4)
+              /* 未达到标准时，显示静态数字 */
+              <span className="flex items-baseline">
+                <span className="text-xl font-normal text-[#848E9C] mr-3">$</span>
+                {earnings.pendingUsdt.toFixed(4)}
+              </span>
             )}
           </div>
           {earnings && earnings.currentTier > 0 && (
