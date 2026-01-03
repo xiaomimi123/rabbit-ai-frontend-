@@ -61,9 +61,6 @@ const api = axios.create({
 // 导出 apiBaseUrl 供其他模块使用（用于日志等）
 export { apiBaseUrl };
 
-// 确保 getApiBaseUrl 被正确导出（显式重新导出）
-export { getApiBaseUrl };
-
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
