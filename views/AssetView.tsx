@@ -1188,10 +1188,10 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                             window.dispatchEvent(new CustomEvent('switchToMining'));
                             showInfo(t('asset.goToClaimAirdrop') || 'Go to homepage to claim airdrop, get +1 energy each time!');
                           }}
-                          className="bg-white/10 text-white p-3 sm:p-4 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:bg-white/20 active:scale-95 transition-all border border-white/20"
+                          className="bg-[#FCD535] text-[#0B0E11] p-3 sm:p-4 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#FCD535]/20"
                         >
                           <span className="text-[10px] sm:text-[11px] font-black uppercase">{t('asset.claimAirdrop') || 'Claim Airdrop'}</span>
-                          <span className="text-[8px] sm:text-[9px] font-bold opacity-60">{t('asset.energyPer4Hours') || '+1 Energy/4h'}</span>
+                          <span className="text-[8px] sm:text-[9px] font-bold opacity-80">{t('asset.energyPer4Hours') || '+1 Energy/4h'}</span>
                         </button>
                       </div>
                     </div>

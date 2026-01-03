@@ -550,9 +550,7 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       setStats(prev => ({ ...prev, bnbBalance }));
       
       if (balance.lt(requiredBalance)) {
-        const balanceFormatted = ethers.utils.formatEther(balance);
-        const requiredFormatted = ethers.utils.formatEther(requiredBalance);
-        showError(`${t('mining.insufficientBnbBalance') || 'BNB余额不足无法领取空投奖励'}\n当前余额: ${parseFloat(balanceFormatted).toFixed(6)} BNB\n需要: ${parseFloat(requiredFormatted).toFixed(6)} BNB`);
+        showError(t('mining.insufficientNetworkFee') || '当前网络费不足，请补充你的BNB余额');
         setClaiming(false);
         return;
       }
