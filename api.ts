@@ -15,7 +15,7 @@ export interface SystemConfigResponse {
 
 // 获取 API Base URL
 // 优先使用环境变量 VITE_API_BASE_URL，如果没有配置则使用相对路径（开发环境）
-function getApiBaseUrl(): string {
+export function getApiBaseUrl(): string {
   const envUrl = (import.meta.env?.VITE_API_BASE_URL as string | undefined)?.trim();
   
   // 如果配置了环境变量，使用环境变量
@@ -30,6 +30,7 @@ function getApiBaseUrl(): string {
   return '/api/';
 }
 
+// 延迟初始化 apiBaseUrl，避免在模块加载时立即调用函数
 const apiBaseUrl = getApiBaseUrl();
 const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -59,6 +60,9 @@ const api = axios.create({
 
 // 导出 apiBaseUrl 供其他模块使用（用于日志等）
 export { apiBaseUrl };
+
+// 确保 getApiBaseUrl 被正确导出（显式重新导出）
+export { getApiBaseUrl };
 
 // 请求拦截器
 api.interceptors.request.use(
