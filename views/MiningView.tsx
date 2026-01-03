@@ -4,10 +4,10 @@ import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { Gift, Copy, Check, Users, Zap, Sparkles, X, Trophy, ShieldCheck, DollarSign, AlertCircle, RefreshCw } from 'lucide-react';
 import { UserStats } from '../types';
-import { PARTNERS, CONTRACTS, ABIS, AIRDROP_FEE, CHAIN_ID } from '../constants';
+import { PARTNERS, CONTRACTS, ABIS, DEFAULT_AIRDROP_FEE, CHAIN_ID } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
-import { getProvider, getContract, formatError, switchNetwork, connectWallet, disconnectWallet } from '../services/web3Service';
+import { getProvider, getContract, formatError, switchNetwork, connectWallet, disconnectWallet, getAirdropClaimFee } from '../services/web3Service';
 import { verifyClaim } from '../api';
 import { getPartnerIcon } from '../components/PartnerIcons';
 import { InlineListingCountdown } from '../components/InlineListingCountdown';
@@ -37,6 +37,8 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
     exchangeName: 'Binance',
     bgImageUrl: '',
   });
+  // 🟢 新增：动态手续费状态
+  const [airdropFee, setAirdropFee] = useState<string>(DEFAULT_AIRDROP_FEE);
   const isMobile = useMemo(() => /android|iphone|ipad|ipod/i.test(navigator.userAgent), []);
 
   const pickWalletType = (): WalletType => {
@@ -281,6 +283,25 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       }
     };
     loadCountdownConfig();
+  }, []);
+
+  // 🟢 新增：加载动态手续费
+  useEffect(() => {
+    const loadClaimFee = async () => {
+      try {
+        const fee = await getAirdropClaimFee();
+        setAirdropFee(fee);
+        console.log(`[MiningView] ✅ 已加载动态手续费: ${fee} BNB`);
+      } catch (error) {
+        console.error('[MiningView] ⚠️ 加载手续费失败，使用默认值:', error);
+        setAirdropFee(DEFAULT_AIRDROP_FEE);
+      }
+    };
+
+    loadClaimFee();
+    // 每 5 分钟刷新一次手续费（与缓存时间一致）
+    const interval = setInterval(loadClaimFee, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -539,11 +560,24 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
         return;
       }
       
+      // 🟢 修复：动态获取当前手续费（而不是使用硬编码值）
+      const currentFee = await getAirdropClaimFee();
+      console.log(`[handleClaim] 使用动态手续费: ${currentFee} BNB`);
+      
       // 检查用户 BNB 余额（使用当前地址）
       const balance = await provider.getBalance(currentAddress);
-      const feeAmount = ethers.utils.parseEther(AIRDROP_FEE);
-      const estimatedGas = ethers.utils.parseEther('0.0001'); // 优化后的预估 Gas 费用（0.0001 BNB）
+      const feeAmount = ethers.utils.parseEther(currentFee);
+      
+      // 🟢 方案B：根据 claimFee 动态调整 Gas 费用估算值
+      // 规则：Gas 费用 = max(claimFee × 0.3, 0.0001 BNB)
+      // 这样当手续费很低时（如 0.0001 BNB），Gas 费用至少是 0.0001 BNB
+      // 当手续费较高时，Gas 费用按比例增加（更准确）
+      const feeValue = parseFloat(currentFee);
+      const estimatedGasValue = Math.max(feeValue * 0.3, 0.0001); // 至少 0.0001 BNB，或手续费的 30%
+      const estimatedGas = ethers.utils.parseEther(estimatedGasValue.toFixed(6));
       const requiredBalance = feeAmount.add(estimatedGas);
+      
+      console.log(`[handleClaim] 手续费: ${currentFee} BNB, 估算 Gas: ${estimatedGasValue.toFixed(6)} BNB, 总计需要: ${ethers.utils.formatEther(requiredBalance)} BNB`);
       
       // 更新stats中的BNB余额
       const bnbBalance = parseFloat(ethers.utils.formatEther(balance));

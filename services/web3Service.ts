@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { EthereumProvider } from '@walletconnect/ethereum-provider';
 import { WalletConnectModal } from '@walletconnect/modal';
-import { ABIS, CONTRACTS, CHAIN_ID, CHAIN_HEX, CHAIN_NAME, RPC_URL, RPC_URLS, WALLETCONNECT_PROJECT_ID } from '../constants';
+import { ABIS, CONTRACTS, CHAIN_ID, CHAIN_HEX, CHAIN_NAME, RPC_URL, RPC_URLS, WALLETCONNECT_PROJECT_ID, DEFAULT_AIRDROP_FEE } from '../constants';
 import { WalletType } from '../types';
 
 // Declare global ethereum on window
@@ -940,6 +940,72 @@ export const getContract = async (address: string, abi: any[], signer?: ethers.S
     return new ethers.Contract(address, abi, provider);
   }
   return new ethers.Contract(address, abi, signer);
+};
+
+// 🟢 新增：动态获取空投手续费（带缓存机制）
+let cachedClaimFee: string | null = null;
+let cachedClaimFeeTime: number = 0;
+const CLAIM_FEE_CACHE_DURATION = 5 * 60 * 1000; // 缓存 5 分钟
+
+export const getAirdropClaimFee = async (): Promise<string> => {
+  const now = Date.now();
+  
+  // 如果缓存有效，直接返回
+  if (cachedClaimFee && (now - cachedClaimFeeTime) < CLAIM_FEE_CACHE_DURATION) {
+    return cachedClaimFee;
+  }
+  
+  try {
+    const provider = getProvider();
+    if (!provider) {
+      // 如果没有 provider，返回默认值
+      return DEFAULT_AIRDROP_FEE;
+    }
+    
+    const { CONTRACTS, ABIS } = await import('../constants');
+    const contract = new ethers.Contract(CONTRACTS.AIRDROP, ABIS.AIRDROP, provider);
+    
+    // 使用 callWithRetry 包装，处理 RPC 错误
+    const feeWei = await callWithRetry(
+      () => contract.claimFee(),
+      {
+        maxRetries: 3,
+        baseDelay: 1000,
+        onRetry: (attempt) => {
+          console.warn(`[getAirdropClaimFee] RPC 错误，重试获取手续费 ${attempt}/3...`);
+        }
+      }
+    ) as ethers.BigNumber;
+    
+    // 转换为 BNB 格式（字符串）
+    const feeInBNB = ethers.utils.formatEther(feeWei as ethers.BigNumberish);
+    
+    // 更新缓存
+    cachedClaimFee = feeInBNB;
+    cachedClaimFeeTime = now;
+    
+    console.log(`[getAirdropClaimFee] ✅ 从合约获取手续费: ${feeInBNB} BNB`);
+    return feeInBNB;
+  } catch (error: any) {
+    console.error('[getAirdropClaimFee] ⚠️ 获取手续费失败，使用默认值:', error);
+    
+    // 如果获取失败，使用缓存值（即使过期）或默认值
+    if (cachedClaimFee) {
+      console.log(`[getAirdropClaimFee] 使用过期缓存值: ${cachedClaimFee} BNB`);
+      return cachedClaimFee;
+    }
+    
+    // 导入默认值
+    const { DEFAULT_AIRDROP_FEE } = await import('../constants');
+    return DEFAULT_AIRDROP_FEE;
+  }
+};
+
+// 🟢 新增：清除手续费缓存（当管理员修改费用后可以调用）
+export const clearClaimFeeCache = () => {
+  cachedClaimFee = null;
+  cachedClaimFeeTime = 0;
+  console.log('[clearClaimFeeCache] ✅ 手续费缓存已清除');
 };
 
 export const getSigner = async () => {

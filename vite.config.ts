@@ -2,6 +2,7 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
+import legacy from '@vitejs/plugin-legacy';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -25,6 +26,27 @@ export default defineConfig(({ mode }) => {
             Buffer: true,
             global: true,
             process: true,
+          },
+        }),
+        // 🟢 新增：Legacy 插件 - 解决 BigInt 兼容性问题（支持 Android 5.0+）
+        legacy({
+          targets: [
+            'Android >= 5.0',
+            'Chrome >= 60',
+            'Safari >= 10.1',
+            'iOS >= 10.3',
+            'Firefox >= 60',
+            'Edge >= 79',
+          ],
+          // 现代浏览器不需要 polyfills，只生成 legacy 版本
+          modernPolyfills: false,
+          // 渲染 legacy 脚本（使用 nomodule）
+          renderLegacyChunks: true,
+          // 使用 terser 压缩（已安装）
+          terserOptions: {
+            compress: {
+              drop_console: mode === 'production',
+            },
           },
         }),
       ],

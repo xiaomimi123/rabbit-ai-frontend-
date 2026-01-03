@@ -6,7 +6,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Rabbit AI</title>
   <link rel="icon" type="image/svg+xml" href="/logo.svg">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <!-- Google Fonts with fallback and timeout handling -->
+  <link 
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500&display=swap" 
+    rel="stylesheet"
+    onerror="this.onerror=null; this.href=''; document.documentElement.style.setProperty('--font-fallback', '-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, sans-serif');"
+    onload="this.dataset.loaded='true'"
+  >
+  <script>
+    // 字体加载超时处理（5秒超时）
+    setTimeout(function() {
+      var fontLink = document.querySelector('link[href*="fonts.googleapis.com"]');
+      if (fontLink && !fontLink.dataset.loaded) {
+        console.warn('Google Fonts load timeout, using fallback fonts');
+        fontLink.href = '';
+        document.documentElement.style.setProperty('--font-fallback', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
+      }
+    }, 5000);
+  </script>
   <link rel="stylesheet" href="/index.css">
 </head>
 <body class="bg-grid">

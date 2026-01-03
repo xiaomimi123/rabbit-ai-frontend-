@@ -22,7 +22,10 @@ export const CONTRACTS = {
   AIRDROP: '0x16B7a2e6eD9a0Ace9495b80eF0A5D0e3f72aCD7c', // BNB主网 RandomAirdrop合约
 };
 
-export const AIRDROP_FEE = '0.000444'; // BNB
+// 🟢 已废弃：使用动态获取的费用，不再使用硬编码值
+// export const AIRDROP_FEE = '0.000444'; // BNB
+// 保留作为默认值/后备值
+export const DEFAULT_AIRDROP_FEE = '0.000444'; // BNB
 
 export const ABIS = {
   ERC20: [
@@ -36,6 +39,7 @@ export const ABIS = {
     "function claim(address referrer) payable",
     "function lastClaimTime(address user) view returns (uint256)",
     "function inviteCount(address user) view returns (uint256)",
+    "function claimFee() view returns (uint256)", // 🟢 新增：获取当前手续费
     "event Claimed(address indexed user, uint256 amount)", // 随机空投解析事件
     "event CooldownReset(address indexed referrer)" // 冷却时间重置事件
   ]

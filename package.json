@@ -25,10 +25,12 @@
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.14.0",
+    "@vitejs/plugin-legacy": "^5.4.3",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
+    "terser": "^5.44.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "vite-plugin-node-polyfills": "^0.24.0"

@@ -109,13 +109,20 @@ const App: React.FC = () => {
         data: requestData,
       });
       
+      // 添加超时保护（10秒）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
       const response = await fetch(visitUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestData),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       console.log('[App] 📥 Response received:', {
         status: response.status,
@@ -148,17 +155,42 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       // 🟢 添加详细错误日志，帮助排查问题
-      console.error('[App] ❌ Exception while recording visit:', {
-        error: error?.message || error,
-        stack: error?.stack,
-        url: visitUrl,
-        name: error?.name,
-      });
-      logger.warn('[App] Failed to record page visit:', {
-        error: error?.message || error,
-        stack: error?.stack,
-        url: visitUrl || 'unknown'
-      });
+      const errorName = error?.name || 'Unknown';
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      
+      // 区分不同类型的错误
+      if (errorName === 'AbortError' || errorMessage.includes('aborted')) {
+        console.warn('[App] ⚠️ 访问统计请求超时（10秒）:', {
+          url: visitUrl,
+          error: errorMessage,
+        });
+        logger.warn('[App] Visit recording timeout', { url: visitUrl });
+      } else if (errorMessage.includes('ERR_CONNECTION_RESET') || 
+                 errorMessage.includes('connection reset') ||
+                 errorMessage.includes('Failed to fetch')) {
+        console.warn('[App] ⚠️ 访问统计请求连接失败（可能是网络问题）:', {
+          url: visitUrl,
+          error: errorMessage,
+        });
+        logger.warn('[App] Visit recording connection failed', { 
+          url: visitUrl, 
+          error: errorMessage 
+        });
+      } else {
+        console.error('[App] ❌ 访问统计请求异常:', {
+          error: errorMessage,
+          stack: error?.stack,
+          url: visitUrl,
+          name: errorName,
+        });
+        logger.warn('[App] Failed to record page visit:', {
+          error: errorMessage,
+          stack: error?.stack,
+          url: visitUrl || 'unknown'
+        });
+      }
+      
+      // 静默失败，不影响用户体验
       return false;
     }
   };
