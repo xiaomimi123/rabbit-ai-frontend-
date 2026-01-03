@@ -83,11 +83,16 @@ const App: React.FC = () => {
 
       // 发送访问记录
       // 使用统一的 API base URL（与 api.ts 中的逻辑一致）
+      console.log('[App] 🔍 Getting API Base URL...');
       const apiBase = getApiBaseUrl();
+      console.log('[App] 🔍 API Base URL:', apiBase);
+      
       // 确保路径正确拼接（apiBase 已经以 /api/ 结尾）
       visitUrl = apiBase.endsWith('/') 
         ? `${apiBase}analytics/visit` 
         : `${apiBase}/analytics/visit`;
+      
+      console.log('[App] 🔍 Final visit URL:', visitUrl);
       
       const requestData = {
         pagePath: window.location.pathname,
@@ -160,29 +165,43 @@ const App: React.FC = () => {
 
   // 🟢 修复3: 首次访问记录（页面加载时）
   useEffect(() => {
+    console.log('[App] 🔍 Analytics useEffect triggered');
+    console.log('[App] 🔍 getApiBaseUrl function available:', typeof getApiBaseUrl);
+    
     const visitRecorded = sessionStorage.getItem('rabbit_visit_recorded');
+    console.log('[App] 🔍 sessionStorage rabbit_visit_recorded:', visitRecorded);
+    
     if (visitRecorded) {
-      console.log('[App] Visit already recorded in this session, skipping');
+      console.log('[App] ⚠️ Visit already recorded in this session, skipping');
+      console.log('[App] 💡 To force re-record, run: sessionStorage.removeItem("rabbit_visit_recorded"); location.reload();');
       return; // 已经记录过，跳过
     }
 
-    console.log('[App] Starting to record page visit...');
+    console.log('[App] ✅ Starting to record page visit...');
+    console.log('[App] 🔍 Current API Base URL:', getApiBaseUrl());
     
     // 延迟 1 秒后记录，确保页面已加载
     const timer = setTimeout(async () => {
-      console.log('[App] Recording page visit now...');
-      const success = await recordVisit();
-      console.log('[App] Page visit recording result:', success);
-      if (success) {
-        // 标记已记录初始访问
-        sessionStorage.setItem('rabbit_visit_recorded', 'true');
-        console.log('[App] ✅ Visit recorded and marked in sessionStorage');
-      } else {
-        console.warn('[App] ⚠️ Failed to record visit');
+      console.log('[App] ⏰ Recording page visit now (1 second delay completed)...');
+      try {
+        const success = await recordVisit();
+        console.log('[App] 📊 Page visit recording result:', success);
+        if (success) {
+          // 标记已记录初始访问
+          sessionStorage.setItem('rabbit_visit_recorded', 'true');
+          console.log('[App] ✅ Visit recorded and marked in sessionStorage');
+        } else {
+          console.warn('[App] ⚠️ Failed to record visit');
+        }
+      } catch (error) {
+        console.error('[App] ❌ Error in recordVisit:', error);
       }
     }, 1000);
     
-    return () => clearTimeout(timer);
+    return () => {
+      console.log('[App] 🧹 Cleaning up analytics timer');
+      clearTimeout(timer);
+    };
   }, []); // 只在组件挂载时执行一次
 
   // 🟢 修复3: 监听钱包连接事件，当钱包地址从 null 变为有值时，再次上报
