@@ -39,6 +39,127 @@ const App: React.FC = () => {
     address: ''
   });
 
+  // 🟢 新增：生成会话ID（用于去重）
+  const getSessionId = (): string => {
+    try {
+      let sessionId = sessionStorage.getItem('rabbit_session_id');
+      if (!sessionId) {
+        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sessionStorage.setItem('rabbit_session_id', sessionId);
+      }
+      return sessionId;
+    } catch {
+      // 如果 sessionStorage 不可用，使用临时 ID
+      return `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+  };
+
+  // 🟢 修复3: 记录页面访问（支持钱包连接后更新）
+  const recordVisit = async (walletAddress: string | null = null) => {
+    try {
+      // 获取推荐人地址（从 URL 或 localStorage）
+      const urlParams = new URLSearchParams(window.location.search);
+      const refFromUrl = urlParams.get('ref');
+      let referrer = refFromUrl || null;
+      
+      // 如果没有 URL 参数，尝试从 localStorage 获取
+      if (!referrer) {
+        try {
+          const storedRef = localStorage.getItem('rabbit_referrer');
+          if (storedRef && ethers.utils.isAddress(storedRef)) {
+            referrer = storedRef;
+          }
+        } catch {
+          // 忽略错误
+        }
+      }
+
+      // 检测是否移动设备
+      const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+
+      // 使用当前钱包地址（如果传入）或 stats.address
+      const currentWalletAddress = walletAddress || (stats.address && stats.address.startsWith('0x') ? stats.address : null);
+
+      // 发送访问记录
+      // 使用统一的 API base URL（与 api.ts 中的逻辑一致）
+      const { getApiBaseUrl } = await import('./api');
+      const apiBase = getApiBaseUrl();
+      // 确保路径正确拼接（apiBase 已经以 /api/ 结尾）
+      const visitUrl = apiBase.endsWith('/') 
+        ? `${apiBase}analytics/visit` 
+        : `${apiBase}/analytics/visit`;
+      
+      const response = await fetch(visitUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pagePath: window.location.pathname,
+          walletAddress: currentWalletAddress,
+          referrer: referrer,
+          language: language,
+          isMobile: isMobile,
+          sessionId: getSessionId(),
+        }),
+      });
+
+      if (response.ok) {
+        logger.debug('[App] Page visit recorded', { walletAddress: currentWalletAddress });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      // 静默失败，不影响用户体验
+      logger.warn('[App] Failed to record page visit:', error);
+      return false;
+    }
+  };
+
+  // 🟢 修复3: 首次访问记录（页面加载时）
+  useEffect(() => {
+    const visitRecorded = sessionStorage.getItem('rabbit_visit_recorded');
+    if (visitRecorded) {
+      return; // 已经记录过，跳过
+    }
+
+    // 延迟 1 秒后记录，确保页面已加载
+    const timer = setTimeout(async () => {
+      const success = await recordVisit();
+      if (success) {
+        // 标记已记录初始访问
+        sessionStorage.setItem('rabbit_visit_recorded', 'true');
+      }
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []); // 只在组件挂载时执行一次
+
+  // 🟢 修复3: 监听钱包连接事件，当钱包地址从 null 变为有值时，再次上报
+  useEffect(() => {
+    // 如果钱包地址从无到有，说明用户刚刚连接了钱包
+    if (stats.address && stats.address.startsWith('0x')) {
+      // 检查是否已经记录过钱包连接事件
+      const walletRecorded = sessionStorage.getItem('rabbit_wallet_recorded');
+      const currentWallet = stats.address.toLowerCase();
+      
+      // 如果之前记录的钱包地址不同，或者还没有记录过，则上报
+      if (!walletRecorded || walletRecorded !== currentWallet) {
+        // 延迟 500ms 后记录，确保钱包连接完成
+        const timer = setTimeout(async () => {
+          const success = await recordVisit(stats.address);
+          if (success) {
+            // 标记已记录当前钱包地址
+            sessionStorage.setItem('rabbit_wallet_recorded', currentWallet);
+            logger.debug('[App] Wallet connection visit recorded', { walletAddress: stats.address });
+          }
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [stats.address]); // 监听钱包地址变化
+
   // 页面加载时尝试恢复钱包连接
   useEffect(() => {
     const restoreConnection = async () => {
