@@ -11,7 +11,7 @@ import { TabType, UserStats, Notification } from './types';
 import { PROTOCOL_STATS } from './constants';
 import { useLanguage } from './contexts/LanguageContext';
 import { Language } from './translations';
-import { fetchSystemLinks, fetchUserNotifications, markAllNotificationsAsRead } from './api';
+import { fetchSystemLinks, fetchUserNotifications, markAllNotificationsAsRead, getApiBaseUrl } from './api';
 import { shortenAddress } from './services/web3Service';
 
 interface SystemLinks {
@@ -83,7 +83,6 @@ const App: React.FC = () => {
 
       // 发送访问记录
       // 使用统一的 API base URL（与 api.ts 中的逻辑一致）
-      const { getApiBaseUrl } = await import('./api');
       const apiBase = getApiBaseUrl();
       // 确保路径正确拼接（apiBase 已经以 /api/ 结尾）
       visitUrl = apiBase.endsWith('/') 
