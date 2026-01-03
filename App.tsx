@@ -56,6 +56,7 @@ const App: React.FC = () => {
 
   // 🟢 修复3: 记录页面访问（支持钱包连接后更新）
   const recordVisit = async (walletAddress: string | null = null) => {
+    let visitUrl = 'unknown';
     try {
       // 获取推荐人地址（从 URL 或 localStorage）
       const urlParams = new URLSearchParams(window.location.search);
@@ -85,33 +86,75 @@ const App: React.FC = () => {
       const { getApiBaseUrl } = await import('./api');
       const apiBase = getApiBaseUrl();
       // 确保路径正确拼接（apiBase 已经以 /api/ 结尾）
-      const visitUrl = apiBase.endsWith('/') 
+      visitUrl = apiBase.endsWith('/') 
         ? `${apiBase}analytics/visit` 
         : `${apiBase}/analytics/visit`;
+      
+      const requestData = {
+        pagePath: window.location.pathname,
+        walletAddress: currentWalletAddress,
+        referrer: referrer,
+        language: language,
+        isMobile: isMobile,
+        sessionId: getSessionId(),
+      };
+      
+      console.log('[App] 📤 Sending visit record:', {
+        url: visitUrl,
+        apiBase: apiBase,
+        data: requestData,
+      });
       
       const response = await fetch(visitUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          pagePath: window.location.pathname,
-          walletAddress: currentWalletAddress,
-          referrer: referrer,
-          language: language,
-          isMobile: isMobile,
-          sessionId: getSessionId(),
-        }),
+        body: JSON.stringify(requestData),
+      });
+
+      console.log('[App] 📥 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
       });
 
       if (response.ok) {
-        logger.debug('[App] Page visit recorded', { walletAddress: currentWalletAddress });
+        const result = await response.json();
+        console.log('[App] ✅ Page visit recorded successfully:', result);
+        logger.debug('[App] Page visit recorded', { walletAddress: currentWalletAddress, result });
         return true;
+      } else {
+        // 🟢 添加错误日志，帮助排查问题
+        const errorText = await response.text();
+        console.error('[App] ❌ Failed to record page visit:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          error: errorText,
+          url: visitUrl 
+        });
+        logger.warn('[App] Failed to record page visit', { 
+          status: response.status, 
+          statusText: response.statusText,
+          error: errorText,
+          url: visitUrl 
+        });
+        return false;
       }
-      return false;
-    } catch (error) {
-      // 静默失败，不影响用户体验
-      logger.warn('[App] Failed to record page visit:', error);
+    } catch (error: any) {
+      // 🟢 添加详细错误日志，帮助排查问题
+      console.error('[App] ❌ Exception while recording visit:', {
+        error: error?.message || error,
+        stack: error?.stack,
+        url: visitUrl,
+        name: error?.name,
+      });
+      logger.warn('[App] Failed to record page visit:', {
+        error: error?.message || error,
+        stack: error?.stack,
+        url: visitUrl || 'unknown'
+      });
       return false;
     }
   };
@@ -120,15 +163,23 @@ const App: React.FC = () => {
   useEffect(() => {
     const visitRecorded = sessionStorage.getItem('rabbit_visit_recorded');
     if (visitRecorded) {
+      console.log('[App] Visit already recorded in this session, skipping');
       return; // 已经记录过，跳过
     }
 
+    console.log('[App] Starting to record page visit...');
+    
     // 延迟 1 秒后记录，确保页面已加载
     const timer = setTimeout(async () => {
+      console.log('[App] Recording page visit now...');
       const success = await recordVisit();
+      console.log('[App] Page visit recording result:', success);
       if (success) {
         // 标记已记录初始访问
         sessionStorage.setItem('rabbit_visit_recorded', 'true');
+        console.log('[App] ✅ Visit recorded and marked in sessionStorage');
+      } else {
+        console.warn('[App] ⚠️ Failed to record visit');
       }
     }, 1000);
     
