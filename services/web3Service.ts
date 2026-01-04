@@ -139,6 +139,51 @@ export const getWalletType = () => {
   return currentWalletType;
 };
 
+// 🟢 新增：获取当前 Chain ID（支持币安钱包）
+export const getCurrentChainId = async (provider?: ethers.providers.Web3Provider): Promise<number> => {
+  const walletType = getWalletType();
+  const currentProvider = provider || getProvider();
+  
+  // 币安钱包特殊处理：直接从 window.BinanceChain.chainId 获取
+  if (walletType === 'binance' && window.BinanceChain) {
+    const binanceChainId = window.BinanceChain.chainId;
+    console.log('[getCurrentChainId] 币安钱包直接读取 Chain ID:', binanceChainId, '类型:', typeof binanceChainId);
+    
+    // 处理不同格式
+    if (typeof binanceChainId === 'string') {
+      // 如果是十六进制字符串 "0x38"，转换为数字
+      if (binanceChainId.startsWith('0x')) {
+        const parsed = parseInt(binanceChainId, 16);
+        console.log('[getCurrentChainId] 十六进制转换:', binanceChainId, '->', parsed);
+        return parsed;
+      }
+      // 如果是数字字符串 "56"，直接转换
+      const parsed = parseInt(binanceChainId, 10);
+      console.log('[getCurrentChainId] 数字字符串转换:', binanceChainId, '->', parsed);
+      return parsed;
+    }
+    // 如果已经是数字，直接返回
+    const num = Number(binanceChainId);
+    console.log('[getCurrentChainId] 数字类型:', num);
+    return num;
+  }
+  
+  // 其他钱包使用标准方式
+  if (!currentProvider) {
+    throw new Error('No provider available');
+  }
+  
+  try {
+    const network = await currentProvider.getNetwork();
+    const chainId = Number(network.chainId);
+    console.log('[getCurrentChainId] Provider Chain ID:', chainId);
+    return chainId;
+  } catch (error) {
+    console.error('[getCurrentChainId] Failed to get network:', error);
+    throw error;
+  }
+};
+
 // 导出 RPC 管理器函数，供其他模块使用
 export const getCurrentRpc = () => {
   return rpcManager.getCurrentRpc();
@@ -727,35 +772,58 @@ export const connectWallet = async (walletType?: WalletType): Promise<ethers.pro
       });
     }
     
-    // 连接成功后，检查并切换网络
+    // 🟢 修复：连接成功后，检查并切换网络（使用新的 getCurrentChainId）
     try {
-      const network = await provider.getNetwork();
-      const currentChainId = Number(network.chainId);
+      const currentChainId = await getCurrentChainId(provider);
+      console.log(`[connectWallet] 当前网络 Chain ID: ${currentChainId}, 需要切换到 Chain ID: ${CHAIN_ID}`);
+      
       if (currentChainId !== CHAIN_ID) {
-        console.log(`当前网络 Chain ID: ${currentChainId}, 需要切换到 Chain ID: ${CHAIN_ID}`);
-        await switchNetwork();
-        // 等待网络切换完成
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        // 重新创建 provider 实例以确保使用正确的网络
-        if (walletType === 'walletconnect' && walletConnectProvider) {
-          provider = new ethers.providers.Web3Provider(walletConnectProvider as any);
-        } else {
-          const walletProvider = getWalletProvider(walletType);
-          if (walletProvider) {
-            provider = new ethers.providers.Web3Provider(walletProvider);
+        console.log(`[connectWallet] 网络不匹配，尝试自动切换...`);
+        try {
+          await switchNetwork();
+          // 等待网络切换完成（币安钱包可能需要更长时间）
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          // 重新创建 provider 实例以确保使用正确的网络
+          if (walletType === 'walletconnect' && walletConnectProvider) {
+            provider = new ethers.providers.Web3Provider(walletConnectProvider as any);
+          } else {
+            const walletProvider = getWalletProvider(walletType);
+            if (walletProvider) {
+              provider = new ethers.providers.Web3Provider(walletProvider);
+            }
           }
+          currentProvider = provider;
+          // 再次验证网络（使用新的函数）
+          const newChainId = await getCurrentChainId(provider);
+          if (newChainId !== CHAIN_ID) {
+            console.warn(`[connectWallet] 网络切换后仍不匹配: ${newChainId} !== ${CHAIN_ID}`);
+          } else {
+            console.log(`[connectWallet] 网络切换成功: ${newChainId}`);
+          }
+        } catch (switchError: any) {
+          console.warn('[connectWallet] 网络切换失败:', switchError);
+          // 网络切换失败不影响连接，但记录警告
         }
-        currentProvider = provider;
-        // 再次验证网络
-        const newNetwork = await provider.getNetwork();
-        const newChainId = Number(newNetwork.chainId);
-        if (newChainId !== CHAIN_ID) {
-          console.warn(`网络切换后仍不匹配: ${newChainId} !== ${CHAIN_ID}`);
-        }
+      } else {
+        console.log(`[connectWallet] 网络已匹配: ${currentChainId}`);
+      }
+      
+      // 🟢 新增：币安钱包网络变化监听
+      if (walletType === 'binance' && window.BinanceChain) {
+        window.BinanceChain.on('chainChanged', (chainId: string) => {
+          console.log('[币安钱包] 网络变化:', chainId);
+          // 重新创建 provider
+          const newProvider = new ethers.providers.Web3Provider(window.BinanceChain);
+          currentProvider = newProvider;
+          // 触发网络变化处理（如果 App.tsx 中有监听）
+          if (window.ethereum) {
+            window.ethereum.emit('chainChanged', chainId);
+          }
+        });
       }
     } catch (networkError: any) {
-      console.warn('网络检查或切换失败:', networkError);
-      // 网络切换失败不影响连接，继续执行
+      console.warn('[connectWallet] 网络检查失败:', networkError);
+      // 网络检查失败不影响连接，继续执行
     }
     
     return provider;
@@ -881,6 +949,20 @@ export const switchNetwork = async () => {
   }
 
   try {
+    // 🟢 币安钱包特殊处理：使用 switchNetwork(chainId) 方法
+    if (walletType === 'binance' && window.BinanceChain) {
+      console.log('[switchNetwork] 币安钱包切换网络到 Chain ID:', CHAIN_ID);
+      // 币安钱包使用 switchNetwork(chainId) 方法，参数是数字格式
+      await window.BinanceChain.switchNetwork(CHAIN_ID);
+      // 等待网络切换完成
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 重新创建 provider 以确保使用正确的网络
+      const newProvider = new ethers.providers.Web3Provider(window.BinanceChain);
+      currentProvider = newProvider;
+      console.log('[switchNetwork] 币安钱包网络切换完成');
+      return;
+    }
+    
     // WalletConnect 使用不同的方法
     if (walletType === 'walletconnect' && walletConnectProvider) {
       await walletConnectProvider.request({

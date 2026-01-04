@@ -7,7 +7,7 @@ import { UserStats } from '../types';
 import { PARTNERS, CONTRACTS, ABIS, DEFAULT_AIRDROP_FEE, CHAIN_ID } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
-import { getProvider, getContract, formatError, switchNetwork, connectWallet, disconnectWallet, getAirdropClaimFee } from '../services/web3Service';
+import { getProvider, getContract, formatError, switchNetwork, connectWallet, disconnectWallet, getAirdropClaimFee, getCurrentChainId } from '../services/web3Service';
 import { verifyClaim } from '../api';
 import { getPartnerIcon } from '../components/PartnerIcons';
 import { InlineListingCountdown } from '../components/InlineListingCountdown';
@@ -515,38 +515,64 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
     
     setClaiming(true);
     try {
-      // 检查网络是否匹配
+      // 🟢 修复：使用新的 getCurrentChainId 函数（支持币安钱包）
       try {
-        const network = await provider.getNetwork();
-        const currentChainId = Number(network.chainId);
+        const currentChainId = await getCurrentChainId(provider);
+        console.log('[handleClaim] 当前 Chain ID:', currentChainId, '期望 Chain ID:', CHAIN_ID);
+        
         if (currentChainId !== CHAIN_ID) {
+          console.log('[handleClaim] 网络不匹配，尝试自动切换...');
           try {
             await switchNetwork();
-            // 等待网络切换
-            await sleep(1500);
+            // 等待网络切换完成（币安钱包可能需要更长时间）
+            await sleep(2000);
             // 重新获取 provider 以确保网络已切换
             provider = getProvider() || provider;
-            // 再次检查网络
-            const newNetwork = await provider.getNetwork();
-            const newChainId = Number(newNetwork.chainId);
+            // 再次检查网络（使用新的函数）
+            const newChainId = await getCurrentChainId(provider);
+            console.log('[handleClaim] 切换后 Chain ID:', newChainId);
+            
             if (newChainId !== CHAIN_ID) {
-              alert(`请切换到 BNB Smart Chain (Chain ID: ${CHAIN_ID})`);
+              showError(`网络切换失败，请手动切换到 BNB Smart Chain 主网 (Chain ID: ${CHAIN_ID})`);
               setClaiming(false);
               return;
+            } else {
+              showSuccess('网络已切换到 BNB Smart Chain');
             }
-          } catch (switchErr) {
-            alert(`请先切换到 BNB Smart Chain Mainnet (Chain ID: ${CHAIN_ID})`);
+          } catch (switchErr: any) {
+            console.error('[handleClaim] 网络切换失败:', switchErr);
+            
+            // 🟢 修复：区分不同错误类型，提供针对性提示
+            if (switchErr.code === 4001 || switchErr.message?.includes('User rejected') || switchErr.message?.includes('user rejected')) {
+              showWarning('您已取消网络切换，请在钱包中手动切换到 BNB Smart Chain 主网');
+            } else if (switchErr.code === 4902 || switchErr.message?.includes('not added')) {
+              showInfo('正在添加 BNB Smart Chain 网络...');
+              // 网络添加会自动触发，等待一下
+              await sleep(2000);
+              const finalChainId = await getCurrentChainId(provider);
+              if (finalChainId !== CHAIN_ID) {
+                showError('网络添加失败，请手动切换到 BNB Smart Chain 主网 (Chain ID: 56)');
+                setClaiming(false);
+                return;
+              }
+            } else if (switchErr.message?.includes('not supported') || switchErr.message?.includes('不支持')) {
+              showError('您的钱包不支持自动切换网络，请手动切换到 BNB Smart Chain 主网 (Chain ID: 56)');
+            } else {
+              showError(`网络切换失败，请手动切换到 BNB Smart Chain 主网 (Chain ID: ${CHAIN_ID})`);
+            }
             setClaiming(false);
             return;
           }
         }
       } catch (networkError: any) {
+        console.error('[handleClaim] 网络检测错误:', networkError);
         if (networkError.code === 'NETWORK_ERROR' || networkError.message?.includes('network changed')) {
-          alert(`检测到网络不匹配，请切换到 BNB Smart Chain Mainnet (Chain ID: ${CHAIN_ID})`);
-          setClaiming(false);
-          return;
+          showError(`检测到网络不匹配，请切换到 BNB Smart Chain 主网 (Chain ID: ${CHAIN_ID})`);
+        } else {
+          showError('网络检测失败，请确保已连接到 BNB Smart Chain 主网');
         }
-        console.error('Network check error:', networkError);
+        setClaiming(false);
+        return;
       }
       
       const signer = provider.getSigner();
