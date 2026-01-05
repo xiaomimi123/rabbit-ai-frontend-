@@ -679,7 +679,7 @@ const App: React.FC = () => {
                       <Globe className="w-4 h-4" />
                     </div>
                     <div className="text-left">
-                      <p className="text-[11px] font-black text-white/90 leading-none mb-1 uppercase tracking-tight">语言切换</p>
+                      <p className="text-[11px] font-black text-white/90 leading-none mb-1 uppercase tracking-tight">{t('common.languageSwitch')}</p>
                       <p className="text-[8px] text-[#848E9C] font-bold uppercase tracking-tighter">
                         {languages.find(l => l.code === language)?.native || '中文'}
                       </p>
@@ -717,15 +717,15 @@ const App: React.FC = () => {
               
               <MenuLink 
                 icon={<FileText className="w-4 h-4" />} 
-                label="项目白皮书" 
-                subLabel="Whitepaper"
+                label={t('menu.whitepaper')}
+                subLabel={t('menu.whitepaperSubtitle')}
                 onClick={() => handleLinkClick(systemLinks.whitepaper, 'whitepaper')}
                 disabled={!systemLinks.whitepaper || systemLinks.whitepaper.trim() === ''}
               />
               <MenuLink 
                 icon={<ShieldCheck className="w-4 h-4" />} 
-                label="安全审计报告" 
-                subLabel="Audits"
+                label={t('menu.audits')}
+                subLabel={t('menu.auditsSubtitle')}
                 onClick={() => handleLinkClick(systemLinks.audits, 'audits')}
                 disabled={!systemLinks.audits || systemLinks.audits.trim() === ''}
               />
@@ -741,14 +741,14 @@ const App: React.FC = () => {
                       <Headset className="w-5 h-5" />
                     </div>
                     <div className="text-left">
-                      <p className="text-[11px] font-black uppercase tracking-tight">联系在线客服</p>
-                      <p className="text-[8px] font-bold opacity-60 uppercase tracking-widest">Support Center</p>
+                      <p className="text-[11px] font-black uppercase tracking-tight">{t('menu.support')}</p>
+                      <p className="text-[8px] font-bold opacity-60 uppercase tracking-widest">{t('menu.supportSubtitle')}</p>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 opacity-40 group-hover:translate-x-1 transition-transform" />
                 </button>
                 <p className="text-[8px] text-center text-[#848E9C] font-bold uppercase tracking-widest mt-3 opacity-50 px-4 leading-tight">
-                  7x24 智能节点客服为您服务
+                  {t('menu.supportHint')}
                 </p>
               </div>
             </div>

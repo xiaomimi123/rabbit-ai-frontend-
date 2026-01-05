@@ -42,12 +42,6 @@ export default defineConfig(({ mode }) => {
           modernPolyfills: false,
           // 渲染 legacy 脚本（使用 nomodule）
           renderLegacyChunks: true,
-          // 使用 terser 压缩（已安装）
-          terserOptions: {
-            compress: {
-              drop_console: mode === 'production',
-            },
-          },
         }),
       ],
       define: {
@@ -83,9 +77,9 @@ export default defineConfig(({ mode }) => {
         minify: 'esbuild',
       },
       esbuild: {
-        // 生产环境移除 console.log, console.warn, console.info, console.debug, console.trace
-        // 但保留 console.error（用于关键错误日志）
-        drop: mode === 'production' ? ['console', 'debugger'] : [],
+        // 生产环境移除调试日志，但保留 console.error（用于关键错误日志和 Sentry 监控）
+        pure: mode === 'production' ? ['console.log', 'console.info', 'console.debug', 'console.warn'] : [],
+        drop: mode === 'production' ? ['debugger'] : [],
       },
     };
 });

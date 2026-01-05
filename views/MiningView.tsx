@@ -106,15 +106,6 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  // 应用初始化时，如果 URL 有 ref 参数，立即存入 localStorage
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const ref = urlParams.get('ref');
-    if (ref && ethers.utils.isAddress(ref)) {
-      saveReferrerToStorage(ref);
-    }
-  }, []);
-
   // 领取成功后需要把 txHash 同步到后端写库（claims/users/energy）。
   // 这里做自动重试：每 2 秒重试 1 次，共 5 次；只有全部失败才提示用户把 txHash 发给管理员。
   const syncClaimWithRetry = async (params: { address: string; txHash: string; referrer: string }) => {

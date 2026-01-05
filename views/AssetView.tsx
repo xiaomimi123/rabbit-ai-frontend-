@@ -938,10 +938,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                          <p className={`text-[9px] sm:text-xs font-black uppercase tracking-tight truncate ${
                            isActive ? 'text-white' : isNextTarget ? 'text-[#FCD535]' : isReached ? 'text-white/80' : 'text-white/40'
                          }`}>
-                           {tier.level === 1 ? (t('asset.tier1Name') || '🌱 新手') :
-                            tier.level === 2 ? (t('asset.tier2Name') || '🌿 进阶') :
-                            tier.level === 3 ? (t('asset.tier3Name') || '🌳 资深') :
-                            tier.level === 4 ? (t('asset.tier4Name') || '💎 核心') : tier.name}
+                           {t(`asset.tier${tier.level}Name`) || tier.name}
                          </p>
                          <p className="text-[6px] sm:text-[8px] text-[#848E9C] font-bold uppercase tracking-[0.1em]">{t('asset.protocolNode') || '协议节点'}</p>
                        </div>

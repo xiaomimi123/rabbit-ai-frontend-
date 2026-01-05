@@ -89,12 +89,12 @@ api.interceptors.response.use(
   (error) => {
     // 处理网络错误
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      logger.error('[API Interceptor] 请求超时');
-      throw new Error('请求超时，请检查网络连接');
+      logger.error('[API Interceptor] Request timeout');
+      throw new Error('Request timeout, please check your network connection');
     }
     if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-      logger.error('[API Interceptor] 网络错误');
-      throw new Error('网络错误，请检查后端服务是否运行');
+      logger.error('[API Interceptor] Network error');
+      throw new Error('Network error, please check if the backend service is running');
     }
     if (error.response) {
       // 服务器返回了错误状态码
