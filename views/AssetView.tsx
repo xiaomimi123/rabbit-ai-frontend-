@@ -154,28 +154,45 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
           setEarningsBaseValue(pendingUsdtValue);
           setCalculatedEarningsBase(calculatedBase);
 
+          // === 🟢 修复：智能锚定时间戳逻辑（添加缓存过期检查）===
           // 读取本地缓存，智能锚定时间戳
           const STORE_KEY = `rabbit_earnings_anchor_${stats.address.toLowerCase()}`;
+          const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 分钟缓存过期时间
           let anchorTime = Date.now();
 
           try {
             const stored = localStorage.getItem(STORE_KEY);
             if (stored) {
               const { baseValue, timestamp } = JSON.parse(stored);
+              const now = Date.now();
+              const cacheAge = now - timestamp;
               
-              // 逻辑核心：
-              // 如果 API 返回的金额(pendingUsdtValue) 和缓存里的基准值(baseValue) 一样
-              // 说明后台还没结算新利息，我们应该"沿用"旧的时间戳，让前端动画继续累加
-              // 允许微小的浮动误差 (0.0001)
-              if (Math.abs(pendingUsdtValue - baseValue) < 0.0001) {
-                anchorTime = timestamp; // 保持旧时间，让收益曲线连续！
-              } else {
-                // 如果金额变了（后台发钱了或结算了），就重置时间戳为现在，并更新缓存
+              // 🟢 修复：检查缓存是否过期
+              if (cacheAge >= CACHE_EXPIRY_MS) {
+                // 缓存过期，使用当前时间作为新的锚定时间
+                console.log('[AssetView] 缓存已过期，重置锚定时间', { cacheAge, expiry: CACHE_EXPIRY_MS });
                 anchorTime = Date.now();
                 localStorage.setItem(STORE_KEY, JSON.stringify({
                   baseValue: pendingUsdtValue,
                   timestamp: anchorTime
                 }));
+              } else {
+                // 缓存未过期，检查金额是否变化
+                // 逻辑核心：
+                // 如果 API 返回的金额(pendingUsdtValue) 和缓存里的基准值(baseValue) 一样
+                // 说明后台还没结算新利息，我们应该"沿用"旧的时间戳，让前端动画继续累加
+                // 允许微小的浮动误差 (0.0001)
+                if (Math.abs(pendingUsdtValue - baseValue) < 0.0001) {
+                  anchorTime = timestamp; // 保持旧时间，让收益曲线连续！
+                } else {
+                  // 如果金额变了（后台发钱了或结算了），就重置时间戳为现在，并更新缓存
+                  console.log('[AssetView] 金额已变化，重置锚定时间', { oldValue: baseValue, newValue: pendingUsdtValue });
+                  anchorTime = Date.now();
+                  localStorage.setItem(STORE_KEY, JSON.stringify({
+                    baseValue: pendingUsdtValue,
+                    timestamp: anchorTime
+                  }));
+                }
               }
             } else {
               // 第一次存，初始化
