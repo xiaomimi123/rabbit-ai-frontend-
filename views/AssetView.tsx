@@ -198,17 +198,17 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                     timestamp: timestamp // 保持旧时间戳
                   }));
                 } else {
-                  // 金额大幅减少（提现），但后端已经正确处理了增量收益
-                  // 保持旧时间戳，让前端继续计算增量收益
-                  console.log('[AssetView] 金额减少（可能是提现），但保持旧时间戳以继续计算增量收益', { 
+                  // 金额大幅减少（提现），重置锚定时间为当前时间
+                  // 因为后端返回的 pendingUsdt 已经是最新的可提现金额，不需要再加上从旧时间戳开始的增量收益
+                  console.log('[AssetView] 金额减少（可能是提现），重置锚定时间', { 
                     oldValue: baseValue, 
                     newValue: pendingUsdtValue,
                     diff: amountDiff 
                   });
-                  anchorTime = timestamp; // 🟢 修复：保持旧时间戳，不重置
+                  anchorTime = Date.now(); // 🟢 修复：重置为当前时间
                   localStorage.setItem(STORE_KEY, JSON.stringify({
                     baseValue: pendingUsdtValue,
-                    timestamp: timestamp // 保持旧时间戳
+                    timestamp: Date.now() // 🟢 修复：重置为当前时间
                   }));
                 }
               }
