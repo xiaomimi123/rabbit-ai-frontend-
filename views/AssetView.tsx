@@ -164,35 +164,22 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                   timestamp: anchorTime
                 }));
               } else {
-                // 🟢 修复：简化缓存逻辑
-                // 后端已修复，提现时不重置 last_settlement_time，所以增量收益继续累积
-                // 前端只需要检测金额变化，如果变化明显（> 0.05 USDT），说明发生了业务操作（提现、赠送等）
-                // 此时需要重置锚定时间，从新的基准值开始计算增量
-                const amountDiff = pendingUsdtValue - baseValue;
-                const amountDiffAbs = Math.abs(amountDiff);
+                // 🟢 修复方案2适配：每次 API 调用后都重置锚定时间
+                // 后端返回的 pendingUsdt 已包含从 last_settlement_time 到 API 调用时的所有增量
+                // 前端只需要计算从 API 调用到现在的微小增量（几秒到几分钟）
+                // 因此，无论金额变化大小，都应该重置 anchorTime 为当前时间
+                console.log('[AssetView] API 调用完成，重置锚定时间', { 
+                  cachedValue: baseValue, 
+                  newValue: pendingUsdtValue,
+                  diff: (pendingUsdtValue - baseValue).toFixed(6),
+                  newTimestamp: Date.now()
+                });
                 
-                if (amountDiffAbs < 0.05) {
-                  // 金额变化很小（< 0.05 USDT），说明是正常的增量收益累积，保持旧时间戳
-                  anchorTime = timestamp;
-                  // 更新基准值，但不更新时间戳
-                  localStorage.setItem(STORE_KEY, JSON.stringify({
-                    baseValue: pendingUsdtValue,
-                    timestamp: timestamp // 保持旧时间戳
-                  }));
-                } else {
-                  // 金额变化较大（≥ 0.05 USDT），说明发生了业务操作（提现、管理员赠送等）
-                  // 重置锚定时间为当前时间，从新的基准值开始计算增量
-                  console.log('[AssetView] 金额变化较大，重置锚定时间', { 
-                    oldValue: baseValue, 
-                    newValue: pendingUsdtValue,
-                    diff: amountDiff 
-                  });
-                  anchorTime = Date.now(); // 🟢 修复：重置为当前时间
-                  localStorage.setItem(STORE_KEY, JSON.stringify({
-                    baseValue: pendingUsdtValue,
-                    timestamp: Date.now() // 🟢 修复：重置为当前时间
-                  }));
-                }
+                anchorTime = Date.now(); // 🟢 总是重置为当前时间
+                localStorage.setItem(STORE_KEY, JSON.stringify({
+                  baseValue: pendingUsdtValue,
+                  timestamp: Date.now() // 🟢 总是重置为当前时间
+                }));
               }
             } else {
               // 第一次存，初始化
