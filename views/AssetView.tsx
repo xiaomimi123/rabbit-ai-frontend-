@@ -43,8 +43,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   // 实时累计收益相关状态
   const [realTimeEarnings, setRealTimeEarnings] = useState<number | null>(null);
   const [earningsBaseTime, setEarningsBaseTime] = useState<number | null>(null); // 记录上次获取收益的时间戳
-  const [earningsBaseValue, setEarningsBaseValue] = useState<number>(0); // 记录上次获取的收益值（仅持币计算的收益，不含赠送）
-  const [calculatedEarningsBase, setCalculatedEarningsBase] = useState<number>(0); // 记录持币计算的收益基准值（不含赠送）
+  const [earningsBaseValue, setEarningsBaseValue] = useState<number>(0); // 🟢 修复: 直接使用后端返回的 pendingUsdt 作为基准值（包含所有收益，不区分持币和赠送）
 
   // 加载持币余额和收益信息
   useEffect(() => {
@@ -137,22 +136,10 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             holdingDays: earningsData.holdingDays || 0,
           });
           
-          // 计算持币产生的收益基准值（不含赠送）
-          // 如果用户达到持币标准，计算持币收益 = 预计每日收益 * 持币天数
-          let calculatedBase = 0;
-          if (earningsData.currentTier > 0 && ratBalanceFromChain !== null) {
-            const dailyRate = earningsData.dailyRate || 0;
-            const holdingDays = earningsData.holdingDays || 0;
-            // 计算持币收益：持币量 × $0.01 × 日利率 × 持币天数
-            calculatedBase = ratBalanceFromChain * 0.01 * (dailyRate / 100) * holdingDays;
-          }
-          
-          // === 🟢 修复开始：智能锚定时间戳逻辑 ===
-          // 更新实时收益的基准值和基准时间
-          // earningsBaseValue 用于显示（包含赠送的USDT）
-          // calculatedEarningsBase 用于计算增量（仅持币收益，不含赠送）
+          // 🟢 修复：简化逻辑，直接使用后端返回的 pendingUsdt 作为基准值
+          // 后端已经正确计算了所有收益（持币收益 + 管理员赠送 - 已提现）
+          // 前端只需要在此基础上累加增量收益即可，不再区分"持币"和"赠送"
           setEarningsBaseValue(pendingUsdtValue);
-          setCalculatedEarningsBase(calculatedBase);
 
           // === 🟢 修复：智能锚定时间戳逻辑（添加缓存过期检查）===
           // 读取本地缓存，智能锚定时间戳
@@ -177,20 +164,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                   timestamp: anchorTime
                 }));
               } else {
-                // 缓存未过期，检查金额是否变化
-                // 🟢 修复：后端已修复，last_settlement_time 不会被重置，所以 pendingUsdt 已经包含了增量收益
-                // 如果金额变化很大（比如提现），说明是业务操作导致的，应该保持旧的时间戳
-                // 如果金额变化很小（比如增量收益累积），说明是正常的收益增长，也应该保持旧的时间戳
-                // 只有在金额变化很大且是减少时（比如提现），才需要调整逻辑
+                // 🟢 修复：简化缓存逻辑
+                // 后端已修复，提现时不重置 last_settlement_time，所以增量收益继续累积
+                // 前端只需要检测金额变化，如果变化明显（> 0.05 USDT），说明发生了业务操作（提现、赠送等）
+                // 此时需要重置锚定时间，从新的基准值开始计算增量
                 const amountDiff = pendingUsdtValue - baseValue;
                 const amountDiffAbs = Math.abs(amountDiff);
                 
-                // 如果金额变化很小（< 0.01 USDT），说明是正常的增量收益累积，保持旧时间戳
-                // 如果金额变化较大但为正值，说明可能是管理员赠送或收益结算，保持旧时间戳
-                // 如果金额变化较大且为负值（提现），说明是提现操作，但后端已经正确处理了增量收益
-                //   所以也应该保持旧时间戳，让前端继续从旧时间戳计算增量
-                if (amountDiffAbs < 0.01 || amountDiff >= 0) {
-                  // 金额变化很小或增加，保持旧时间戳，让收益曲线连续
+                if (amountDiffAbs < 0.05) {
+                  // 金额变化很小（< 0.05 USDT），说明是正常的增量收益累积，保持旧时间戳
                   anchorTime = timestamp;
                   // 更新基准值，但不更新时间戳
                   localStorage.setItem(STORE_KEY, JSON.stringify({
@@ -198,9 +180,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                     timestamp: timestamp // 保持旧时间戳
                   }));
                 } else {
-                  // 金额大幅减少（提现），重置锚定时间为当前时间
-                  // 因为后端返回的 pendingUsdt 已经是最新的可提现金额，不需要再加上从旧时间戳开始的增量收益
-                  console.log('[AssetView] 金额减少（可能是提现），重置锚定时间', { 
+                  // 金额变化较大（≥ 0.05 USDT），说明发生了业务操作（提现、管理员赠送等）
+                  // 重置锚定时间为当前时间，从新的基准值开始计算增量
+                  console.log('[AssetView] 金额变化较大，重置锚定时间', { 
                     oldValue: baseValue, 
                     newValue: pendingUsdtValue,
                     diff: amountDiff 
@@ -237,23 +219,23 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
           setEarningsBaseTime(anchorTime); // 使用计算出的锚定时间
           // === 🔴 修复结束 ===
 
-          // 计算初始实时收益值（如果已经有时间差，立即计算增量）
-          // 这样可以避免闪烁，让数字从刷新前的值平滑过渡
+          // 🟢 修复：简化初始实时收益计算
+          // 直接基于后端返回的 pendingUsdt 累加增量收益
           let initialRealTimeEarnings = pendingUsdtValue;
           if (earningsData.currentTier > 0 && ratBalanceFromChain !== null) {
             // 直接计算预计每日收益（不依赖 useMemo，因为此时 state 可能还没更新）
             const dailyRate = earningsData.dailyRate || 0;
             const estimatedDaily = ratBalanceFromChain * 0.01 * (dailyRate / 100);
             
+            // 计算增量收益（从 anchorTime 到现在）
             const timeElapsed = (Date.now() - anchorTime) / (1000 * 60); // 已经跑了多少分钟
             const minutesPerDay = 24 * 60;
             const incrementalEarnings = estimatedDaily * (timeElapsed / minutesPerDay);
-            const giftedUsdt = pendingUsdtValue - calculatedBase;
-            const calculatedEarnings = calculatedBase + incrementalEarnings + giftedUsdt;
             
-            // 🟢 限制：不超过每日收益上限（基准收益 + 预计每日收益 + 赠送的USDT）
-            const maxDailyEarnings = calculatedBase + estimatedDaily + giftedUsdt;
-            initialRealTimeEarnings = Math.min(calculatedEarnings, maxDailyEarnings);
+            // 实时收益 = 基准收益（后端返回的 pendingUsdt）+ 增量收益
+            // 🟢 限制：不超过每日收益上限（基准收益 + 预计每日收益）
+            const maxDailyEarnings = pendingUsdtValue + estimatedDaily;
+            initialRealTimeEarnings = Math.min(pendingUsdtValue + incrementalEarnings, maxDailyEarnings);
           }
           
           setRealTimeEarnings(initialRealTimeEarnings);
@@ -273,7 +255,6 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             // 🟢 修复：即使404错误，也要设置 earningsBaseTime，避免数字不跳动
             setEarningsBaseTime(Date.now());
             setEarningsBaseValue(0);
-            setCalculatedEarningsBase(0);
             setRealTimeEarnings(0);
           } else {
             // 其他错误，保持 null，不设置为 0
@@ -538,13 +519,13 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       currentTier: earnings.currentTier,
       estimatedDailyEarnings,
       earningsBaseTime,
-      earningsBaseValue,
-      calculatedEarningsBase
+      earningsBaseValue
     });
 
-    // 计算每日收益上限（基准收益 + 预计每日收益 + 赠送的USDT）
-    const giftedUsdt = earningsBaseValue - calculatedEarningsBase;
-    const maxDailyEarnings = calculatedEarningsBase + estimatedDailyEarnings + giftedUsdt;
+    // 🟢 修复：简化实时收益计算逻辑
+    // 直接基于后端返回的 pendingUsdt（earningsBaseValue）累加增量收益
+    // 不再区分"持币收益"和"赠送 USDT"
+    const maxDailyEarnings = earningsBaseValue + estimatedDailyEarnings;
 
     // 计算实时收益的更新函数
     const updateRealTimeEarnings = () => {
@@ -553,12 +534,10 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       const minutesPerDay = 24 * 60; // 一天有多少分钟
       
       // 计算增量收益：预计每日收益 * (经过的分钟数 / 一天的分钟数)
-      // 注意：增量收益只基于持币计算，不包含赠送的USDT
       const incrementalEarnings = estimatedDailyEarnings * (timeElapsed / minutesPerDay);
       
-      // 实时收益 = 持币计算的基准收益 + 增量收益 + 赠送的USDT
-      // 赠送的USDT = 总基准收益 - 持币计算的基准收益
-      const newRealTimeEarnings = calculatedEarningsBase + incrementalEarnings + giftedUsdt;
+      // 实时收益 = 基准收益（后端返回的 pendingUsdt）+ 增量收益
+      const newRealTimeEarnings = earningsBaseValue + incrementalEarnings;
       
       // 🟢 限制：不超过每日收益上限
       const cappedEarnings = Math.min(newRealTimeEarnings, maxDailyEarnings);
@@ -578,7 +557,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     const intervalId = setInterval(updateRealTimeEarnings, 5000);
 
     return () => clearInterval(intervalId);
-  }, [earnings, estimatedDailyEarnings, earningsBaseTime, earningsBaseValue, calculatedEarningsBase]);
+  }, [earnings, estimatedDailyEarnings, earningsBaseTime, earningsBaseValue]);
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
