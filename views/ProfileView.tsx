@@ -588,7 +588,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
               <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest mb-1 flex items-center gap-1">
                 {t('profile.energy') || '⚡ 能量值'} <Info className="w-2 h-2" />
               </p>
-              <p className="text-sm font-black mono text-[#FCD535]">{energy} ⚡</p>
+              <p className="text-sm font-black mono text-[#FCD535]">{Math.floor(energy)} ⚡</p>
             </div>
             <Zap className="w-5 h-5 text-[#FCD535] animate-pulse" />
           </button>
