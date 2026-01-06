@@ -5,7 +5,7 @@ import { ethers } from 'ethers';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2, RefreshCw } from 'lucide-react';
 import { UserStats } from '../types';
 import { RAT_PRICE_USDT, VIP_TIERS, MIN_WITHDRAW_AMOUNT, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
-import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory, getVipTiers, getPublicEnergyConfig } from '../api';
+import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory, getVipTiers, getPublicEnergyConfig, clearVipTiersCache, clearPublicEnergyConfigCache } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { getProvider, getContract } from '../services/web3Service';
@@ -65,27 +65,21 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
 
   // 🟢 新增：手动刷新 VIP 配置（清除缓存并强制从 API 获取）
   const refreshVipTiers = useCallback(async () => {
-    const CACHE_KEY = 'vip_tiers_cache';
     setIsRefreshingTiers(true);
     
     try {
       // 🧹 清除缓存
-      localStorage.removeItem(CACHE_KEY);
-      console.log('[AssetView] 🧹 已清除 VIP 配置缓存');
+      clearVipTiersCache();
 
       // 🌐 强制从 API 获取最新配置
-      const response = await getVipTiers();
-      setVipTiers(response.tiers);
-      console.log('[AssetView] 🔄 已刷新 VIP 配置（强制从 API）:', response.tiers);
-      
-      // 💾 保存新缓存
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify({
-          data: response.tiers,
-          timestamp: Date.now(),
-        }));
-      } catch (e) {
-        console.warn('[AssetView] 缓存保存失败:', e);
+      const response = await getVipTiers(true); // forceRefresh = true
+      if (response.ok) {
+        setVipTiers(response.tiers);
+        console.log('[AssetView] 🔄 已刷新 VIP 配置（强制从 API）:', response.tiers);
+      } else {
+        // 降级：使用 constants.ts 中的硬编码值
+        const { VIP_TIERS } = await import('../constants');
+        setVipTiers(VIP_TIERS);
       }
     } catch (error) {
       console.error('[AssetView] ⚠️ 刷新 VIP 配置失败:', error);
@@ -97,42 +91,18 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     }
   }, []);
 
-  // 🟢 新增：加载 VIP 配置（带 localStorage 缓存）
+  // 🟢 新增：加载 VIP 配置（使用 API 函数的缓存机制）
   useEffect(() => {
     const loadVipTiers = async () => {
-      const CACHE_KEY = 'vip_tiers_cache';
-      const CACHE_TTL = 1 * 60 * 1000; // 🟢 1 分钟缓存（快速响应配置变更）
-
-      // 🟢 从缓存读取
       try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) {
-          const { data, timestamp } = JSON.parse(cached);
-          // 缓存 1 分钟内有效
-          if (Date.now() - timestamp < CACHE_TTL) {
-            setVipTiers(data);
-            console.log('[AssetView] ✅ 已加载 VIP 配置（缓存）:', data);
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('[AssetView] 缓存读取失败:', e);
-      }
-
-      // 🟢 从 API 获取
-      try {
-        const response = await getVipTiers();
-        setVipTiers(response.tiers);
-        console.log('[AssetView] ✅ 已加载 VIP 配置（API）:', response.tiers);
-        
-        // 🟢 保存到缓存
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify({
-            data: response.tiers,
-            timestamp: Date.now(),
-          }));
-        } catch (e) {
-          console.warn('[AssetView] 缓存保存失败:', e);
+        const response = await getVipTiers(); // API 函数内部已处理缓存
+        if (response.ok) {
+          setVipTiers(response.tiers);
+          console.log('[AssetView] ✅ 已加载 VIP 配置:', response.tiers);
+        } else {
+          // 降级：使用 constants.ts 中的硬编码值
+          const { VIP_TIERS } = await import('../constants');
+          setVipTiers(VIP_TIERS);
         }
       } catch (error) {
         console.error('[AssetView] ⚠️ 加载 VIP 配置失败，使用默认值:', error);
@@ -143,17 +113,16 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     };
 
     loadVipTiers();
-    // 🟢 每 1 分钟刷新一次配置（快速响应管理员调整）
-    const interval = setInterval(loadVipTiers, 1 * 60 * 1000);
+    // 🟢 每 10 分钟刷新一次配置（仅显示用，不需要频繁请求）
+    const interval = setInterval(loadVipTiers, 10 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // 🟢 新增：加载能量配置（类似 ProfileView.tsx）
+  // 🟢 新增：加载能量配置（使用 API 函数的缓存机制）
   useEffect(() => {
     const loadEnergyConfig = async () => {
       try {
-        console.log('[AssetView] 🔋 加载能量配置...');
-        const response = await getPublicEnergyConfig();
+        const response = await getPublicEnergyConfig(); // API 函数内部已处理缓存
         if (response.ok) {
           setEnergyConfig(response.config);
           console.log('[AssetView] ✅ 能量配置已加载:', response.config);
@@ -166,8 +135,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     };
 
     loadEnergyConfig();
-    // 🟢 每 1 分钟刷新一次配置（与 ProfileView 保持一致）
-    const interval = setInterval(loadEnergyConfig, 1 * 60 * 1000);
+    // 🟢 每 10 分钟刷新一次配置（仅显示用，不需要频繁请求）
+    const interval = setInterval(loadEnergyConfig, 10 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
