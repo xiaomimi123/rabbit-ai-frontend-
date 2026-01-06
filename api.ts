@@ -383,29 +383,10 @@ export const fetchCountdownConfig = async () => {
 };
 
 // 🟢 新增：获取 VIP 等级配置（用户前端）
-// 仅用于前端显示，不包含业务逻辑，使用缓存减少请求
-export async function getVipTiers(forceRefresh = false) {
-  const CACHE_KEY = 'VIP_TIERS_CACHE';
-  const CACHE_DURATION = 10 * 60 * 1000; // 10 分钟缓存（仅显示用，不需要频繁请求）
-
-  // 如果不是强制刷新，尝试从缓存加载
-  if (!forceRefresh) {
-    const cachedData = localStorage.getItem(CACHE_KEY);
-    if (cachedData) {
-      try {
-        const { timestamp, tiers } = JSON.parse(cachedData);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          console.log('[API] ✅ 从缓存加载 VIP 配置');
-          return { ok: true, tiers };
-        }
-      } catch (e) {
-        console.warn('[API] 缓存解析失败:', e);
-      }
-    }
-  }
-
+// 仅用于前端显示，不包含业务逻辑，每次直接请求最新数据（无缓存）
+export async function getVipTiers() {
   try {
-    // 请求最新数据
+    // 直接请求最新数据，添加时间戳参数绕过浏览器和 CDN 缓存
     const timestamp = Date.now();
     const response = await api.get<{
       ok: boolean;
@@ -427,12 +408,7 @@ export async function getVipTiers(forceRefresh = false) {
     const data = response.data;
     
     if (data.ok) {
-      // 存储到缓存
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        timestamp: Date.now(),
-        tiers: data.tiers
-      }));
-      console.log('[API] ✅ 从API加载并缓存 VIP 配置:', data.tiers);
+      console.log('[API] ✅ 获取最新 VIP 配置:', data.tiers);
       return data;
     }
     
@@ -445,36 +421,11 @@ export async function getVipTiers(forceRefresh = false) {
   }
 }
 
-// 🟢 清除 VIP 配置缓存（后台修改后调用）
-export function clearVipTiersCache() {
-  localStorage.removeItem('VIP_TIERS_CACHE');
-  console.log('[API] ✅ VIP 配置缓存已清除');
-}
-
 // 获取能量配置（用于用户前端显示）
-// 仅用于前端显示，不包含业务逻辑，使用缓存减少请求
-export async function getPublicEnergyConfig(forceRefresh = false) {
-  const CACHE_KEY = 'PUBLIC_ENERGY_CONFIG_CACHE';
-  const CACHE_DURATION = 10 * 60 * 1000; // 10 分钟缓存（仅显示用，不需要频繁请求）
-
-  // 如果不是强制刷新，尝试从缓存加载
-  if (!forceRefresh) {
-    const cachedData = localStorage.getItem(CACHE_KEY);
-    if (cachedData) {
-      try {
-        const { timestamp, config } = JSON.parse(cachedData);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          console.log('[API] ✅ 从缓存加载能量配置');
-          return { ok: true, config };
-        }
-      } catch (e) {
-        console.warn('[API] 缓存解析失败:', e);
-      }
-    }
-  }
-
+// 仅用于前端显示，不包含业务逻辑，每次直接请求最新数据（无缓存）
+export async function getPublicEnergyConfig() {
   try {
-    // 请求最新数据
+    // 直接请求最新数据，添加时间戳参数绕过浏览器和 CDN 缓存
     const timestamp = Date.now();
     const response = await api.get<{
       ok: boolean;
@@ -495,12 +446,7 @@ export async function getPublicEnergyConfig(forceRefresh = false) {
     const data = response.data;
     
     if (data.ok) {
-      // 存储到缓存
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        timestamp: Date.now(),
-        config: data.config
-      }));
-      console.log('[API] ✅ 从API加载并缓存能量配置:', data.config);
+      console.log('[API] ✅ 获取最新能量配置:', data.config);
       return data;
     }
     
@@ -518,12 +464,6 @@ export async function getPublicEnergyConfig(forceRefresh = false) {
       }
     };
   }
-}
-
-// 🟢 清除能量配置缓存（后台修改后调用）
-export function clearPublicEnergyConfigCache() {
-  localStorage.removeItem('PUBLIC_ENERGY_CONFIG_CACHE');
-  console.log('[API] ✅ 能量配置缓存已清除');
 }
 
 export default api;
