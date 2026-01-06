@@ -58,7 +58,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   useEffect(() => {
     const loadVipTiers = async () => {
       const CACHE_KEY = 'vip_tiers_cache';
-      const CACHE_TTL = 5 * 60 * 1000; // 5 分钟缓存
+      const CACHE_TTL = 1 * 60 * 1000; // 🟢 改为 1 分钟缓存（更快响应配置变更）
 
       // 🟢 从缓存读取
       try {
@@ -99,8 +99,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     };
 
     loadVipTiers();
-    // 每 5 分钟刷新一次配置（管理员可能会调整）
-    const interval = setInterval(loadVipTiers, 5 * 60 * 1000);
+    // 🟢 每 1 分钟刷新一次配置（快速响应管理员调整）
+    const interval = setInterval(loadVipTiers, 1 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
