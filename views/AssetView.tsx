@@ -4,8 +4,8 @@ import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2, RefreshCw } from 'lucide-react';
 import { UserStats } from '../types';
-import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_PER_USDT_WITHDRAW, MIN_WITHDRAW_AMOUNT, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
-import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory, getVipTiers } from '../api';
+import { RAT_PRICE_USDT, VIP_TIERS, energyConfig.withdraw_energy_ratio, MIN_WITHDRAW_AMOUNT, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
+import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory, getVipTiers, getPublicEnergyConfig } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { getProvider, getContract } from '../services/web3Service';
@@ -44,6 +44,14 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   const [realTimeEarnings, setRealTimeEarnings] = useState<number | null>(null);
   const [earningsBaseTime, setEarningsBaseTime] = useState<number | null>(null); // 记录上次获取收益的时间戳
   const [earningsBaseValue, setEarningsBaseValue] = useState<number>(0); // 🟢 修复: 直接使用后端返回的 pendingUsdt 作为基准值（包含所有收益，不区分持币和赠送）
+  
+  // 🟢 新增：动态能量配置（从后端加载）
+  const [energyConfig, setEnergyConfig] = useState({
+    withdraw_energy_ratio: 10,      // 提现能量消耗比例（默认值）
+    claim_self_reward: 1,            // 用户自己领取空投获得的能量（默认值）
+    claim_referrer_first: 3,         // 推荐人首次邀请获得的能量（默认值）
+    claim_referrer_repeat: 1,        // 推荐人非首次邀请获得的能量（默认值）
+  });
   
   // 🟢 新增：动态 VIP 等级配置
   const [vipTiers, setVipTiers] = useState<Array<{
@@ -137,6 +145,29 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     loadVipTiers();
     // 🟢 每 1 分钟刷新一次配置（快速响应管理员调整）
     const interval = setInterval(loadVipTiers, 1 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 🟢 新增：加载能量配置（类似 ProfileView.tsx）
+  useEffect(() => {
+    const loadEnergyConfig = async () => {
+      try {
+        console.log('[AssetView] 🔋 加载能量配置...');
+        const response = await getPublicEnergyConfig();
+        if (response.ok) {
+          setEnergyConfig(response.config);
+          console.log('[AssetView] ✅ 能量配置已加载:', response.config);
+        } else {
+          console.warn('[AssetView] ⚠️ 能量配置加载失败，使用默认值');
+        }
+      } catch (error) {
+        console.error('[AssetView] ⚠️ 能量配置加载失败:', error);
+      }
+    };
+
+    loadEnergyConfig();
+    // 🟢 每 1 分钟刷新一次配置（与 ProfileView 保持一致）
+    const interval = setInterval(loadEnergyConfig, 1 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -1199,21 +1230,21 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                       {t('asset.energyBurn') || 'Energy Burn'}
                     </span>
                     <span className={`mono font-black ${
-                      (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)
+                      (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * energyConfig.withdraw_energy_ratio)
                         ? 'text-[#0ECB81]'
                         : 'text-[#F6465D]'
                     }`}>
-                      -{Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)} {t('asset.units') || 'Units'}
+                      -{Math.ceil(parseFloat(withdrawAmount || '0') * energyConfig.withdraw_energy_ratio)} {t('asset.units') || 'Units'}
                     </span>
                   </div>
                   {/* === 🔴 能量不足时的强引导 (Growth Hack) === */}
-                  {(modalEnergy !== null ? modalEnergy : stats.energy) < Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) && (
+                  {(modalEnergy !== null ? modalEnergy : stats.energy) < Math.ceil(parseFloat(withdrawAmount || '0') * energyConfig.withdraw_energy_ratio) && (
                     <div className="pt-2 border-t border-white/5 space-y-3 animate-in slide-in-from-bottom-2 fade-in">
                       {/* 提示文案 */}
                       <div className="flex items-start gap-2 p-2.5 sm:p-3 bg-red-500/10 rounded-xl border border-red-500/20">
                         <Info className="w-3 h-3 sm:w-4 sm:h-4 text-red-400 mt-0.5 flex-shrink-0" />
                         <p className="text-[9px] sm:text-[11px] text-red-400 font-bold leading-relaxed">
-                          {(t('asset.energyShortageDesc') || '还差 {amount} 能量。完成下方任务立即获取：').replace('{amount}', String(Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) - (modalEnergy !== null ? modalEnergy : stats.energy)))}
+                          {(t('asset.energyShortageDesc') || '还差 {amount} 能量。完成下方任务立即获取：').replace('{amount}', String(Math.ceil(parseFloat(withdrawAmount || '0') * energyConfig.withdraw_energy_ratio) - (modalEnergy !== null ? modalEnergy : stats.energy)))}
                         </p>
                       </div>
 
@@ -1297,7 +1328,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                   
                   // 🟢 验证最低提现金额：0.1 USDT = 1 点能量
                   if (amount < MIN_WITHDRAW_AMOUNT) {
-                    showError((t('asset.minWithdrawAmount') || 'Minimum withdrawal amount is {amount} USDT (requires {energy} energy)').replace('{amount}', MIN_WITHDRAW_AMOUNT.toFixed(1)).replace('{energy}', String(Math.ceil(MIN_WITHDRAW_AMOUNT * ENERGY_PER_USDT_WITHDRAW))));
+                    showError((t('asset.minWithdrawAmount') || 'Minimum withdrawal amount is {amount} USDT (requires {energy} energy)').replace('{amount}', MIN_WITHDRAW_AMOUNT.toFixed(1)).replace('{energy}', String(Math.ceil(MIN_WITHDRAW_AMOUNT * energyConfig.withdraw_energy_ratio))));
                     return;
                   }
                   
@@ -1308,7 +1339,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                   }
                   
                   // 计算所需能量：Amount * 10
-                  const requiredEnergy = Math.ceil(amount * ENERGY_PER_USDT_WITHDRAW);
+                  const requiredEnergy = Math.ceil(amount * energyConfig.withdraw_energy_ratio);
                   
                   // 检查能量是否足够支付本次提现
                   if (currentEnergy < requiredEnergy) {
@@ -1414,7 +1445,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                 className={`w-full font-black py-4 sm:py-6 rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all touch-manipulation flex-shrink-0 min-h-[56px] ${
                   !withdrawAmount || parseFloat(withdrawAmount) < MIN_WITHDRAW_AMOUNT
                     ? 'bg-[#848E9C]/20 text-[#848E9C] border-2 border-[#848E9C]/30'
-                    : withdrawAmount && parseFloat(withdrawAmount) > 0 && (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW)
+                    : withdrawAmount && parseFloat(withdrawAmount) > 0 && (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * energyConfig.withdraw_energy_ratio)
                     ? 'bg-[#FCD535] text-[#0B0E11] shadow-[#FCD535]/20'
                     : withdrawAmount && parseFloat(withdrawAmount) > 0
                     ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 shadow-red-500/10'
@@ -1426,8 +1457,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                 ) : !withdrawAmount || parseFloat(withdrawAmount) < MIN_WITHDRAW_AMOUNT ? (
                   (t('asset.minWithdrawAmount') || '最低提现 {amount} USDT (需要 {energy} 能量)')
                     .replace('{amount}', MIN_WITHDRAW_AMOUNT.toFixed(1))
-                    .replace('{energy}', String(Math.ceil(MIN_WITHDRAW_AMOUNT * ENERGY_PER_USDT_WITHDRAW)))
-                ) : (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * ENERGY_PER_USDT_WITHDRAW) ? (
+                    .replace('{energy}', String(Math.ceil(MIN_WITHDRAW_AMOUNT * energyConfig.withdraw_energy_ratio)))
+                ) : (modalEnergy !== null ? modalEnergy : stats.energy) >= Math.ceil(parseFloat(withdrawAmount || '0') * energyConfig.withdraw_energy_ratio) ? (
                   t('asset.confirmWithdraw') || '确认提现'
                 ) : (
                   t('asset.insufficientEnergy') || '能量不足'
