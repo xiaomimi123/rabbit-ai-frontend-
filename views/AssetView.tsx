@@ -1,8 +1,8 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
-import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2, RefreshCw } from 'lucide-react';
 import { UserStats } from '../types';
 import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_PER_USDT_WITHDRAW, MIN_WITHDRAW_AMOUNT, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
 import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory, getVipTiers } from '../api';
@@ -53,19 +53,54 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     max: number;
     dailyRate: number;
   }> | null>(null);
+  const [isRefreshingTiers, setIsRefreshingTiers] = useState(false);
+
+  // 🟢 新增：手动刷新 VIP 配置（清除缓存并强制从 API 获取）
+  const refreshVipTiers = useCallback(async () => {
+    const CACHE_KEY = 'vip_tiers_cache';
+    setIsRefreshingTiers(true);
+    
+    try {
+      // 🧹 清除缓存
+      localStorage.removeItem(CACHE_KEY);
+      console.log('[AssetView] 🧹 已清除 VIP 配置缓存');
+
+      // 🌐 强制从 API 获取最新配置
+      const response = await getVipTiers();
+      setVipTiers(response.tiers);
+      console.log('[AssetView] 🔄 已刷新 VIP 配置（强制从 API）:', response.tiers);
+      
+      // 💾 保存新缓存
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          data: response.tiers,
+          timestamp: Date.now(),
+        }));
+      } catch (e) {
+        console.warn('[AssetView] 缓存保存失败:', e);
+      }
+    } catch (error) {
+      console.error('[AssetView] ⚠️ 刷新 VIP 配置失败:', error);
+      // 降级：使用 constants.ts 中的硬编码值
+      const { VIP_TIERS } = await import('../constants');
+      setVipTiers(VIP_TIERS);
+    } finally {
+      setIsRefreshingTiers(false);
+    }
+  }, []);
 
   // 🟢 新增：加载 VIP 配置（带 localStorage 缓存）
   useEffect(() => {
     const loadVipTiers = async () => {
       const CACHE_KEY = 'vip_tiers_cache';
-      const CACHE_TTL = 1 * 60 * 1000; // 🟢 改为 1 分钟缓存（更快响应配置变更）
+      const CACHE_TTL = 1 * 60 * 1000; // 🟢 1 分钟缓存（快速响应配置变更）
 
       // 🟢 从缓存读取
       try {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
           const { data, timestamp } = JSON.parse(cached);
-          // 缓存 5 分钟内有效
+          // 缓存 1 分钟内有效
           if (Date.now() - timestamp < CACHE_TTL) {
             setVipTiers(data);
             console.log('[AssetView] ✅ 已加载 VIP 配置（缓存）:', data);
@@ -94,6 +129,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       } catch (error) {
         console.error('[AssetView] ⚠️ 加载 VIP 配置失败，使用默认值:', error);
         // 降级：使用 constants.ts 中的硬编码值
+        const { VIP_TIERS } = await import('../constants');
         setVipTiers(VIP_TIERS);
       }
     };
@@ -678,12 +714,16 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
 
       {/* VIP Tiering Protocol - Interactive Card */}
       <button 
-        onClick={(e) => {
+        onClick={async (e) => {
           e.preventDefault();
           e.stopPropagation();
+          // 🔄 点击时刷新 VIP 配置（获取最新利率）
+          await refreshVipTiers();
+          // 然后打开模态框
           setShowTierModal(true);
         }}
-        className="w-full text-left bg-gradient-to-br from-[#1e2329]/60 to-[#0b0e11] border border-white/5 rounded-[2.5rem] overflow-hidden active:scale-[0.98] transition-all hover:border-[#FCD535]/30 group relative cursor-pointer"
+        disabled={isRefreshingTiers}
+        className="w-full text-left bg-gradient-to-br from-[#1e2329]/60 to-[#0b0e11] border border-white/5 rounded-[2.5rem] overflow-hidden active:scale-[0.98] transition-all hover:border-[#FCD535]/30 group relative cursor-pointer disabled:opacity-60 disabled:cursor-wait"
       >
         <div className="absolute top-0 right-0 w-24 h-24 bg-[#FCD535]/5 blur-2xl rounded-full" />
         
@@ -744,9 +784,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             />
           </div>
           <div className="flex justify-center items-center gap-2 text-[#848E9C] group-hover:text-[#FCD535] transition-colors">
-            <Sparkles className="w-3 h-3" />
-            <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t('asset.unlockTierBenefits') || '解锁等级权益'}</span>
-            <ChevronRight className="w-3 h-3" />
+            {isRefreshingTiers ? (
+              <RefreshCw className="w-3 h-3 animate-spin" />
+            ) : (
+              <Sparkles className="w-3 h-3" />
+            )}
+            <span className="text-[9px] font-black uppercase tracking-[0.2em]">
+              {isRefreshingTiers ? '刷新中...' : (t('asset.unlockTierBenefits') || '解锁等级权益')}
+            </span>
+            {!isRefreshingTiers && <ChevronRight className="w-3 h-3" />}
           </div>
         </div>
       </button>
