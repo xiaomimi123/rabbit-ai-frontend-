@@ -53,14 +53,14 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     claim_referrer_repeat: 1,        // 推荐人非首次邀请获得的能量（默认值）
   });
   
-  // 🟢 新增：动态 VIP 等级配置
+  // 🟢 新增：动态 VIP 等级配置（初始值使用默认值，避免页面崩溃）
   const [vipTiers, setVipTiers] = useState<Array<{
     level: number;
     name: string;
     min: number;
     max: number;
     dailyRate: number;
-  }> | null>(null);
+  }> | null>(VIP_TIERS); // 🟢 初始值使用默认值，确保页面可以正常渲染
   const [isRefreshingTiers, setIsRefreshingTiers] = useState(false);
 
   // 🟢 新增：手动刷新 VIP 配置（直接请求最新数据）
@@ -150,7 +150,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   }, []);
 
   // 🟢 使用动态配置或降级到硬编码（确保始终有值）
-  const tiersToDisplay = (vipTiers && vipTiers.length > 0) ? vipTiers : VIP_TIERS;
+  const tiersToDisplay = (vipTiers && Array.isArray(vipTiers) && vipTiers.length > 0) ? vipTiers : (VIP_TIERS || []);
 
   // 加载持币余额和收益信息
   useEffect(() => {
@@ -490,14 +490,16 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   
   // 根据持币余额确定当前 VIP 等级
   const currentTier = useMemo(() => {
+    // 🟢 安全检查：确保 tiersToDisplay 有数据
+    if (!tiersToDisplay || tiersToDisplay.length === 0 || ratBalance === null) return null;
     if (ratBalance < tiersToDisplay[0].min) return null; // 未达到最低等级
     return tiersToDisplay.find(t => ratBalance >= t.min && ratBalance <= t.max) || tiersToDisplay[tiersToDisplay.length - 1];
   }, [ratBalance, tiersToDisplay]);
 
   // 计算距离下一个等级的进度百分比
   const progress = useMemo(() => {
-    // 如果数据加载中，返回 null
-    if (ratBalance === null) return null;
+    // 🟢 安全检查：确保数据有效
+    if (ratBalance === null || !tiersToDisplay || tiersToDisplay.length === 0) return null;
     
     // 如果未达到VIP1，计算距离VIP1的进度
     if (!currentTier) {
