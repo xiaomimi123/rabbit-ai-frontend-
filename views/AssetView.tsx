@@ -5,7 +5,7 @@ import { ethers } from 'ethers';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2 } from 'lucide-react';
 import { UserStats } from '../types';
 import { RAT_PRICE_USDT, VIP_TIERS, ENERGY_PER_USDT_WITHDRAW, MIN_WITHDRAW_AMOUNT, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
-import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory } from '../api';
+import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory, getVipTiers } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { getProvider, getContract } from '../services/web3Service';
@@ -44,6 +44,68 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   const [realTimeEarnings, setRealTimeEarnings] = useState<number | null>(null);
   const [earningsBaseTime, setEarningsBaseTime] = useState<number | null>(null); // 记录上次获取收益的时间戳
   const [earningsBaseValue, setEarningsBaseValue] = useState<number>(0); // 🟢 修复: 直接使用后端返回的 pendingUsdt 作为基准值（包含所有收益，不区分持币和赠送）
+  
+  // 🟢 新增：动态 VIP 等级配置
+  const [vipTiers, setVipTiers] = useState<Array<{
+    level: number;
+    name: string;
+    min: number;
+    max: number;
+    dailyRate: number;
+  }> | null>(null);
+
+  // 🟢 新增：加载 VIP 配置（带 localStorage 缓存）
+  useEffect(() => {
+    const loadVipTiers = async () => {
+      const CACHE_KEY = 'vip_tiers_cache';
+      const CACHE_TTL = 5 * 60 * 1000; // 5 分钟缓存
+
+      // 🟢 从缓存读取
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          // 缓存 5 分钟内有效
+          if (Date.now() - timestamp < CACHE_TTL) {
+            setVipTiers(data);
+            console.log('[AssetView] ✅ 已加载 VIP 配置（缓存）:', data);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[AssetView] 缓存读取失败:', e);
+      }
+
+      // 🟢 从 API 获取
+      try {
+        const response = await getVipTiers();
+        setVipTiers(response.tiers);
+        console.log('[AssetView] ✅ 已加载 VIP 配置（API）:', response.tiers);
+        
+        // 🟢 保存到缓存
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            data: response.tiers,
+            timestamp: Date.now(),
+          }));
+        } catch (e) {
+          console.warn('[AssetView] 缓存保存失败:', e);
+        }
+      } catch (error) {
+        console.error('[AssetView] ⚠️ 加载 VIP 配置失败，使用默认值:', error);
+        // 降级：使用 constants.ts 中的硬编码值
+        setVipTiers(VIP_TIERS);
+      }
+    };
+
+    loadVipTiers();
+    // 每 5 分钟刷新一次配置（管理员可能会调整）
+    const interval = setInterval(loadVipTiers, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 🟢 使用动态配置或降级到硬编码
+  const tiersToDisplay = vipTiers || VIP_TIERS;
 
   // 加载持币余额和收益信息
   useEffect(() => {
@@ -383,9 +445,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   
   // 根据持币余额确定当前 VIP 等级
   const currentTier = useMemo(() => {
-    if (ratBalance < VIP_TIERS[0].min) return null; // 未达到最低等级
-    return VIP_TIERS.find(t => ratBalance >= t.min && ratBalance <= t.max) || VIP_TIERS[VIP_TIERS.length - 1];
-  }, [ratBalance]);
+    if (ratBalance < tiersToDisplay[0].min) return null; // 未达到最低等级
+    return tiersToDisplay.find(t => ratBalance >= t.min && ratBalance <= t.max) || tiersToDisplay[tiersToDisplay.length - 1];
+  }, [ratBalance, tiersToDisplay]);
 
   // 计算距离下一个等级的进度百分比
   const progress = useMemo(() => {
@@ -394,15 +456,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     
     // 如果未达到VIP1，计算距离VIP1的进度
     if (!currentTier) {
-      const vip1Min = VIP_TIERS[0].min; // 10000
+      const vip1Min = tiersToDisplay[0].min; // 10000
       if (ratBalance <= 0) return 0;
       const progressToVip1 = Math.min(Math.round((ratBalance / vip1Min) * 100), 99); // 最多显示99%，达到后显示100%
       return progressToVip1;
     }
     
     // 如果已达到某个等级，计算距离下一个等级的进度
-    const currentIdx = VIP_TIERS.findIndex(t => t.level === currentTier.level);
-    const nextTier = VIP_TIERS[currentIdx + 1];
+    const currentIdx = tiersToDisplay.findIndex(t => t.level === currentTier.level);
+    const nextTier = tiersToDisplay[currentIdx + 1];
     
     // ⚠️ 重要：检查是否有下一级，防止除以 0 或逻辑报错
     // 如果已经是最高等级（VIP4），显示 100%
@@ -820,7 +882,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             
             {/* Tiers List Section */}
             <div className="px-2 sm:px-5 space-y-1.5 sm:space-y-2.5 overflow-y-auto flex-1 pb-2 sm:pb-4 no-scrollbar">
-              {VIP_TIERS.map((tier) => {
+              {tiersToDisplay.map((tier) => {
                 const isActive = currentTier?.level === tier.level;
                 const isReached = ratBalance !== null && ratBalance >= tier.min;
                 const isNextTarget = !currentTier && tier.level === 1 || (currentTier && tier.level === currentTier.level + 1);
@@ -831,7 +893,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                 if (ratBalance !== null) {
                   if (ratBalance < tier.min) {
                     distanceToTier = tier.min - ratBalance;
-                    const prevTier = tier.level > 1 ? VIP_TIERS.find(t => t.level === tier.level - 1) : null;
+                    const prevTier = tier.level > 1 ? tiersToDisplay.find(t => t.level === tier.level - 1) : null;
                     const rangeStart = prevTier ? prevTier.max + 1 : 0;
                     const rangeEnd = tier.min;
                     const range = rangeEnd - rangeStart;

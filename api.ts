@@ -382,5 +382,19 @@ export const fetchCountdownConfig = async () => {
   }
 };
 
+// 🟢 新增：获取 VIP 等级配置（用户前端）
+export async function getVipTiers() {
+  return apiFetch<{
+    ok: boolean;
+    tiers: Array<{
+      level: number;
+      name: string;
+      min: number;
+      max: number;
+      dailyRate: number;
+    }>;
+  }>('/vip/tiers');
+}
+
 export default api;
 
