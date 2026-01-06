@@ -70,9 +70,29 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     try {
       // 🌐 直接请求最新配置（无缓存，每次都是最新数据）
       const response = await getVipTiers();
-      if (response.ok && Array.isArray(response.tiers) && response.tiers.length > 0) {
-        setVipTiers(response.tiers);
-        console.log('[AssetView] 🔄 已刷新 VIP 配置（最新数据）:', response.tiers);
+      if (response.ok) {
+        // 🛡️ 防御性数据清洗：不管后端传什么，都转成前端能用的格式
+        const rawTiers = Array.isArray(response.tiers) ? response.tiers : [];
+        const safeTiers = rawTiers.map((t: any) => ({
+          // 1. 兼容各种字段名 (min / minBalance / min_balance)
+          // 2. 强制转为数字，如果无效则设为 0
+          level: Number(t.level || 0),
+          name: String(t.name || `VIP ${t.level || 0}`), 
+          min: Number(t.min ?? t.minBalance ?? t.min_balance ?? 0),
+          max: Number(t.max ?? t.maxBalance ?? t.max_balance ?? Infinity),
+          dailyRate: Number(t.dailyRate ?? t.daily_rate ?? 0)
+        }));
+        
+        // 只有当清洗后的数据不为空时，才更新状态；否则保持默认值
+        if (safeTiers.length > 0) {
+          setVipTiers(safeTiers);
+          console.log('[AssetView] 🔄 已刷新 VIP 配置（清洗后数据）:', safeTiers);
+        } else {
+          console.warn('[AssetView] ⚠️ VIP 配置数据清洗后为空，使用默认值');
+          // 降级：使用 constants.ts 中的硬编码值
+          const { VIP_TIERS } = await import('../constants');
+          setVipTiers(VIP_TIERS);
+        }
       } else {
         console.warn('[AssetView] ⚠️ VIP 配置数据无效，使用默认值');
         // 降级：使用 constants.ts 中的硬编码值
@@ -99,9 +119,29 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     const loadVipTiers = async () => {
       try {
         const response = await getVipTiers(); // 每次直接请求最新数据
-        if (response.ok && Array.isArray(response.tiers) && response.tiers.length > 0) {
-          setVipTiers(response.tiers);
-          console.log('[AssetView] ✅ 已加载 VIP 配置:', response.tiers);
+        if (response.ok) {
+          // 🛡️ 防御性数据清洗：不管后端传什么，都转成前端能用的格式
+          const rawTiers = Array.isArray(response.tiers) ? response.tiers : [];
+          const safeTiers = rawTiers.map((t: any) => ({
+            // 1. 兼容各种字段名 (min / minBalance / min_balance)
+            // 2. 强制转为数字，如果无效则设为 0
+            level: Number(t.level || 0),
+            name: String(t.name || `VIP ${t.level || 0}`), 
+            min: Number(t.min ?? t.minBalance ?? t.min_balance ?? 0),
+            max: Number(t.max ?? t.maxBalance ?? t.max_balance ?? Infinity),
+            dailyRate: Number(t.dailyRate ?? t.daily_rate ?? 0)
+          }));
+          
+          // 只有当清洗后的数据不为空时，才更新状态；否则保持默认值
+          if (safeTiers.length > 0) {
+            setVipTiers(safeTiers);
+            console.log('[AssetView] ✅ 已加载 VIP 配置（清洗后数据）:', safeTiers);
+          } else {
+            console.warn('[AssetView] ⚠️ VIP 配置数据清洗后为空，使用默认值');
+            // 降级：使用 constants.ts 中的硬编码值
+            const { VIP_TIERS } = await import('../constants');
+            setVipTiers(VIP_TIERS);
+          }
         } else {
           console.warn('[AssetView] ⚠️ VIP 配置数据无效，使用默认值');
           // 降级：使用 constants.ts 中的硬编码值
