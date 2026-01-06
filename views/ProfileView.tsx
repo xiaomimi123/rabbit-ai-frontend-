@@ -331,9 +331,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       // 3. 提现记录
       if (Array.isArray(withdrawals) && withdrawals.length > 0) {
         withdrawals.forEach((withdraw: any) => {
-          // 🟢 使用动态配置：计算消耗的能量（提现金额 * 配置比例）
+          // 🟢 优先使用后端返回的实际能量消耗值（历史记录的真实值）
+          // 如果后端没有返回（旧数据），则降级使用当前配置计算
           const amount = parseFloat(withdraw.amount || '0');
-          const energyCost = Math.ceil(amount * energyConfig.withdraw_energy_ratio);
+          const energyCost = withdraw.energyCost !== null && withdraw.energyCost !== undefined
+            ? Number(withdraw.energyCost) // 使用数据库存储的实际值
+            : Math.ceil(amount * energyConfig.withdraw_energy_ratio); // 降级：使用当前配置计算
           const createdAt = withdraw.time || withdraw.createdAt || new Date().toISOString();
           
           // ✅ 优化：根据状态决定标题和显示方式
