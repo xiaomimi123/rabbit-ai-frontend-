@@ -383,26 +383,10 @@ export const fetchCountdownConfig = async () => {
 };
 
 // 🟢 新增：获取 VIP 等级配置（用户前端）
+// 🟢 简化版：每次直接请求最新数据，不缓存
 export async function getVipTiers() {
-  const CACHE_KEY = 'VIP_TIERS_CACHE';
-  const CACHE_DURATION = 1 * 60 * 1000; // 1 分钟缓存
-
-  // 尝试从缓存加载
-  const cachedData = localStorage.getItem(CACHE_KEY);
-  if (cachedData) {
-    try {
-      const { timestamp, tiers } = JSON.parse(cachedData);
-      if (Date.now() - timestamp < CACHE_DURATION) {
-        console.log('[API] ✅ 从缓存加载 VIP 配置');
-        return { ok: true, tiers };
-      }
-    } catch (e) {
-      console.warn('[API] 缓存解析失败:', e);
-    }
-  }
-
   try {
-    // 🟢 添加时间戳参数绕过浏览器和 CDN 缓存
+    // 直接请求最新数据，添加时间戳参数绕过浏览器和 CDN 缓存
     const timestamp = Date.now();
     const response = await api.get<{
       ok: boolean;
@@ -424,12 +408,7 @@ export async function getVipTiers() {
     const data = response.data;
     
     if (data.ok) {
-      // 存储到缓存
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        timestamp: Date.now(),
-        tiers: data.tiers
-      }));
-      console.log('[API] ✅ 从API加载并缓存 VIP 配置:', data.tiers);
+      console.log('[API] ✅ 获取最新 VIP 配置:', data.tiers);
       return data;
     }
     
@@ -443,26 +422,10 @@ export async function getVipTiers() {
 }
 
 // 获取能量配置（用于用户前端显示）
+// 🟢 简化版：每次直接请求最新数据，不缓存
 export async function getPublicEnergyConfig() {
-  const CACHE_KEY = 'PUBLIC_ENERGY_CONFIG_CACHE';
-  const CACHE_DURATION = 1 * 60 * 1000; // 🟢 减少到 1 分钟缓存（更快响应配置变更）
-
-  // 尝试从缓存加载
-  const cachedData = localStorage.getItem(CACHE_KEY);
-  if (cachedData) {
-    try {
-      const { timestamp, config } = JSON.parse(cachedData);
-      if (Date.now() - timestamp < CACHE_DURATION) {
-        console.log('[API] ✅ 从缓存加载能量配置');
-        return { ok: true, config };
-      }
-    } catch (e) {
-      console.warn('[API] 缓存解析失败:', e);
-    }
-  }
-
   try {
-    // 🟢 添加时间戳参数绕过浏览器和 CDN 缓存
+    // 直接请求最新数据，添加时间戳参数绕过浏览器和 CDN 缓存
     const timestamp = Date.now();
     const response = await api.get<{
       ok: boolean;
@@ -480,20 +443,13 @@ export async function getPublicEnergyConfig() {
       }
     });
     
-    // 🟢 api.get 返回的是 response.data
     const data = response.data;
     
     if (data.ok) {
-      // 存储到缓存
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        timestamp: Date.now(),
-        config: data.config
-      }));
-      console.log('[API] ✅ 从API加载并缓存能量配置:', data.config);
+      console.log('[API] ✅ 获取最新能量配置:', data.config);
       return data;
     }
     
-    // API返回失败，使用默认值
     throw new Error('API returned ok: false');
   } catch (error) {
     console.error('[API] ⚠️ 获取能量配置失败，使用默认值:', error);
