@@ -51,11 +51,12 @@ export const ENERGY_PER_USDT_WITHDRAW = 10;
 export const MIN_WITHDRAW_AMOUNT = 0.1; // 最低提现金额：0.1 USDT = 1 点能量
 
 // 持币生息 VIP 等级配置（根据钱包 RAT 余额）
+// 🟢 注意：这些是默认值/降级值，优先使用从后端API动态加载的配置
 export const VIP_TIERS = [
-  { level: 1, name: '🌱 Novice', min: 10000, max: 49999, dailyRate: 2 }, // 2% 日利率
-  { level: 2, name: '🌿 Advanced', min: 50000, max: 99999, dailyRate: 4 }, // 4% 日利率
-  { level: 3, name: '🌳 Expert', min: 100000, max: 199999, dailyRate: 6 }, // 6% 日利率
-  { level: 4, name: '💎 Core', min: 200000, max: Infinity, dailyRate: 10 }, // 10% 日利率
+  { level: 1, name: '🌱 新手', min: 10000, max: 49999, dailyRate: 3 }, // 3% 日利率
+  { level: 2, name: '🌿 进阶', min: 50000, max: 99999, dailyRate: 5 }, // 5% 日利率
+  { level: 3, name: '🌳 资深', min: 100000, max: 199999, dailyRate: 7 }, // 7% 日利率
+  { level: 4, name: '💎 核心', min: 200000, max: Infinity, dailyRate: 10 }, // 10% 日利率
 ];
 
 export const PARTNERS = [
