@@ -437,7 +437,7 @@ export async function getVipTiers() {
   } catch (error) {
     console.error('[API] ⚠️ 获取 VIP 配置失败，尝试从 constants.ts 加载:', error);
     // 降级：使用硬编码值
-    const { VIP_TIERS } = await import('../constants');
+    const { VIP_TIERS } = await import('./constants');
     return { ok: false, tiers: VIP_TIERS };
   }
 }
