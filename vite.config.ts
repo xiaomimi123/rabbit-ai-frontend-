@@ -77,9 +77,10 @@ export default defineConfig(({ mode }) => {
         minify: 'esbuild',
       },
       esbuild: {
-        // 生产环境移除调试日志，但保留 console.error（用于关键错误日志和 Sentry 监控）
-        pure: mode === 'production' ? ['console.log', 'console.info', 'console.debug', 'console.warn'] : [],
-        drop: mode === 'production' ? ['debugger'] : [],
+        // 🔥 强制移除调试日志（无论任何环境）
+        // 在生产环境中，这些日志会被完全移除
+        pure: ['console.log', 'console.info', 'console.debug', 'console.warn'],
+        drop: ['debugger'],
       },
     };
 });
