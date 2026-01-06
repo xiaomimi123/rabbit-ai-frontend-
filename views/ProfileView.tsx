@@ -8,7 +8,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { fetchUserInfo, fetchTeamRewards, getWithdrawHistory, getClaimsHistory, getReferralHistory, getPublicEnergyConfig } from '../api';
 import { shortenAddress, disconnectWallet } from '../services/web3Service';
-import { ENERGY_PER_USDT_WITHDRAW } from '../constants';
+// 🟢 已移除：不再使用硬编码的 ENERGY_PER_USDT_WITHDRAW，改用动态配置 energyConfig.withdraw_energy_ratio
 import ActivityHistoryView from './ActivityHistoryView';
 
 interface ProfileViewProps {
@@ -331,9 +331,9 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       // 3. 提现记录
       if (Array.isArray(withdrawals) && withdrawals.length > 0) {
         withdrawals.forEach((withdraw: any) => {
-          // 计算消耗的能量（提现金额 * 10）
+          // 🟢 使用动态配置：计算消耗的能量（提现金额 * 配置比例）
           const amount = parseFloat(withdraw.amount || '0');
-          const energyCost = Math.ceil(amount * ENERGY_PER_USDT_WITHDRAW);
+          const energyCost = Math.ceil(amount * energyConfig.withdraw_energy_ratio);
           const createdAt = withdraw.time || withdraw.createdAt || new Date().toISOString();
           
           // ✅ 优化：根据状态决定标题和显示方式

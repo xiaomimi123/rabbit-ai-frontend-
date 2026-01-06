@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Gift, Handshake, CreditCard, Clock, CheckCircle2, X, ArrowUpRight } from 'lucide-react';
 import { UserStats } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getWithdrawHistory, getClaimsHistory, getReferralHistory } from '../api';
+import { getWithdrawHistory, getClaimsHistory, getReferralHistory, getPublicEnergyConfig } from '../api';
 import { shortenAddress } from '../services/web3Service';
-import { ENERGY_PER_USDT_WITHDRAW } from '../constants';
+// 🟢 已移除：不再使用硬编码的 ENERGY_PER_USDT_WITHDRAW，改用动态配置 energyConfig.withdraw_energy_ratio
 
 interface ActivityHistoryViewProps {
   stats: UserStats;
@@ -18,10 +18,37 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
   const [activeFilter, setActiveFilter] = useState<ActivityType>('all');
   const [timelineHistory, setTimelineHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 🟢 新增：能量配置状态（动态从后端加载）
+  const [energyConfig, setEnergyConfig] = useState({
+    withdraw_energy_ratio: 10,      // 提现能量消耗比例（默认值）
+    claim_self_reward: 1,            // 用户自己领取空投获得的能量（默认值）
+    claim_referrer_first: 3,         // 推荐人首次邀请获得的能量（默认值）
+    claim_referrer_repeat: 1,        // 推荐人非首次邀请获得的能量（默认值）
+  });
+
+  // 🟢 新增：加载能量配置
+  useEffect(() => {
+    const loadEnergyConfig = async () => {
+      try {
+        const response = await getPublicEnergyConfig();
+        if (response.ok) {
+          setEnergyConfig(response.config);
+          console.log('[ActivityHistoryView] ✅ 能量配置已加载:', response.config);
+        }
+      } catch (error) {
+        console.error('[ActivityHistoryView] ⚠️ 能量配置加载失败:', error);
+      }
+    };
+    loadEnergyConfig();
+    // 每 1 分钟刷新一次配置
+    const interval = setInterval(loadEnergyConfig, 1 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     loadTimelineHistory();
-  }, [stats.address]);
+  }, [stats.address, energyConfig.withdraw_energy_ratio]); // 🟢 添加依赖，配置变化时重新加载历史
 
   const loadTimelineHistory = async () => {
     // ✅ 优化：延迟设置加载状态，避免快速加载时的闪烁
@@ -109,8 +136,9 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
       // 3. 提现记录
       if (Array.isArray(withdrawals) && withdrawals.length > 0) {
         withdrawals.forEach((withdraw: any) => {
+          // 🟢 使用动态配置：计算消耗的能量（提现金额 * 配置比例）
           const amount = parseFloat(withdraw.amount || '0');
-          const energyCost = Math.ceil(amount * ENERGY_PER_USDT_WITHDRAW);
+          const energyCost = Math.ceil(amount * energyConfig.withdraw_energy_ratio);
           const createdAt = withdraw.time || withdraw.createdAt || new Date().toISOString();
           
           const isCompleted = withdraw.status === 'Completed' || withdraw.status === 'Approved';
