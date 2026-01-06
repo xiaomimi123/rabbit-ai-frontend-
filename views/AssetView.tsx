@@ -141,70 +141,37 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
           // 前端只需要在此基础上累加增量收益即可，不再区分"持币"和"赠送"
           setEarningsBaseValue(pendingUsdtValue);
 
-          // === 🟢 修复：智能锚定时间戳逻辑（添加缓存过期检查）===
-          // 读取本地缓存，智能锚定时间戳
+          /**
+           * === 🟢 优化：简化时间锚定逻辑 ===
+           * 
+           * 背景：
+           * - 后端"方案2"已确保 pendingUsdt 是准确的总收益
+           * - 前端只需计算从API调用到现在的短期增量（秒级）
+           * 
+           * 策略：
+           * - 每次API调用后，重置 anchorTime 为当前时间
+           * - 前端增量 = (当前时间 - anchorTime) * 日利率
+           * - 显示总收益 = pendingUsdt + 前端增量
+           * 
+           * 优势：
+           * - 逻辑简单，易于维护
+           * - 完美对齐后端计算逻辑
+           * - 消除缓存过期、金额比较等复杂判断
+           */
           const STORE_KEY = `rabbit_earnings_anchor_${stats.address.toLowerCase()}`;
-          const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 分钟缓存过期时间
-          let anchorTime = Date.now();
+          const anchorTime = Date.now();
 
           try {
-            const stored = localStorage.getItem(STORE_KEY);
-            if (stored) {
-              const { baseValue, timestamp } = JSON.parse(stored);
-              const now = Date.now();
-              const cacheAge = now - timestamp;
-              
-              // 🟢 修复：检查缓存是否过期
-              if (cacheAge >= CACHE_EXPIRY_MS) {
-                // 缓存过期，使用当前时间作为新的锚定时间
-                console.log('[AssetView] 缓存已过期，重置锚定时间', { cacheAge, expiry: CACHE_EXPIRY_MS });
-                anchorTime = Date.now();
-                localStorage.setItem(STORE_KEY, JSON.stringify({
-                  baseValue: pendingUsdtValue,
-                  timestamp: anchorTime
-                }));
-              } else {
-                // 🟢 修复方案2适配：每次 API 调用后都重置锚定时间
-                // 后端返回的 pendingUsdt 已包含从 last_settlement_time 到 API 调用时的所有增量
-                // 前端只需要计算从 API 调用到现在的微小增量（几秒到几分钟）
-                // 因此，无论金额变化大小，都应该重置 anchorTime 为当前时间
-                console.log('[AssetView] API 调用完成，重置锚定时间', { 
-                  cachedValue: baseValue, 
-                  newValue: pendingUsdtValue,
-                  diff: (pendingUsdtValue - baseValue).toFixed(6),
-                  newTimestamp: Date.now()
-                });
-                
-                anchorTime = Date.now(); // 🟢 总是重置为当前时间
-                localStorage.setItem(STORE_KEY, JSON.stringify({
-                  baseValue: pendingUsdtValue,
-                  timestamp: Date.now() // 🟢 总是重置为当前时间
-                }));
-              }
-            } else {
-              // 第一次存，初始化
-              anchorTime = Date.now();
-              localStorage.setItem(STORE_KEY, JSON.stringify({
-                baseValue: pendingUsdtValue,
-                timestamp: anchorTime
-              }));
-            }
+            localStorage.setItem(STORE_KEY, JSON.stringify({
+              baseValue: pendingUsdtValue,
+              timestamp: anchorTime
+            }));
           } catch (e) {
-            console.warn('[AssetView] Failed to parse earnings anchor', e);
-            // 如果解析失败，使用当前时间
-            anchorTime = Date.now();
-            try {
-              localStorage.setItem(STORE_KEY, JSON.stringify({
-                baseValue: pendingUsdtValue,
-                timestamp: anchorTime
-              }));
-            } catch (storageError) {
-              console.warn('[AssetView] Failed to save earnings anchor', storageError);
-            }
+            console.warn('[AssetView] Failed to save earnings anchor', e);
           }
 
-          setEarningsBaseTime(anchorTime); // 使用计算出的锚定时间
-          // === 🔴 修复结束 ===
+          setEarningsBaseTime(anchorTime);
+          // === 🔴 优化结束 ===
 
           // 🟢 修复：简化初始实时收益计算
           // 直接基于后端返回的 pendingUsdt 累加增量收益
