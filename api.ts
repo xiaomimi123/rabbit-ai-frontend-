@@ -396,5 +396,63 @@ export async function getVipTiers() {
   }>('/vip/tiers');
 }
 
+// 获取能量配置（用于用户前端显示）
+export async function getPublicEnergyConfig() {
+  const CACHE_KEY = 'PUBLIC_ENERGY_CONFIG_CACHE';
+  const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
+
+  // 尝试从缓存加载
+  const cachedData = localStorage.getItem(CACHE_KEY);
+  if (cachedData) {
+    try {
+      const { timestamp, config } = JSON.parse(cachedData);
+      if (Date.now() - timestamp < CACHE_DURATION) {
+        console.log('[API] ✅ 从缓存加载能量配置');
+        return { ok: true, config };
+      }
+    } catch (e) {
+      console.warn('[API] 缓存解析失败:', e);
+    }
+  }
+
+  try {
+    // 从后端API获取能量配置
+    const response = await apiFetch<{
+      ok: boolean;
+      config: {
+        withdraw_energy_ratio: number;      // 提现能量消耗比例 (1 USDT = X Energy)
+        claim_self_reward: number;          // 用户自己领取空投获得的能量
+        claim_referrer_first: number;       // 推荐人首次邀请获得的能量
+        claim_referrer_repeat: number;      // 推荐人非首次邀请获得的能量
+      };
+    }>('/public/energy-config');
+    
+    if (response.ok) {
+      // 存储到缓存
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        timestamp: Date.now(),
+        config: response.config
+      }));
+      console.log('[API] ✅ 从API加载并缓存能量配置:', response.config);
+      return response;
+    }
+    
+    // API返回失败，使用默认值
+    throw new Error('API returned ok: false');
+  } catch (error) {
+    console.error('[API] ⚠️ 获取能量配置失败，使用默认值:', error);
+    // 返回默认配置（与后端默认值一致）
+    return {
+      ok: false,
+      config: {
+        withdraw_energy_ratio: 10,
+        claim_self_reward: 1,
+        claim_referrer_first: 3,
+        claim_referrer_repeat: 1,
+      }
+    };
+  }
+}
+
 export default api;
 

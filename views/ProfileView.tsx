@@ -6,7 +6,7 @@ import { User, Shield, Battery, Users2, Trophy, ChevronRight, Gift, Handshake, C
 import { UserStats, HistoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
-import { fetchUserInfo, fetchTeamRewards, getWithdrawHistory, getClaimsHistory, getReferralHistory } from '../api';
+import { fetchUserInfo, fetchTeamRewards, getWithdrawHistory, getClaimsHistory, getReferralHistory, getPublicEnergyConfig } from '../api';
 import { shortenAddress, disconnectWallet } from '../services/web3Service';
 import { ENERGY_PER_USDT_WITHDRAW } from '../constants';
 import ActivityHistoryView from './ActivityHistoryView';
@@ -26,6 +26,14 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
   const [timelineHistory, setTimelineHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
+  
+  // 🟢 新增：能量配置状态（动态从后端加载）
+  const [energyConfig, setEnergyConfig] = useState({
+    withdraw_energy_ratio: 10,      // 提现能量消耗比例（默认值）
+    claim_self_reward: 1,            // 用户自己领取空投获得的能量（默认值）
+    claim_referrer_first: 3,         // 推荐人首次邀请获得的能量（默认值）
+    claim_referrer_repeat: 1,        // 推荐人非首次邀请获得的能量（默认值）
+  });
 
   // ✅ 自动修复缺失数据：检查链上状态，如果链上有数据但数据库没有，自动同步
   const autoFixMissingData = async (address: string) => {
@@ -377,6 +385,29 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
       setIsLoading(false);
     }
   };
+
+  // 🟢 新增：加载能量配置（从后端动态获取）
+  useEffect(() => {
+    const loadEnergyConfig = async () => {
+      try {
+        const response = await getPublicEnergyConfig();
+        if (response.ok && response.config) {
+          setEnergyConfig(response.config);
+          console.log('[ProfileView] ✅ 已加载能量配置:', response.config);
+        } else {
+          console.warn('[ProfileView] ⚠️ 能量配置加载失败，使用默认值');
+        }
+      } catch (error) {
+        console.error('[ProfileView] ⚠️ 加载能量配置出错:', error);
+      }
+    };
+    
+    loadEnergyConfig();
+    
+    // 每5分钟刷新一次配置（与缓存时间一致）
+    const interval = setInterval(loadEnergyConfig, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []); // 只在组件挂载时执行一次
 
   // 进入页面时加载数据
   useEffect(() => {
@@ -817,7 +848,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                            <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate">{t('profile.dailyAirdropClaim') || '每日空投领取'}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                           <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+1 ⚡</span>
+                           <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+{energyConfig.claim_self_reward} ⚡</span>
                            <button
                               onClick={() => {
                                 setShowEnergyModal(false);
@@ -832,10 +863,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                      <div className="flex items-center justify-between p-3 sm:p-4 bg-white/[0.03] border border-white/5 rounded-xl sm:rounded-2xl group hover:border-[#FCD535]/30 transition-all">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                            <Users2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 flex-shrink-0" />
-                           <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate">{t('profile.inviteFriendSuccess') || '邀请好友获得2点能量值'}</span>
+                           <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate">{t('profile.inviteFriendSuccess') || `邀请好友获得${energyConfig.claim_referrer_first}点能量值`}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                           <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+2 ⚡</span>
+                           <span className="text-[10px] sm:text-xs font-black text-[#FCD535] mono flex-shrink-0">+{energyConfig.claim_referrer_first} ⚡</span>
                            <button
                               onClick={async () => {
                                 if (stats.address && stats.address.startsWith('0x')) {
@@ -883,10 +914,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
                   <div className="p-3 sm:p-4 bg-[#1e2329]/60 border border-white/10 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3">
                      <div className="flex justify-between items-center">
                         <span className="text-[10px] sm:text-[11px] font-bold text-white/90 truncate pr-2">{t('profile.usdtWithdrawRatio') || 'USDT 收益提现'}</span>
-                        <span className="text-[10px] sm:text-xs font-black text-[#848E9C] mono flex-shrink-0">{t('profile.ratio1to10') || '1:10 比例'}</span>
+                        <span className="text-[10px] sm:text-xs font-black text-[#848E9C] mono flex-shrink-0">{t('profile.ratio1to10') || `1:${energyConfig.withdraw_energy_ratio} 比例`}</span>
                      </div>
                      <p className="text-[8px] sm:text-[9px] text-[#848E9C] leading-normal font-bold uppercase tracking-tight">
-                       {t('profile.withdrawRule') || '* 每提现 1 USDT 需消耗 10 单位能量。'}
+                       {t('profile.withdrawRule') || `* 每提现 1 USDT 需消耗 ${energyConfig.withdraw_energy_ratio} 单位能量。`}
                      </p>
                   </div>
                </div>
