@@ -83,27 +83,27 @@
   }
 
   // ============================================================================
-  // 测试 3: 检查环境变量
+  // 测试 3: 检查环境配置
   // ============================================================================
   console.log('\n%c📝 测试 3: 检查环境配置', 'color: #00aaff; font-weight: bold');
   
-  const isDev = import.meta?.env?.DEV;
-  const isProd = import.meta?.env?.PROD;
-  const mode = import.meta?.env?.MODE;
+  // 检查是否在生产环境（通过URL判断）
+  const isLocalhost = window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1';
+  const isVercel = window.location.hostname.includes('vercel.app');
+  const isCustomDomain = !isLocalhost && !isVercel;
   
-  console.log('  环境模式:', mode || '未知');
-  console.log('  开发环境:', isDev);
-  console.log('  生产环境:', isProd);
+  console.log('  当前域名:', window.location.hostname);
+  console.log('  是否本地开发:', isLocalhost);
+  console.log('  是否 Vercel 部署:', isVercel);
+  console.log('  是否自定义域名:', isCustomDomain);
   
-  if (isProd) {
-    console.log('  ✅ 当前是生产环境');
-    results.passed.push('生产环境配置正确');
-  } else if (isDev) {
-    console.log('  ⚠️ 检测到开发环境（应该是生产环境）');
-    results.warnings.push('当前是开发环境');
+  if (!isLocalhost) {
+    console.log('  ✅ 当前是生产/预览环境');
+    results.passed.push('运行在生产环境');
   } else {
-    console.log('  ⚠️ 无法确定环境类型');
-    results.warnings.push('环境类型未知');
+    console.log('  ⚠️ 当前是本地开发环境');
+    results.warnings.push('当前是开发环境');
   }
 
   // ============================================================================
