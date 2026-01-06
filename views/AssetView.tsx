@@ -70,10 +70,11 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     try {
       // 🌐 直接请求最新配置（无缓存，每次都是最新数据）
       const response = await getVipTiers();
-      if (response.ok) {
+      if (response.ok && Array.isArray(response.tiers) && response.tiers.length > 0) {
         setVipTiers(response.tiers);
         console.log('[AssetView] 🔄 已刷新 VIP 配置（最新数据）:', response.tiers);
       } else {
+        console.warn('[AssetView] ⚠️ VIP 配置数据无效，使用默认值');
         // 降级：使用 constants.ts 中的硬编码值
         const { VIP_TIERS } = await import('../constants');
         setVipTiers(VIP_TIERS);
@@ -81,8 +82,13 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     } catch (error) {
       console.error('[AssetView] ⚠️ 刷新 VIP 配置失败:', error);
       // 降级：使用 constants.ts 中的硬编码值
-      const { VIP_TIERS } = await import('../constants');
-      setVipTiers(VIP_TIERS);
+      try {
+        const { VIP_TIERS } = await import('../constants');
+        setVipTiers(VIP_TIERS);
+      } catch (importError) {
+        console.error('[AssetView] ⚠️ 无法加载默认 VIP 配置:', importError);
+        // 如果连默认值都加载失败，保持当前状态不变
+      }
     } finally {
       setIsRefreshingTiers(false);
     }
@@ -93,10 +99,11 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     const loadVipTiers = async () => {
       try {
         const response = await getVipTiers(); // 每次直接请求最新数据
-        if (response.ok) {
+        if (response.ok && Array.isArray(response.tiers) && response.tiers.length > 0) {
           setVipTiers(response.tiers);
           console.log('[AssetView] ✅ 已加载 VIP 配置:', response.tiers);
         } else {
+          console.warn('[AssetView] ⚠️ VIP 配置数据无效，使用默认值');
           // 降级：使用 constants.ts 中的硬编码值
           const { VIP_TIERS } = await import('../constants');
           setVipTiers(VIP_TIERS);
@@ -104,8 +111,13 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       } catch (error) {
         console.error('[AssetView] ⚠️ 加载 VIP 配置失败，使用默认值:', error);
         // 降级：使用 constants.ts 中的硬编码值
-        const { VIP_TIERS } = await import('../constants');
-        setVipTiers(VIP_TIERS);
+        try {
+          const { VIP_TIERS } = await import('../constants');
+          setVipTiers(VIP_TIERS);
+        } catch (importError) {
+          console.error('[AssetView] ⚠️ 无法加载默认 VIP 配置:', importError);
+          // 如果连默认值都加载失败，保持 null 状态（tiersToDisplay 会使用 VIP_TIERS）
+        }
       }
     };
 
@@ -137,8 +149,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // 🟢 使用动态配置或降级到硬编码
-  const tiersToDisplay = vipTiers || VIP_TIERS;
+  // 🟢 使用动态配置或降级到硬编码（确保始终有值）
+  const tiersToDisplay = (vipTiers && vipTiers.length > 0) ? vipTiers : VIP_TIERS;
 
   // 加载持币余额和收益信息
   useEffect(() => {
@@ -714,10 +726,16 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
         onClick={async (e) => {
           e.preventDefault();
           e.stopPropagation();
-          // 🔄 点击时刷新 VIP 配置（获取最新利率）
-          await refreshVipTiers();
-          // 然后打开模态框
-          setShowTierModal(true);
+          try {
+            // 🔄 点击时刷新 VIP 配置（获取最新利率）
+            await refreshVipTiers();
+          } catch (error) {
+            console.error('[AssetView] 刷新 VIP 配置时出错:', error);
+            // 即使刷新失败，也打开模态框（使用已有数据或默认值）
+          } finally {
+            // 无论成功或失败，都打开模态框
+            setShowTierModal(true);
+          }
         }}
         disabled={isRefreshingTiers}
         className="w-full text-left bg-gradient-to-br from-[#1e2329]/60 to-[#0b0e11] border border-white/5 rounded-[2.5rem] overflow-hidden active:scale-[0.98] transition-all hover:border-[#FCD535]/30 group relative cursor-pointer disabled:opacity-60 disabled:cursor-wait"
@@ -925,7 +943,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             
             {/* Tiers List Section */}
             <div className="px-2 sm:px-5 space-y-1.5 sm:space-y-2.5 overflow-y-auto flex-1 pb-2 sm:pb-4 no-scrollbar">
-              {tiersToDisplay.map((tier) => {
+              {Array.isArray(tiersToDisplay) && tiersToDisplay.length > 0 ? tiersToDisplay.map((tier) => {
                 const isActive = currentTier?.level === tier.level;
                 const isReached = ratBalance !== null && ratBalance >= tier.min;
                 const isNextTarget = !currentTier && tier.level === 1 || (currentTier && tier.level === currentTier.level + 1);
@@ -1084,7 +1102,11 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                   </div>
                 </div>
                 );
-              })}
+              }) : (
+                <div className="text-center py-8 text-[#848E9C] text-sm">
+                  <p>{t('asset.loadingTiers') || '加载 VIP 配置中...'}</p>
+                </div>
+              )}
             </div>
 
             {/* Footer Section */}
