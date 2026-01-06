@@ -73,12 +73,19 @@ export default defineConfig(({ mode }) => {
             },
           },
         },
-        // 生产环境移除 console 调用（保留 console.error）
-        minify: 'esbuild',
+        // 🔥 使用 Terser 进行压缩，强制删除调试日志
+        minify: 'terser',
+        terserOptions: {
+          compress: {
+            // 🟢 删除所有 console 调用（除了 console.error）
+            drop_console: true,
+            drop_debugger: true,
+            pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
+          },
+        },
       },
       esbuild: {
-        // 🔥 强制移除调试日志（无论任何环境）
-        // 在生产环境中，这些日志会被完全移除
+        // 开发环境也移除调试日志
         pure: ['console.log', 'console.info', 'console.debug', 'console.warn'],
         drop: ['debugger'],
       },
