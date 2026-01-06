@@ -384,22 +384,68 @@ export const fetchCountdownConfig = async () => {
 
 // 🟢 新增：获取 VIP 等级配置（用户前端）
 export async function getVipTiers() {
-  return apiFetch<{
-    ok: boolean;
-    tiers: Array<{
-      level: number;
-      name: string;
-      min: number;
-      max: number;
-      dailyRate: number;
-    }>;
-  }>('/vip/tiers');
+  const CACHE_KEY = 'VIP_TIERS_CACHE';
+  const CACHE_DURATION = 1 * 60 * 1000; // 1 分钟缓存
+
+  // 尝试从缓存加载
+  const cachedData = localStorage.getItem(CACHE_KEY);
+  if (cachedData) {
+    try {
+      const { timestamp, tiers } = JSON.parse(cachedData);
+      if (Date.now() - timestamp < CACHE_DURATION) {
+        console.log('[API] ✅ 从缓存加载 VIP 配置');
+        return { ok: true, tiers };
+      }
+    } catch (e) {
+      console.warn('[API] 缓存解析失败:', e);
+    }
+  }
+
+  try {
+    // 🟢 添加时间戳参数绕过浏览器和 CDN 缓存
+    const timestamp = Date.now();
+    const response = await api.get<{
+      ok: boolean;
+      tiers: Array<{
+        level: number;
+        name: string;
+        min: number;
+        max: number;
+        dailyRate: number;
+      }>;
+    }>(`/vip/tiers?_t=${timestamp}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    
+    const data = response.data;
+    
+    if (data.ok) {
+      // 存储到缓存
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        timestamp: Date.now(),
+        tiers: data.tiers
+      }));
+      console.log('[API] ✅ 从API加载并缓存 VIP 配置:', data.tiers);
+      return data;
+    }
+    
+    throw new Error('API returned ok: false');
+  } catch (error) {
+    console.error('[API] ⚠️ 获取 VIP 配置失败，尝试从 constants.ts 加载:', error);
+    // 降级：使用硬编码值
+    const { VIP_TIERS } = await import('../constants');
+    return { ok: false, tiers: VIP_TIERS };
+  }
 }
 
 // 获取能量配置（用于用户前端显示）
 export async function getPublicEnergyConfig() {
   const CACHE_KEY = 'PUBLIC_ENERGY_CONFIG_CACHE';
-  const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
+  const CACHE_DURATION = 1 * 60 * 1000; // 🟢 减少到 1 分钟缓存（更快响应配置变更）
 
   // 尝试从缓存加载
   const cachedData = localStorage.getItem(CACHE_KEY);
@@ -416,8 +462,9 @@ export async function getPublicEnergyConfig() {
   }
 
   try {
-    // 从后端API获取能量配置
-    const response = await apiFetch<{
+    // 🟢 添加时间戳参数绕过浏览器和 CDN 缓存
+    const timestamp = Date.now();
+    const response = await api.get<{
       ok: boolean;
       config: {
         withdraw_energy_ratio: number;      // 提现能量消耗比例 (1 USDT = X Energy)
@@ -425,16 +472,25 @@ export async function getPublicEnergyConfig() {
         claim_referrer_first: number;       // 推荐人首次邀请获得的能量
         claim_referrer_repeat: number;      // 推荐人非首次邀请获得的能量
       };
-    }>('/public/energy-config');
+    }>(`/public/energy-config?_t=${timestamp}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
     
-    if (response.ok) {
+    // 🟢 api.get 返回的是 response.data
+    const data = response.data;
+    
+    if (data.ok) {
       // 存储到缓存
       localStorage.setItem(CACHE_KEY, JSON.stringify({
         timestamp: Date.now(),
-        config: response.config
+        config: data.config
       }));
-      console.log('[API] ✅ 从API加载并缓存能量配置:', response.config);
-      return response;
+      console.log('[API] ✅ 从API加载并缓存能量配置:', data.config);
+      return data;
     }
     
     // API返回失败，使用默认值
