@@ -82,7 +82,7 @@ export const PROTOCOL_STATS = {
 // 使用 UTC 时间确保全球用户数据一致
 export const REWARD_GROWTH_CONFIG = {
   // 基准金额（项目启动时的初始值）
-  BASE_AMOUNT: 1254800.50,
+  BASE_AMOUNT: 1250000.01,
   // 项目启动时间（UTC 时间戳）
   // 基于 daysRunning: 158 天反推，假设从 2024-01-01 00:00:00 UTC 开始
   START_TIME_UTC: new Date('2024-01-01T00:00:00Z').getTime(),
