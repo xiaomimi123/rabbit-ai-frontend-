@@ -284,7 +284,15 @@ export const fetchRatBalance = async (address: string) => {
 
 export const fetchEarnings = async (address: string) => {
   try {
-    const { data } = await api.get(`/asset/earnings?address=${address}`);
+    // 🟢 新增：添加时间戳参数和缓存控制头，确保获取最新数据（与其他 API 保持一致）
+    const timestamp = Date.now();
+    const { data } = await api.get(`/asset/earnings?address=${address}&_t=${timestamp}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
     return data; // { pendingUsdt: string, dailyRate: number, currentTier: number, holdingDays: number }
   } catch (error: any) {
     // 404 错误表示没有数据，返回默认值

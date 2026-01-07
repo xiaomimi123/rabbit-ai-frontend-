@@ -573,13 +573,21 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   }, [ratBalance, currentTier]);
 
   // 计算预计每日收益（使用 BigInt 避免精度丢失）
+  // 🟢 优化：使用降级值，即使 ratBalance 还没从链上加载完成，也能使用 stats.ratBalance 计算
   const estimatedDailyEarnings = useMemo(() => {
-    if (!currentTier || !earnings || ratBalance === null) return null;
+    if (!currentTier || !earnings) return null;
+    
+    // 🟢 优化：如果 ratBalance 还没加载，使用 stats.ratBalance 作为降级值
+    // 这样可以确保实时收益计算能够立即启动，不需要等待链上查询完成
+    const balance = ratBalance !== null ? ratBalance : (stats.ratBalance || 0);
+    
+    // 如果降级值也是 0，返回 null（避免显示错误的收益）
+    if (balance === 0) return null;
     
     // 使用 BigNumber 进行精确计算
-    // 公式：ratBalance * RAT_PRICE_USDT * (dailyRate / 100)
+    // 公式：balance * RAT_PRICE_USDT * (dailyRate / 100)
     try {
-      const balanceWei = ethers.utils.parseEther(ratBalance.toString());
+      const balanceWei = ethers.utils.parseEther(balance.toString());
       const priceWei = ethers.utils.parseEther(RAT_PRICE_USDT.toString());
       const ratePercent = currentTier.dailyRate; // 例如：2 表示 2%
       
@@ -594,9 +602,9 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     } catch (error) {
       // 如果 BigNumber 计算失败，降级到普通计算
       console.warn('BigNumber calculation failed, using fallback:', error);
-      return ratBalance * RAT_PRICE_USDT * (currentTier.dailyRate / 100);
+      return balance * RAT_PRICE_USDT * (currentTier.dailyRate / 100);
     }
-  }, [ratBalance, currentTier, earnings]);
+  }, [ratBalance, stats.ratBalance, currentTier, earnings]);
 
   // 实时累计收益计算 - 每5秒更新一次（实现滚动效果，但不会太快）
   useEffect(() => {
