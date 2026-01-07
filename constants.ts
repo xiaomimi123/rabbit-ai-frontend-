@@ -77,3 +77,18 @@ export const PROTOCOL_STATS = {
   contractVerified: true,
   liquidityLocked: true
 };
+
+// 🟢 总奖励已支付 - 基于时间的确定性增长算法配置
+// 使用 UTC 时间确保全球用户数据一致
+export const REWARD_GROWTH_CONFIG = {
+  // 基准金额（项目启动时的初始值）
+  BASE_AMOUNT: 1254800.50,
+  // 项目启动时间（UTC 时间戳）
+  // 基于 daysRunning: 158 天反推，假设从 2024-01-01 00:00:00 UTC 开始
+  START_TIME_UTC: new Date('2024-01-01T00:00:00Z').getTime(),
+  // 每秒增长金额（USDT）
+  // 0.1 USDT/秒 = 360 USDT/小时 = 8,640 USDT/天
+  GROWTH_RATE_PER_SECOND: 0.1,
+  // 更新频率（毫秒）- 每秒更新一次，让数字更流畅
+  UPDATE_INTERVAL_MS: 1000
+};

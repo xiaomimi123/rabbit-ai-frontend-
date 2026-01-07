@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Info, X, ChevronRight, Activity, Wallet2, Lock, ShieldEllipsis, Star, Sparkles, Gem, Target, Zap, Crown, CheckCircle2, RefreshCw } from 'lucide-react';
 import { UserStats } from '../types';
-import { RAT_PRICE_USDT, VIP_TIERS, MIN_WITHDRAW_AMOUNT, PROTOCOL_STATS, CONTRACTS, ABIS } from '../constants';
+import { RAT_PRICE_USDT, VIP_TIERS, MIN_WITHDRAW_AMOUNT, PROTOCOL_STATS, CONTRACTS, ABIS, REWARD_GROWTH_CONFIG } from '../constants';
 import { fetchRatBalance, fetchEarnings, applyWithdraw, fetchUserInfo, getWithdrawHistory, getVipTiers, getPublicEnergyConfig } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
@@ -36,8 +36,8 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
   const [earningsError, setEarningsError] = useState(false);
   // 提现弹窗中的能量值（实时从API获取，响应更快）
   const [modalEnergy, setModalEnergy] = useState<number | null>(null);
-  // 总奖励动态增长值（每小时随机增加3位数字）
-  const [totalRewardGrowth, setTotalRewardGrowth] = useState(0);
+  // 🟢 总奖励当前值（基于时间的确定性算法，所有用户数据一致）
+  const [currentTotalReward, setCurrentTotalReward] = useState(REWARD_GROWTH_CONFIG.BASE_AMOUNT);
   // 提现到账庆祝弹窗
   const [newSuccessWithdrawal, setNewSuccessWithdrawal] = useState<{amount: string, id: string} | null>(null);
   // 实时累计收益相关状态
@@ -419,49 +419,28 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     };
   }, [stats.address, setStats]);
 
-  // 总奖励动态增长效果：每小时随机增加3位数字（100-999）
+  // 🟢 总奖励动态增长效果：基于时间的确定性算法
+  // 使用 UTC 时间确保全球用户数据一致，无需 localStorage 和随机数
   useEffect(() => {
-    // 初始化：从 localStorage 读取上次的增长值，如果没有则从当前时间计算
-    const getStoredGrowth = () => {
-      try {
-        const stored = localStorage.getItem('rabbit_total_reward_growth');
-        const storedTime = localStorage.getItem('rabbit_total_reward_growth_time');
-        if (stored && storedTime) {
-          const lastUpdate = parseInt(storedTime, 10);
-          const now = Date.now();
-          const hoursPassed = Math.floor((now - lastUpdate) / (1000 * 60 * 60));
-          
-          // 计算应该增长的值（每小时增加100-999）
-          let growth = parseFloat(stored);
-          for (let i = 0; i < hoursPassed; i++) {
-            growth += Math.floor(Math.random() * 900) + 100; // 100-999
-          }
-          
-          // 更新存储
-          localStorage.setItem('rabbit_total_reward_growth', growth.toString());
-          localStorage.setItem('rabbit_total_reward_growth_time', now.toString());
-          
-          return growth;
-        }
-      } catch (error) {
-        console.warn('Failed to read stored growth:', error);
-      }
-      return 0;
+    // 计算当前总奖励金额（基于 UTC 时间）
+    const calculateCurrentReward = (): number => {
+      const nowUTC = Date.now(); // Date.now() 返回 UTC 时间戳
+      const secondsPassed = (nowUTC - REWARD_GROWTH_CONFIG.START_TIME_UTC) / 1000;
+      const growth = secondsPassed * REWARD_GROWTH_CONFIG.GROWTH_RATE_PER_SECOND;
+      return REWARD_GROWTH_CONFIG.BASE_AMOUNT + growth;
     };
 
-    setTotalRewardGrowth(getStoredGrowth());
+    // 初始化
+    const initialValue = calculateCurrentReward();
+    setCurrentTotalReward(initialValue);
 
-    // 每小时更新一次
-    const growthInterval = setInterval(() => {
-      setTotalRewardGrowth(prev => {
-        const newGrowth = prev + Math.floor(Math.random() * 900) + 100; // 100-999
-        localStorage.setItem('rabbit_total_reward_growth', newGrowth.toString());
-        localStorage.setItem('rabbit_total_reward_growth_time', Date.now().toString());
-        return newGrowth;
-      });
-    }, 60 * 60 * 1000); // 1小时
+    // 定时更新（每秒更新一次，让数字更流畅）
+    const updateInterval = setInterval(() => {
+      const currentValue = calculateCurrentReward();
+      setCurrentTotalReward(currentValue);
+    }, REWARD_GROWTH_CONFIG.UPDATE_INTERVAL_MS);
 
-    return () => clearInterval(growthInterval);
+    return () => clearInterval(updateInterval);
   }, []);
 
   // 检测新的提现到账（轮询检测 Completed 状态的提现）
@@ -750,17 +729,15 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       <div className="bg-[#1e2329]/30 border border-white/5 rounded-2xl p-5 flex items-center justify-between backdrop-blur-sm">
         <div className="space-y-1">
           <p className="text-[9px] text-[#848E9C] font-black uppercase tracking-widest">{t('asset.totalRewardPaid') || 'Total Reward Paid'}</p>
-          <p className="text-lg font-black text-white mono">
-            ${(() => {
-              const totalValue = PROTOCOL_STATS.totalPaidOut + totalRewardGrowth;
-              // 如果是整数，不显示小数；否则显示两位小数
-              const formatted = totalValue % 1 === 0 
-                ? totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                : totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-              return formatted;
-            })()}
+          <div className="text-lg font-black text-white mono flex items-baseline">
+            <RollingNumber
+              value={currentTotalReward}
+              decimals={2}
+              prefix="$"
+              className="text-lg"
+            />
             <span className="text-[10px] text-[#0ECB81] ml-1">USDT</span>
-          </p>
+          </div>
         </div>
         <div className="flex flex-col items-end gap-1.5">
            <div className="flex gap-1">
