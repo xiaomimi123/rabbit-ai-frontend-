@@ -97,7 +97,18 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
         claims.forEach((claim: any) => {
           const amount = parseFloat(claim.amount || '0');
           const energy = Number(claim.energy || 1);
-          const createdAt = claim.createdAt || claim.time || new Date().toISOString();
+          
+          // 🔧 修复：验证时间有效性，防止 Invalid time value 错误
+          let createdAt = claim.createdAt || claim.time;
+          let timestamp = 0;
+          
+          if (createdAt && !isNaN(new Date(createdAt).getTime())) {
+            timestamp = new Date(createdAt).getTime();
+          } else {
+            console.warn('[ActivityHistoryView] ⚠️ 空投记录时间无效:', claim);
+            createdAt = new Date().toISOString();
+            timestamp = Date.now();
+          }
           
           timeline.push({
             type: 'airdrop',
@@ -106,7 +117,7 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
             description: `${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} RAT`,
             energy: `+${energy} ${t('profile.energy') || '能量'}`,
             time: createdAt,
-            timestamp: new Date(createdAt).getTime(),
+            timestamp,
             txHash: claim.txHash || claim.tx_hash,
             amount: amount.toLocaleString(undefined, { maximumFractionDigits: 2 }),
             currency: 'RAT',
@@ -119,9 +130,20 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
       if (Array.isArray(referrals) && referrals.length > 0) {
         referrals.forEach((ref: any) => {
           const energy = Number(ref.energy || 1);
-          const createdAt = ref.createdAt || ref.time || new Date().toISOString();
           const rewardAmount = parseFloat(ref.rewardAmount || '0');
           const isFirstClaim = ref.isFirstClaim !== false;
+          
+          // 🔧 修复：验证时间有效性，防止 Invalid time value 错误
+          let createdAt = ref.createdAt || ref.time;
+          let timestamp = 0;
+          
+          if (createdAt && !isNaN(new Date(createdAt).getTime())) {
+            timestamp = new Date(createdAt).getTime();
+          } else {
+            console.warn('[ActivityHistoryView] ⚠️ 邀请记录时间无效:', ref);
+            createdAt = new Date().toISOString();
+            timestamp = Date.now();
+          }
           
           timeline.push({
             type: 'invite',
@@ -132,7 +154,7 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
               : `${shortenAddress(ref.address || '')} ${t('profile.downstreamClaim') || '下级领取'}`,
             energy: `+${energy} ${t('profile.energy') || '能量'}`,
             time: createdAt,
-            timestamp: new Date(createdAt).getTime(),
+            timestamp,
             address: ref.address,
             amount: rewardAmount.toFixed(2),
             currency: 'RAT',
