@@ -1266,20 +1266,17 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
                     value={withdrawAmount}
                     onChange={e => {
                       const val = e.target.value;
-                      const numVal = parseFloat(val);
-                      const maxVal = earnings ? earnings.pendingUsdt : stats.pendingUsdt;
-                      // 🟢 精度控制：限制输入不超过可提现余额，不低于最低提现金额，并保留2位小数
-                      if (val === '' || (!isNaN(numVal) && numVal >= MIN_WITHDRAW_AMOUNT && numVal <= maxVal)) {
-                        // 如果输入了超过2位小数，自动截断
-                        if (val.includes('.')) {
-                          const parts = val.split('.');
-                          if (parts[1] && parts[1].length > 2) {
-                            setWithdrawAmount(parts[0] + '.' + parts[1].substring(0, 2));
-                            return;
-                          }
+                      // 🟢 修复：移除金额上下限验证，允许用户自由输入
+                      // 只在提交时验证金额是否有效
+                      // 如果输入了超过2位小数，自动截断
+                      if (val.includes('.')) {
+                        const parts = val.split('.');
+                        if (parts[1] && parts[1].length > 2) {
+                          setWithdrawAmount(parts[0] + '.' + parts[1].substring(0, 2));
+                          return;
                         }
-                        setWithdrawAmount(val);
                       }
+                      setWithdrawAmount(val);
                     }}
                     onBlur={e => {
                       // 🟢 精度控制：失焦时自动格式化为2位小数
