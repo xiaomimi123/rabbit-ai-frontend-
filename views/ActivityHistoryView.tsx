@@ -68,18 +68,26 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
       // 并行获取所有历史记录
       const [withdrawals, claims, referrals] = await Promise.all([
         getWithdrawHistory(stats.address).catch((err) => {
-          console.warn('[ActivityHistoryView] Failed to load withdraw history:', err);
+          console.error('[ActivityHistoryView] ❌ 提现历史加载失败:', err);
           return [];
         }),
         getClaimsHistory(stats.address).catch((err) => {
-          console.warn('[ActivityHistoryView] Failed to load claims history:', err);
+          console.error('[ActivityHistoryView] ❌ 空投历史加载失败:', err);
           return [];
         }),
         getReferralHistory(stats.address).catch((err) => {
-          console.warn('[ActivityHistoryView] Failed to load referral history:', err);
+          console.error('[ActivityHistoryView] ❌ 推荐历史加载失败:', err);
           return [];
         }),
       ]);
+
+      // 🔧 新增：数据加载完成日志
+      console.log('[ActivityHistoryView] 📊 原始数据加载完成:', {
+        提现记录数: withdrawals.length,
+        空投记录数: claims.length,
+        推荐记录数: referrals.length,
+        用户地址: stats.address,
+      });
 
       // 合并并格式化记录
       const timeline: any[] = [];
@@ -135,38 +143,106 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
 
       // 3. 提现记录
       if (Array.isArray(withdrawals) && withdrawals.length > 0) {
-        withdrawals.forEach((withdraw: any) => {
-          // 🟢 优先使用后端返回的实际能量消耗值（历史记录的真实值）
-          // 如果后端没有返回（旧数据），则降级使用当前配置计算
-          const amount = parseFloat(withdraw.amount || '0');
-          const energyCost = withdraw.energyCost !== null && withdraw.energyCost !== undefined
-            ? Number(withdraw.energyCost) // 使用数据库存储的实际值
-            : Math.ceil(amount * energyConfig.withdraw_energy_ratio); // 降级：使用当前配置计算
-          const createdAt = withdraw.time || withdraw.createdAt || new Date().toISOString();
-          
-          const isCompleted = withdraw.status === 'Completed' || withdraw.status === 'Approved';
-          timeline.push({
-            type: 'withdraw',
-            icon: '💸',
-            title: isCompleted 
-              ? (t('profile.withdrawSuccess') || '提现到账') 
-              : (t('profile.liquidityWithdraw') || '提取收益'),
-            description: `${amount.toFixed(2)} USDT`,
-            energy: `${energyCost} ${t('profile.energy') || '能量'}`,
-            time: createdAt,
-            timestamp: new Date(createdAt).getTime(),
-            status: withdraw.status || 'Pending',
-            id: withdraw.id,
-            amount: amount.toFixed(2),
-            currency: 'USDT',
-            energyChange: -energyCost,
-            isCompleted,
-          });
+        console.log('[ActivityHistoryView] 🔄 开始处理提现记录:', withdrawals.length, '条');
+        
+        withdrawals.forEach((withdraw: any, index: number) => {
+          try {
+            // 🟢 优先使用后端返回的实际能量消耗值（历史记录的真实值）
+            // 如果后端没有返回（旧数据），则降级使用当前配置计算
+            const amount = parseFloat(withdraw.amount || '0');
+            const energyCost = withdraw.energyCost !== null && withdraw.energyCost !== undefined
+              ? Number(withdraw.energyCost) // 使用数据库存储的实际值
+              : Math.ceil(amount * energyConfig.withdraw_energy_ratio); // 降级：使用当前配置计算
+            
+            // 🔧 增强时间处理
+            let createdAt = withdraw.time || withdraw.createdAt;
+            let timestamp = 0;
+            
+            if (createdAt && !isNaN(new Date(createdAt).getTime())) {
+              timestamp = new Date(createdAt).getTime();
+            } else {
+              console.warn('[ActivityHistoryView] ⚠️ 提现记录时间无效:', {
+                index: index + 1,
+                id: withdraw.id,
+                time: withdraw.time,
+                createdAt: withdraw.createdAt,
+              });
+              createdAt = new Date().toISOString();
+              timestamp = Date.now();
+            }
+            
+            const isCompleted = withdraw.status === 'Completed' || withdraw.status === 'Approved';
+            const isRejected = withdraw.status === 'Rejected';
+            
+            timeline.push({
+              type: 'withdraw',
+              icon: '💸',
+              title: isCompleted 
+                ? (t('profile.withdrawSuccess') || '提现到账') 
+                : (t('profile.liquidityWithdraw') || '提取收益'),
+              description: `${amount.toFixed(2)} USDT`,
+              energy: `${energyCost} ${t('profile.energy') || '能量'}`,
+              time: createdAt,
+              timestamp,
+              status: withdraw.status || 'Pending',
+              id: withdraw.id,
+              amount: amount.toFixed(2),
+              currency: 'USDT',
+              energyChange: -energyCost,
+              isCompleted,
+              isRejected,
+            });
+            
+            console.log(`[ActivityHistoryView] ✅ 提现记录 ${index + 1}:`, {
+              id: withdraw.id,
+              status: withdraw.status,
+              amount: amount.toFixed(2),
+              时间有效: !isNaN(timestamp),
+            });
+          } catch (err) {
+            console.error('[ActivityHistoryView] ❌ 提现记录处理失败:', {
+              index: index + 1,
+              withdraw,
+              error: err,
+            });
+          }
         });
+        
+        console.log('[ActivityHistoryView] ✅ 提现记录处理完成，成功添加:', 
+          timeline.filter(t => t.type === 'withdraw').length, '条');
+      } else {
+        console.log('[ActivityHistoryView] ℹ️ 无提现记录');
       }
 
       // 按时间倒序排序（最新的在前）
       timeline.sort((a, b) => b.timestamp - a.timestamp);
+
+      // 🔧 新增：数据完整性检查和日志
+      const withdrawCount = timeline.filter(t => t.type === 'withdraw').length;
+      const withdrawByStatus = {
+        Completed: timeline.filter(t => t.type === 'withdraw' && t.isCompleted).length,
+        Pending: timeline.filter(t => t.type === 'withdraw' && !t.isCompleted && !t.isRejected).length,
+        Rejected: timeline.filter(t => t.type === 'withdraw' && t.isRejected).length,
+      };
+      
+      console.log('[ActivityHistoryView] 📊 时间线数据统计:', {
+        总记录数: timeline.length,
+        空投领取: timeline.filter(t => t.type === 'airdrop').length,
+        网络奖励: timeline.filter(t => t.type === 'invite').length,
+        提现记录: withdrawCount,
+        提现状态分布: withdrawByStatus,
+        原始提现数据: withdrawals.length,
+        差异: withdrawals.length - withdrawCount,
+      });
+      
+      // ⚠️ 数据不一致警告
+      if (withdrawals.length !== withdrawCount) {
+        console.error('[ActivityHistoryView] 🚨 数据不一致！', {
+          原始提现记录数: withdrawals.length,
+          实际添加到时间线: withdrawCount,
+          丢失记录数: withdrawals.length - withdrawCount,
+        });
+      }
 
       // ✅ 优化：直接更新数据，不清空旧数据，避免闪烁
       setTimelineHistory(timeline);
