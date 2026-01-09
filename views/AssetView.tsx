@@ -463,8 +463,22 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
         // 找到最新的一个、且从未展示过的提现记录
         // 按时间倒序排列，找到第一个不在 seenIds 里的记录
         const sortedCompleted = completed.sort((a: any, b: any) => {
-          const timeA = new Date(a.time || a.created_at || 0).getTime();
-          const timeB = new Date(b.time || b.created_at || 0).getTime();
+          const timeA = (() => {
+            try {
+              const date = new Date(a.time || a.created_at || Date.now());
+              return isNaN(date.getTime()) ? Date.now() : date.getTime();
+            } catch {
+              return Date.now();
+            }
+          })();
+          const timeB = (() => {
+            try {
+              const date = new Date(b.time || b.created_at || Date.now());
+              return isNaN(date.getTime()) ? Date.now() : date.getTime();
+            } catch {
+              return Date.now();
+            }
+          })();
           return timeB - timeA;
         });
 
@@ -619,9 +633,30 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
 
     // 计算实时收益的更新函数
     const updateRealTimeEarnings = () => {
+      // 🔒 增强：验证所有输入值
+      if (!isFinite(estimatedDailyEarnings) || !isFinite(earningsBaseValue) || !isFinite(earningsBaseTime)) {
+        console.error('[AssetView] Invalid values for earnings calculation:', {
+          estimatedDailyEarnings,
+          earningsBaseValue,
+          earningsBaseTime
+        });
+        // 降级：使用基准值
+        if (isFinite(earningsBaseValue) && !isNaN(earningsBaseValue) && earningsBaseValue >= 0) {
+          setRealTimeEarnings(earningsBaseValue);
+        }
+        return;
+      }
+      
       const now = Date.now();
       const timeElapsed = (now - earningsBaseTime) / (1000 * 60); // 经过的分钟数
       const minutesPerDay = 24 * 60; // 一天有多少分钟
+      
+      // 🔒 增强：验证时间差
+      if (!isFinite(timeElapsed) || timeElapsed < 0) {
+        console.error('[AssetView] Invalid timeElapsed:', timeElapsed);
+        setRealTimeEarnings(earningsBaseValue);
+        return;
+      }
       
       // 计算增量收益：预计每日收益 * (经过的分钟数 / 一天的分钟数)
       const incrementalEarnings = estimatedDailyEarnings * (timeElapsed / minutesPerDay);
@@ -632,7 +667,19 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
       // 🟢 限制：不超过每日收益上限
       const cappedEarnings = Math.min(newRealTimeEarnings, maxDailyEarnings);
       
-      setRealTimeEarnings(cappedEarnings);
+      // 🔒 增强：最终验证
+      if (isFinite(cappedEarnings) && !isNaN(cappedEarnings) && cappedEarnings >= 0) {
+        setRealTimeEarnings(cappedEarnings);
+      } else {
+        console.error('[AssetView] Invalid cappedEarnings:', cappedEarnings, {
+          newRealTimeEarnings,
+          maxDailyEarnings,
+          earningsBaseValue,
+          estimatedDailyEarnings
+        });
+        // 降级：使用基准值
+        setRealTimeEarnings(earningsBaseValue);
+      }
     };
 
     // 立即更新一次
@@ -861,12 +908,38 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
             ) : earnings.currentTier > 0 && realTimeEarnings !== null ? (
               /* ✨ 使用滚动组件 ✨ */
               /* 🟢 修复：直接显示实时计算的收益，让数字持续跳动（提现时会验证实际可提现金额） */
-              <RollingNumber 
-                value={realTimeEarnings} 
-                decimals={6} // 6 位小数，让滚动更疯狂
-                prefix="$"
-                className="text-5xl font-black text-white font-mono tracking-tighter"
-              />
+              /* 🔒 增强：验证 realTimeEarnings 的有效性 */
+              (() => {
+                const isValid = typeof realTimeEarnings === 'number' 
+                  && isFinite(realTimeEarnings) 
+                  && !isNaN(realTimeEarnings)
+                  && realTimeEarnings >= 0;
+                
+                if (!isValid) {
+                  console.error('[AssetView] Invalid realTimeEarnings:', realTimeEarnings, {
+                    type: typeof realTimeEarnings,
+                    isFinite: isFinite(realTimeEarnings),
+                    isNaN: isNaN(realTimeEarnings),
+                    value: realTimeEarnings
+                  });
+                  // 降级：显示静态数字
+                  return (
+                    <span className="flex items-baseline">
+                      <span className="text-xl font-normal text-[#848E9C] mr-3">$</span>
+                      {earnings.pendingUsdt.toFixed(4)}
+                    </span>
+                  );
+                }
+                
+                return (
+                  <RollingNumber 
+                    value={realTimeEarnings} 
+                    decimals={6} // 6 位小数，让滚动更疯狂
+                    prefix="$"
+                    className="text-5xl font-black text-white font-mono tracking-tighter"
+                  />
+                );
+              })()
             ) : (
               /* 未达到标准时，显示静态数字 */
               <span className="flex items-baseline">

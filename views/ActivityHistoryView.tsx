@@ -306,11 +306,22 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
                       </p>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <p className="text-[9px] text-[#848E9C] font-bold flex items-center gap-1.5 uppercase">
-                          <Clock className="w-2.5 h-2.5 flex-shrink-0" /> {new Date(item.time).toLocaleDateString('zh-CN', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit'
-                          })} • {t('profile.verified') || '已验证'}
+                          <Clock className="w-2.5 h-2.5 flex-shrink-0" /> {(() => {
+                            try {
+                              const date = new Date(item.time);
+                              if (isNaN(date.getTime())) {
+                                return t('profile.timeUnknown') || '时间未知';
+                              }
+                              return date.toLocaleDateString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                              });
+                            } catch (error) {
+                              console.error('[ActivityHistoryView] Invalid time value:', item.time, error);
+                              return t('profile.timeUnknown') || '时间未知';
+                            }
+                          })()} • {t('profile.verified') || '已验证'}
                         </p>
                         {/* Energy Value */}
                         {item.type === 'airdrop' || item.type === 'invite' ? (

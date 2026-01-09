@@ -48,8 +48,24 @@ export const RollingNumber: React.FC<RollingNumberProps> = ({
   prefix = "",
   className = "" 
 }) => {
-  const safeValue = isNaN(value) ? 0 : value;
-  const formatted = safeValue.toFixed(decimals);
+  // 🔒 增强：更严格的数值验证
+  let safeValue = 0;
+  if (typeof value === 'number' && isFinite(value) && !isNaN(value)) {
+    safeValue = Math.max(0, value); // 确保非负数
+  } else {
+    // 如果值无效，记录警告并返回默认值
+    console.warn('[RollingNumber] Invalid value:', value, 'using default 0');
+    safeValue = 0;
+  }
+  
+  // 🔒 增强：限制最大显示值，避免过大数字导致显示异常
+  const MAX_DISPLAY_VALUE = 999999999.999999; // 9亿多，足够显示任何合理的收益
+  safeValue = Math.min(safeValue, MAX_DISPLAY_VALUE);
+  
+  // 🔒 增强：确保 decimals 在合理范围内
+  const safeDecimals = Math.max(0, Math.min(decimals, 10)); // 最多10位小数
+  
+  const formatted = safeValue.toFixed(safeDecimals);
   const chars = formatted.split('');
 
   return (
@@ -57,14 +73,17 @@ export const RollingNumber: React.FC<RollingNumberProps> = ({
       {prefix && <span className="mr-1 opacity-80">{prefix}</span>}
       
       {chars.map((char, index) => {
-        const isNumber = !isNaN(parseInt(char));
+        // 🔒 增强：更严格的数字验证
+        const numValue = parseInt(char, 10);
+        const isNumber = !isNaN(numValue) && numValue >= 0 && numValue <= 9;
         
         if (isNumber) {
           // key={index} 确保了 React 不会销毁重建组件，只是更新 value
           // 从而触发上面 motion.div 的 animate 动画
-          return <Digit key={index} value={parseInt(char)} />;
+          return <Digit key={index} value={numValue} />;
         }
         
+        // 非数字字符（如小数点、负号等）
         return (
           <span key={index} className="inline-block mx-[1px] leading-none">
             {char}

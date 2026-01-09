@@ -133,7 +133,18 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ notifications, se
                       {notif.title}
                     </p>
                     <div className="flex items-center gap-1 text-[9px] text-[#848E9C] font-bold mono whitespace-nowrap">
-                      {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {(() => {
+                        try {
+                          const date = new Date(notif.timestamp);
+                          if (isNaN(date.getTime())) {
+                            return '--:--';
+                          }
+                          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        } catch (error) {
+                          console.error('[NotificationsView] Invalid timestamp:', notif.timestamp, error);
+                          return '--:--';
+                        }
+                      })()}
                     </div>
                   </div>
                   <p className="text-[10px] text-[#848E9C] leading-relaxed font-medium line-clamp-2">
@@ -177,7 +188,18 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ notifications, se
                     <p className="text-[10px] text-[#FCD535] font-black uppercase tracking-[0.2em]">{getTypeName(selectedNotif.type)}</p>
                     <div className="flex items-center gap-1.5 text-[9px] text-[#848E9C] font-bold uppercase tracking-widest">
                       <Clock className="w-2.5 h-2.5" />
-                      {new Date(selectedNotif.timestamp).toLocaleString()}
+                      {(() => {
+                        try {
+                          const date = new Date(selectedNotif.timestamp);
+                          if (isNaN(date.getTime())) {
+                            return t('profile.timeUnknown') || '时间未知';
+                          }
+                          return date.toLocaleString();
+                        } catch (error) {
+                          console.error('[NotificationsView] Invalid timestamp:', selectedNotif.timestamp, error);
+                          return t('profile.timeUnknown') || '时间未知';
+                        }
+                      })()}
                     </div>
                   </div>
                 </div>
