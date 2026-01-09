@@ -384,7 +384,10 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
                         <p className="text-[9px] text-[#848E9C] font-bold flex items-center gap-1.5 uppercase">
                           <Clock className="w-2.5 h-2.5 flex-shrink-0" /> {(() => {
                             try {
-                              const date = new Date(item.time);
+                              // 🔧 修复：使用 createdAt（ISO格式）而不是 time，自动转换为本地时区
+                              // createdAt: "2026-01-09T18:50:41.905871+00" → 北京时间 2026-01-10 02:50:41
+                              // time: "2026-01-09 18:50:41" → 会被误解析为本地时间 2026-01-09
+                              const date = new Date(item.createdAt || item.time);
                               if (isNaN(date.getTime())) {
                                 return t('profile.timeUnknown') || '时间未知';
                               }
@@ -394,7 +397,7 @@ const ActivityHistoryView: React.FC<ActivityHistoryViewProps> = ({ stats, onBack
                                 day: '2-digit'
                               });
                             } catch (error) {
-                              console.error('[ActivityHistoryView] Invalid time value:', item.time, error);
+                              console.error('[ActivityHistoryView] Invalid time value:', item.createdAt || item.time, error);
                               return t('profile.timeUnknown') || '时间未知';
                             }
                           })()} • {t('profile.verified') || '已验证'}
