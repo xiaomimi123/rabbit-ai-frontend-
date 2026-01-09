@@ -461,12 +461,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
     return () => window.removeEventListener('refreshEnergy', handleRefresh);
   }, [stats.address]);
 
-  // 自动轮询：每120秒刷新一次数据（降低请求频率，避免 RPC 速率限制）
+  // 自动轮询：每30秒刷新一次数据（优化能量值更新体验，推荐人能更快看到管道收益）
   useEffect(() => {
     if (!stats.address || !stats.address.startsWith('0x')) return;
     
     let retryCount = 0;
-    let currentInterval = 120000; // 初始 120 秒
+    let currentInterval = 30000; // 初始 30 秒
     
     const scheduleRefresh = () => {
       const timeoutId = setTimeout(async () => {
@@ -475,7 +475,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats }) => {
           await loadExtraData();
           // 成功时重置
           retryCount = 0;
-          currentInterval = 120000;
+          currentInterval = 30000;
         } catch (error: any) {
           retryCount++;
           const status = error?.response?.status;

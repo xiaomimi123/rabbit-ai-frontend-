@@ -380,7 +380,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
     loadEarningsData();
     
     let retryCount = 0;
-    let currentInterval = 120000; // 初始 120 秒
+    let currentInterval = 30000; // 初始 30 秒（优化能量值更新体验）
     
     const scheduleRefresh = () => {
       const timeoutId = setTimeout(async () => {
@@ -388,7 +388,7 @@ const AssetView: React.FC<AssetViewProps> = ({ stats, setStats }) => {
           await loadEarningsData();
           // 成功时重置
           retryCount = 0;
-          currentInterval = 120000;
+          currentInterval = 30000;
         } catch (error: any) {
           retryCount++;
           const status = error?.response?.status;
