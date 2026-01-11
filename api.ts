@@ -194,15 +194,26 @@ export const verifyClaim = async (address: string, txHash: string, referrer: str
   // 构建请求 payload
   const payload = { address, txHash, referrer: validReferrer };
   
-  try {
-    logger.debug('[verifyClaim] 调用后端 API');
-    const { data } = await api.post('/mining/verify-claim', payload);
-    logger.debug('[verifyClaim] API 调用成功');
-    return data;
-  } catch (error: any) {
-    logger.error('[verifyClaim] API 调用失败', error);
-    throw error;
-  }
+  // 🔥 P0 级优化：使用关键操作重试策略（20 次重试，120 秒总时长）
+  const { createCriticalApiRetry } = await import('./utils/apiRetry');
+  
+  return createCriticalApiRetry(
+    async () => {
+      try {
+        logger.debug('[verifyClaim] 调用后端 API');
+        const { data } = await api.post('/mining/verify-claim', payload);
+        logger.debug('[verifyClaim] API 调用成功');
+        return data;
+      } catch (error: any) {
+        logger.error('[verifyClaim] API 调用失败', error);
+        throw error;
+      }
+    },
+    (attempt, total, delay) => {
+      // 进度回调：让用户知道正在重试
+      logger.info(`[verifyClaim] 验证失败，正在重试 ${attempt}/${total}，${Math.floor(delay / 1000)}秒后重试...`);
+    }
+  );
 };
 
 export const applyWithdraw = async (address: string, amount: string) => {
