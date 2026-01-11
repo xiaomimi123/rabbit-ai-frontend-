@@ -547,9 +547,9 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
                 return;
               }
             } else if (switchErr.message?.includes('not supported') || switchErr.message?.includes('不支持')) {
-              showError('您的钱包不支持自动切换网络，请手动切换到 BNB Smart Chain 主网 (Chain ID: 56)');
+              showError(t('common.walletNotSupport') || 'Your wallet doesn\'t support automatic network switching, please manually switch to BNB Smart Chain Mainnet (Chain ID: 56)');
             } else {
-              showError(`网络切换失败，请手动切换到 BNB Smart Chain 主网 (Chain ID: ${CHAIN_ID})`);
+              showError(t('common.networkSwitchFailed')?.replace('{chainId}', CHAIN_ID.toString()) || `Network switch failed, please manually switch to BNB Smart Chain Mainnet (Chain ID: ${CHAIN_ID})`);
             }
             setClaiming(false);
             return;
@@ -558,9 +558,9 @@ const MiningView: React.FC<MiningViewProps> = ({ stats, setStats }) => {
       } catch (networkError: any) {
         console.error('[handleClaim] 网络检测错误:', networkError);
         if (networkError.code === 'NETWORK_ERROR' || networkError.message?.includes('network changed')) {
-          showError(`检测到网络不匹配，请切换到 BNB Smart Chain 主网 (Chain ID: ${CHAIN_ID})`);
+          showError(t('common.networkMismatch')?.replace('{chainId}', CHAIN_ID.toString()) || `Network mismatch detected, please switch to BNB Smart Chain Mainnet (Chain ID: ${CHAIN_ID})`);
         } else {
-          showError('网络检测失败，请确保已连接到 BNB Smart Chain 主网');
+          showError(t('common.networkCheckFailed') || 'Network check failed, please ensure you\'re connected to BNB Smart Chain Mainnet');
         }
         setClaiming(false);
         return;
